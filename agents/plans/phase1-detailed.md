@@ -102,7 +102,14 @@ func (c *Converter) Convert(input []byte) (string, error)
 
 **Internal Conversion Methods**:
 - `convertNode(node Node) (string, error)` - Main dispatcher, handles all node types
-- `convertMark(mark Mark) (string, string)` - Returns prefix and suffix for marks
+- `convertParagraphContent(content []Node) (string, error)` - Processes paragraph content with mark state tracking
+- `convertMark(mark Mark, useUnderscoreForEm bool) (string, string)` - Returns opening and closing delimiters for marks
+
+**Mark Continuity Implementation**:
+- Tracks active marks across adjacent text nodes within a paragraph
+- Only emits delimiters when mark state changes (opens/closes marks)
+- Preserves JSON array order for mark nesting (first = outermost)
+- Detects when both `strong` and `em` are present to use underscore for `em`
 
 **Node Type Handlers** (Phase 1):
 - `doc` - Process content, concatenate results
@@ -115,11 +122,13 @@ func (c *Converter) Convert(input []byte) (string, error)
 - `strike` -> `~~text~~`
 - `code` -> `` `text` ``
 - Mixed marks use different delimiters (e.g., `strong` + `em` -> `**_text_**`)
-- Nested marks are fully supported
+- Mark order follows JSON array order (first in array = outermost)
+- Nested marks across text nodes are fully supported with proper continuity
 
 **Paragraph Trailing Newlines**:
-- Standard paragraphs: Two trailing newlines (`\n\n`)
-- Last paragraph in document: Can have fewer trailing newlines (one or none)
+- Each paragraph outputs `\n\n` after its content
+- Document post-processing trims trailing newlines and adds exactly one `\n`
+- Result: Documents end with a single newline, paragraphs are separated by blank lines
 
 **Unknown Node Handling**:
 - If `Strict: true` -> return error
@@ -135,8 +144,10 @@ func (c *Converter) Convert(input []byte) (string, error)
 - Respects Strict config for unknown nodes
 - All node types return string output
 - Mixed marks use alternating delimiters (`**_text_**`)
-- Nested marks work correctly
-- Last paragraph has appropriate trailing newlines
+- Nested marks work correctly across adjacent text nodes with proper continuity
+- Mark order follows JSON array order (first = outermost)
+- Documents end with exactly one newline
+- Empty paragraphs produce blank lines
 
 ---
 
@@ -392,20 +403,20 @@ Recommended implementation order to minimize blockers:
 
 The phase is complete when:
 
-- [ ] `make test` passes all tests
-- [ ] `make lint` passes without errors
-- [ ] `make build` creates working binary
-- [ ] All testdata files exist and are correct
-- [ ] CLI tool can be built and converts JSON to markdown
-- [ ] All Phase 1 node types are supported
-- [ ] All Phase 1 marks are supported
-- [ ] Mixed marks use alternating delimiters (`**_text_**`)
-- [ ] Nested marks are fully supported
-- [ ] Last paragraph has appropriate trailing newlines
-- [ ] Unknown nodes output `[Unknown node: {type}]` inline in non-strict mode
-- [ ] Strict mode and AllowHTML flags work (AllowHTML deferred to Phase 2)
-- [ ] Test harness supports subdirectories in testdata/
-- [ ] Documentation exists (README with basic usage)
+- [x] `make test` passes all tests
+- [x] `make lint` passes without errors
+- [x] `make build` creates working binary
+- [x] All testdata files exist and are correct
+- [x] CLI tool can be built and converts JSON to markdown
+- [x] All Phase 1 node types are supported
+- [x] All Phase 1 marks are supported
+- [x] Mixed marks use alternating delimiters (`**_text_**`)
+- [x] Nested marks are fully supported
+- [x] Last paragraph has appropriate trailing newlines
+- [x] Unknown nodes output `[Unknown node: {type}]` inline in non-strict mode
+- [x] Strict mode and AllowHTML flags work (AllowHTML deferred to Phase 2)
+- [x] Test harness supports subdirectories in testdata/
+- [x] Documentation exists (README with basic usage)
 
 ---
 
