@@ -12,12 +12,13 @@ This phase implements ADF's table structure, panel nodes, and decision lists. Ta
 5. Full preservation of block-level content in table cells (lists, code blocks, panels, etc.)
 6. Comprehensive test coverage for all node combinations
 7. Empty node handling (ignore empty panels/tables per Core Principle #5)
+8. Bug fixes: Escape pipe characters in table cells and preserve nested list indentation
 
 ---
 
 ## Step-by-Step Implementation Plan
 
-### Task 1: Create Phase 4 Test Data
+### Task 1: Create Phase 4 Test Data (Completed)
 **Goal**: Create Golden Files for Phase 4 features before implementation (TDD).
 
 **Directories**: 
@@ -188,10 +189,10 @@ This phase implements ADF's table structure, panel nodes, and decision lists. Ta
 
 ---
 
-### Task 2: Implement Table Conversion
+### Task 2: Implement Table Conversion (Completed)
 **Goal**: Convert ADF table nodes to GFM tables.
 
-**File**: `converter/converter.go`
+**File**: `converter/tables.go` (created)
 
 **Implementation Details**:
 
@@ -221,10 +222,10 @@ This phase implements ADF's table structure, panel nodes, and decision lists. Ta
 
 ---
 
-### Task 3: Implement Panel Conversion
+### Task 3: Implement Panel Conversion (Completed)
 **Goal**: Convert ADF panel nodes to blockquotes with type prefixes.
 
-**File**: `converter/converter.go`
+**File**: `converter/blocks.go`
 
 **Implementation Details**:
 
@@ -248,10 +249,10 @@ This phase implements ADF's table structure, panel nodes, and decision lists. Ta
 
 ---
 
-### Task 4: Implement Decision List Conversion
+### Task 4: Implement Decision List Conversion (Completed)
 **Goal**: Convert decision lists and items to a single continuous blockquote.
 
-**File**: `converter/converter.go`
+**File**: `converter/blocks.go`
 
 **Implementation Details**:
 
@@ -274,7 +275,7 @@ This phase implements ADF's table structure, panel nodes, and decision lists. Ta
 
 ---
 
-### Task 5: Update Node Dispatcher
+### Task 5: Update Node Dispatcher (Completed)
 **Goal**: Register new node types in `convertNode` switch.
 
 **File**: `converter/converter.go`
@@ -288,16 +289,16 @@ Add cases for: `table`, `tableRow`, `tableHeader`, `tableCell`, `panel`, `decisi
 
 ---
 
-### Task 6: Handle Complex Table Cell Content
+### Task 6: Handle Complex Table Cell Content (Completed)
 **Goal**: Properly preserve block-level content inside table cells.
 
-**File**: `converter/converter.go`
+**File**: `converter/tables.go`
 
 **Implementation**:
 - Create `convertCellContent()` method that preserves full block structure
 - Paragraphs: Join with `<br>` separator within cell
 - Lists: Preserve as full multi-line lists (bullet/ordered/task lists)
-- Code blocks: Preserve with backticks
+- Code blocks: Preserve with backticks (or `<pre><code>` if `AllowHTML` is true)
 - Panels: Preserve as blockquotes
 - Blockquotes: Preserve as nested blockquotes
 - Decisions: Preserve with state indicators
@@ -313,7 +314,7 @@ Add cases for: `table`, `tableRow`, `tableHeader`, `tableCell`, `panel`, `decisi
 
 ---
 
-### Task 7: Final Verification
+### Task 7: Final Verification (Completed)
 **Goal**: Ensure all tests pass and no regressions.
 
 **Steps**:
@@ -330,28 +331,60 @@ Add cases for: `table`, `tableRow`, `tableHeader`, `tableCell`, `panel`, `decisi
 
 ---
 
+### Task 8: Table Fixes (Completed)
+**Goal**: Fix issues with pipe characters and list indentation in tables.
+
+**File**: `converter/tables.go`
+
+**Implementation**:
+- Escape `|` as `\|` in `convertCellContent`.
+- Replace `strings.TrimSpace` with `strings.TrimRight` in list processing within cells.
+
+**Bug Fixes Applied** (Post-Implementation Code Review):
+
+1. **Fixed: Nested list indentation lost in table cells** (`tables.go:148`)
+   - **Issue**: `TrimRight(line, " \t\r\n")` removed all trailing whitespace including horizontal indentation, destroying nested list structure when `AllowHTML=false`.
+   - **Fix**: Changed to `TrimRight(line, "\n")` to preserve horizontal whitespace (indentation) while removing newlines.
+   - **Impact**: Nested list items in table cells now correctly retain their indentation in both HTML and non-HTML modes.
+
+2. **Documented: Dead `isHeader` parameter** (`tables.go:112-115`)
+   - **Issue**: `convertTableCell` accepted `isHeader bool` parameter but never used it.
+   - **Fix**: Added documentation explaining why the parameter exists (API consistency, future extensibility) and noting that GFM tables don't require different header/data cell processing.
+
+3. **Documented: Pipe escaping constraints** (`tables.go:236`)
+   - **Issue**: Potential for double-escaping if child converters pre-escaped pipes.
+   - **Fix**: Added comment warning that child converters must NOT pre-escape pipes.
+
+**Acceptance Criteria**:
+- Pipe characters in cells do not break table structure.
+- Nested lists in cells retain their indentation.
+- All regression tests pass.
+
+---
+
 ## Success Criteria for Phase 4
 
-- [ ] All table nodes implemented (`table`, `tableRow`, `tableHeader`, `tableCell`)
-- [ ] Tables distinguish headers from data cells
-- [ ] Tables with no headers get empty header row with correct column count
-- [ ] Table cells support full nested block content
-- [ ] Multi-paragraph cells use `<br>`
-- [ ] Lists in cells preserved as full multi-line lists
-- [ ] Code blocks and other block content preserved in cells
-- [ ] Empty tables output empty string
-- [ ] All panel nodes implemented with type prefixes
-- [ ] All five panel types supported
-- [ ] Panels support nested content
-- [ ] Empty panels output empty string
-- [ ] Decision lists and items implemented
-- [ ] State indicators (✓, ?) correctly applied
-- [ ] Decision items rendered in single continuous blockquote
-- [ ] Empty decision lists output empty string
-- [ ] All 20+ test cases pass
-- [ ] `make test` passes
-- [ ] `make lint` passes
-- [ ] No regressions in Phase 1-3
+- [x] All table nodes implemented (`table`, `tableRow`, `tableHeader`, `tableCell`)
+- [x] Tables distinguish headers from data cells
+- [x] Tables with no headers get empty header row with correct column count
+- [x] Table cells support full nested block content
+- [x] Multi-paragraph cells use `<br>` (HTML mode) or space (Default mode)
+- [x] Lists in cells preserved as full multi-line lists with correct indentation (HTML mode)
+- [x] Code blocks and other block content preserved in cells
+- [x] Pipe characters in cells are escaped (`\|`)
+- [x] Empty tables output empty string
+- [x] All panel nodes implemented with type prefixes
+- [x] All five panel types supported
+- [x] Panels support nested content
+- [x] Empty panels output empty string
+- [x] Decision lists and items implemented
+- [x] State indicators (✓, ?) correctly applied
+- [x] Decision items rendered in single continuous blockquote
+- [x] Empty decision lists output empty string
+- [x] All 20+ test cases pass
+- [x] `make test` passes
+- [x] `make lint` passes
+- [x] No regressions in Phase 1-3
 
 ---
 

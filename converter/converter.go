@@ -75,6 +75,28 @@ func (c *Converter) convertNode(node Node) (string, error) {
 	case "text":
 		return c.convertText(node)
 
+	case "table":
+		return c.convertTable(node)
+
+	case "tableRow":
+		// Table rows are processed within convertTable, not standalone
+		return "", nil
+
+	case "tableHeader":
+		return c.convertTableCell(node, true)
+
+	case "tableCell":
+		return c.convertTableCell(node, false)
+
+	case "panel":
+		return c.convertPanel(node)
+
+	case "decisionList":
+		return c.convertDecisionList(node)
+
+	case "decisionItem":
+		return c.convertDecisionItem(node)
+
 	default:
 		if c.config.Strict {
 			return "", fmt.Errorf("unknown node type: %s", node.Type)
