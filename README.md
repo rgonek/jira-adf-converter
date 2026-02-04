@@ -4,6 +4,8 @@ A Go library to convert Jira [Atlassian Document Format (ADF)](https://developer
 
 The primary goal is to generate markdown that is easily readable by AI agents and humans alike, preserving text content while gracefully handling unsupported formatting.
 
+**Note**: This converter follows the [GitHub Flavored Markdown (GFM) specification](https://github.github.com/gfm/) as closely as possible. Where GFM lacks native support for certain ADF features (e.g., subscript/superscript, underline, panels), we provide fallback representations that prioritize readability and semantic preservation.
+
 ## Features
 
 *   **Granular Support**: Incremental support for ADF nodes.
