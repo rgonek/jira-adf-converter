@@ -16,7 +16,7 @@ This phase focuses on implementing list structures (bullet, ordered, task) and c
 
 ## Step-by-Step Implementation Plan
 
-### Task 1: Create Phase 3 Test Data
+### Task 1: Create Phase 3 Test Data (Done)
 **Goal**: Create Golden Files for Phase 3 features before implementation (TDD).
 
 **Directories**: 
@@ -76,7 +76,7 @@ Task lists in ADF have a specific structure with `taskList` as container and `ta
 }
 ```
 
-### Task 2: Implement Helper Functions
+### Task 2: Implement Helper Functions (Done)
 **Goal**: Add necessary utility methods for handling indentation.
 
 **File**: `converter/converter.go`
@@ -96,7 +96,7 @@ Task lists in ADF have a specific structure with `taskList` as container and `ta
 *   Helper function exists and correctly handles multiline strings.
 *   All nested content (paragraphs, code blocks, sub-lists) receives uniform indentation based on parent marker width.
 
-### Task 3: Implement Code Blocks
+### Task 3: Implement Code Blocks (Done)
 **Goal**: Add handler for `codeBlock`.
 
 **File**: `converter/converter.go`
@@ -112,7 +112,7 @@ Task lists in ADF have a specific structure with `taskList` as container and `ta
 *   Code block tests pass.
 *   Language attribute is respected.
 
-### Task 4: Implement Lists
+### Task 4: Implement Lists (Done)
 **Goal**: Add handlers for all list types and items.
 
 **File**: `converter/converter.go`
@@ -120,25 +120,29 @@ Task lists in ADF have a specific structure with `taskList` as container and `ta
 **Implementation Details**:
 *   **`bulletList`**:
     *   Iterate over `content`.
+    *   Validate `listItem` child type in `Strict` mode.
     *   Apply marker `- ` using indentation logic.
     *   *Note*: `-` chosen over `*` for consistency with task lists.
 *   **`orderedList`**:
     *   Iterate over `content`.
+    *   Validate `listItem` child type in `Strict` mode.
     *   Determine starting index from `order` attribute (default 1).
     *   Apply marker `N. ` (incrementing) using indentation logic.
 *   **`taskList`**:
+    *   Validate `taskItem` child type in `Strict` mode.
     *   Treat similar to bullet list but delegates to `taskItem`.
 *   **`taskItem`**:
     *   Check `state` attribute (`TODO` vs `DONE`).
+    *   Convert inline content directly (avoiding paragraph spacing).
     *   Return content prefixed with `- [ ] ` or `- [x] `.
 *   **`listItem`**:
-    *   Convert children and join with newlines (no blank line separators between children).
+    *   Convert children and join with blank lines (`\n\n`) to preserve paragraph separation within the list item.
 
 **Acceptance Criteria**:
 *   All list tests pass (bullet, ordered, task, mixed).
 *   Nesting works correctly with proper indentation.
 
-### Task 5: Final Verification
+### Task 5: Final Verification (Done)
 **Goal**: Ensure all tests pass and no regressions exist.
 
 **Steps**:
@@ -154,15 +158,15 @@ Task lists in ADF have a specific structure with `taskList` as container and `ta
 
 ## Success Criteria for Phase 3
 The phase is complete when:
-- [ ] `codeBlock` converts correctly with language support.
-- [ ] `codeBlock` with empty/whitespace content produces empty string.
-- [ ] `bulletList` uses `- ` marker and handles nesting.
-- [ ] `orderedList` uses incrementing numbers (`1.`, `2.`, etc.).
-- [ ] `taskList` renders checkbox syntax (`- [ ]`, `- [x]`).
-- [ ] Multiline content within list items is properly indented.
-- [ ] Mixed and complex nested structures render valid GFM (including progressive test cases from simple to complex).
-- [ ] All new tests pass.
-- [ ] No regressions in Phase 1 & 2 features.
+- [x] `codeBlock` converts correctly with language support.
+- [x] `codeBlock` with empty/whitespace content produces empty string.
+- [x] `bulletList` uses `- ` marker and handles nesting.
+- [x] `orderedList` uses incrementing numbers (`1.`, `2.`, etc.).
+- [x] `taskList` renders checkbox syntax (`- [ ]`, `- [x]`).
+- [x] Multiline content within list items is properly indented.
+- [x] Mixed and complex nested structures render valid GFM (including progressive test cases from simple to complex).
+- [x] All new tests pass.
+- [x] No regressions in Phase 1 & 2 features.
 
 ---
 
