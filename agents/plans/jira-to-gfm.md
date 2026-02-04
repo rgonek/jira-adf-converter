@@ -3,6 +3,8 @@
 ## Goal
 Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Flavored Markdown (GFM), optimized for AI agent readability.
 
+**Note**: This converter follows the [GitHub Flavored Markdown (GFM) specification](https://github.github.com/gfm/) as closely as possible. Where GFM lacks native support for certain ADF features (e.g., subscript/superscript, underline, panels), we provide fallback representations that prioritize readability and semantic preservation.
+
 ## Core Principles
 1.  **Granularity**: Start with simple text, add complex nodes layer by layer.
 2.  **Automated Testing**: Use data-driven tests (Golden Files) from the start.
@@ -13,6 +15,8 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
     *   **Flag (`Strict`)**:
         *   **Default (false)**: Render a placeholder (e.g., `[Unknown node: type]`) for unimplemented nodes.
         *   **True**: Return an error if an unknown node is encountered.
+5.  **Ignore Empty Blocks**: Structural nodes (headings, blockquotes, paragraphs, panels) that contain no text or only whitespace should be ignored and output an empty string. This maintains a clean, readable document for AI agents and avoids noise.
+
 
 ## Development Phases
 

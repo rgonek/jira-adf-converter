@@ -187,154 +187,50 @@ func TestUnderlineStrictMode(t *testing.T) {
 
 // Unit tests for helper methods
 
-func TestGetSortedMarkTypes(t *testing.T) {
-	conv := New(Config{})
-
-	tests := []struct {
-		name     string
-		marks    []Mark
-		expected []string
-	}{
-		{
-			name:     "empty marks",
-			marks:    []Mark{},
-			expected: nil,
-		},
-		{
-			name:     "single mark",
-			marks:    []Mark{{Type: "strong"}},
-			expected: []string{"strong"},
-		},
-		{
-			name:     "multiple marks",
-			marks:    []Mark{{Type: "strong"}, {Type: "em"}, {Type: "code"}},
-			expected: []string{"strong", "em", "code"},
-		},
-		{
-			name:     "preserves order",
-			marks:    []Mark{{Type: "em"}, {Type: "strong"}},
-			expected: []string{"em", "strong"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := conv.getSortedMarkTypes(tt.marks)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestHasStrongAndEm(t *testing.T) {
-	conv := New(Config{})
-
-	tests := []struct {
-		name     string
-		content  []Node
-		expected bool
-	}{
-		{
-			name:     "no marks",
-			content:  []Node{{Type: "text", Text: "hello"}},
-			expected: false,
-		},
-		{
-			name: "only strong",
-			content: []Node{{
-				Type:  "text",
-				Text:  "hello",
-				Marks: []Mark{{Type: "strong"}},
-			}},
-			expected: false,
-		},
-		{
-			name: "only em",
-			content: []Node{{
-				Type:  "text",
-				Text:  "hello",
-				Marks: []Mark{{Type: "em"}},
-			}},
-			expected: false,
-		},
-		{
-			name: "both strong and em",
-			content: []Node{{
-				Type:  "text",
-				Text:  "hello",
-				Marks: []Mark{{Type: "strong"}, {Type: "em"}},
-			}},
-			expected: true,
-		},
-		{
-			name: "strong and em in different nodes",
-			content: []Node{
-				{Type: "text", Text: "bold", Marks: []Mark{{Type: "strong"}}},
-				{Type: "text", Text: "italic", Marks: []Mark{{Type: "em"}}},
-			},
-			expected: false,
-		},
-		{
-			name: "non-text node",
-			content: []Node{
-				{Type: "hardBreak"},
-				{Type: "text", Text: "hello", Marks: []Mark{{Type: "strong"}, {Type: "em"}}},
-			},
-			expected: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := conv.hasStrongAndEm(tt.content)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
 func TestGetMarksToClose(t *testing.T) {
 	conv := New(Config{})
 
 	tests := []struct {
 		name         string
-		activeMarks  []string
-		currentMarks []string
-		expected     []string
+		activeMarks  []Mark
+		currentMarks []Mark
+		expected     []Mark
 	}{
 		{
 			name:         "no active marks",
-			activeMarks:  []string{},
-			currentMarks: []string{"strong"},
+			activeMarks:  []Mark{},
+			currentMarks: []Mark{{Type: "strong"}},
 			expected:     nil,
 		},
 		{
 			name:         "same marks",
-			activeMarks:  []string{"strong", "em"},
-			currentMarks: []string{"strong", "em"},
+			activeMarks:  []Mark{{Type: "strong"}, {Type: "em"}},
+			currentMarks: []Mark{{Type: "strong"}, {Type: "em"}},
 			expected:     nil,
 		},
 		{
 			name:         "close all marks",
-			activeMarks:  []string{"strong", "em"},
-			currentMarks: []string{},
-			expected:     []string{"strong", "em"},
+			activeMarks:  []Mark{{Type: "strong"}, {Type: "em"}},
+			currentMarks: []Mark{},
+			expected:     []Mark{{Type: "strong"}, {Type: "em"}},
 		},
 		{
 			name:         "close one mark",
-			activeMarks:  []string{"strong", "em"},
-			currentMarks: []string{"strong"},
-			expected:     []string{"em"},
+			activeMarks:  []Mark{{Type: "strong"}, {Type: "em"}},
+			currentMarks: []Mark{{Type: "strong"}},
+			expected:     []Mark{{Type: "em"}},
 		},
 		{
 			name:         "different mark at same position",
-			activeMarks:  []string{"strong"},
-			currentMarks: []string{"em"},
-			expected:     []string{"strong"},
+			activeMarks:  []Mark{{Type: "strong"}},
+			currentMarks: []Mark{{Type: "em"}},
+			expected:     []Mark{{Type: "strong"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := conv.getMarksToClose(tt.activeMarks, tt.currentMarks)
+			result := conv.getMarksToCloseFull(tt.activeMarks, tt.currentMarks)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -345,45 +241,45 @@ func TestGetMarksToOpen(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		activeMarks  []string
-		currentMarks []string
-		expected     []string
+		activeMarks  []Mark
+		currentMarks []Mark
+		expected     []Mark
 	}{
 		{
 			name:         "no current marks",
-			activeMarks:  []string{"strong"},
-			currentMarks: []string{},
+			activeMarks:  []Mark{{Type: "strong"}},
+			currentMarks: []Mark{},
 			expected:     nil,
 		},
 		{
 			name:         "same marks",
-			activeMarks:  []string{"strong", "em"},
-			currentMarks: []string{"strong", "em"},
+			activeMarks:  []Mark{{Type: "strong"}, {Type: "em"}},
+			currentMarks: []Mark{{Type: "strong"}, {Type: "em"}},
 			expected:     nil,
 		},
 		{
 			name:         "open all marks",
-			activeMarks:  []string{},
-			currentMarks: []string{"strong", "em"},
-			expected:     []string{"strong", "em"},
+			activeMarks:  []Mark{},
+			currentMarks: []Mark{{Type: "strong"}, {Type: "em"}},
+			expected:     []Mark{{Type: "strong"}, {Type: "em"}},
 		},
 		{
 			name:         "open one mark",
-			activeMarks:  []string{"strong"},
-			currentMarks: []string{"strong", "em"},
-			expected:     []string{"em"},
+			activeMarks:  []Mark{{Type: "strong"}},
+			currentMarks: []Mark{{Type: "strong"}, {Type: "em"}},
+			expected:     []Mark{{Type: "em"}},
 		},
 		{
 			name:         "different mark at same position",
-			activeMarks:  []string{"strong"},
-			currentMarks: []string{"em"},
-			expected:     []string{"em"},
+			activeMarks:  []Mark{{Type: "strong"}},
+			currentMarks: []Mark{{Type: "em"}},
+			expected:     []Mark{{Type: "em"}},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := conv.getMarksToOpen(tt.activeMarks, tt.currentMarks)
+			result := conv.getMarksToOpenFull(tt.activeMarks, tt.currentMarks)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -452,7 +348,7 @@ func TestConvertMark(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			open, close, err := conv.convertMark(tt.mark, tt.useUnderscoreForEm)
+			open, close, err := conv.convertMarkFull(tt.mark, tt.useUnderscoreForEm)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedOpen, open)
 			assert.Equal(t, tt.expectedClose, close)
@@ -488,7 +384,7 @@ func TestConvertMarkWithHTML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			open, close, err := conv.convertMark(tt.mark, tt.useUnderscoreForEm)
+			open, close, err := conv.convertMarkFull(tt.mark, tt.useUnderscoreForEm)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedOpen, open)
 			assert.Equal(t, tt.expectedClose, close)
