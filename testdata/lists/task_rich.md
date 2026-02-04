@@ -1,0 +1,3 @@
+- [ ] Task with **bold** text
+- [x] Task with *italic* text
+- [ ] Task with `code`
