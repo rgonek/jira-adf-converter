@@ -1,0 +1,5 @@
+Before rule
+
+---
+
+After rule

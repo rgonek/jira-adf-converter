@@ -9,7 +9,7 @@ The primary goal is to generate markdown that is easily readable by AI agents an
 ## Features
 
 *   **Granular Support**: Incremental support for ADF nodes.
-*   **Text Preservation**: All text content is preserved. Minor formatting (colors, underline) may be lost for unsupported features.
+*   **Text Preservation**: All text content is preserved. Minor formatting (colors) may be lost for unsupported features.
 *   **Configurable Output**:
     *   **Pure Markdown**: (Default) Uses text-based formatting.
     *   **HTML Support**: Optional flag to use raw HTML for features not supported by GFM.
@@ -88,17 +88,23 @@ This mode prioritizes text content preservation. Minor semantic formatting like 
 
 When `AllowHTML: true`, the converter will use raw HTML tags for features that don't have native markdown equivalents:
 - **Underline**: Uses `<u>text</u>` HTML tag (renders correctly on GitHub and most markdown platforms)
-- Future phases will add more HTML features (e.g., `<details>` for expandable sections)
+- **Subscript/Superscript**: Uses `<sub>text</sub>` and `<sup>text</sup>` HTML tags
 
 When `AllowHTML: false` (default), these features are handled gracefully:
 - **Underline**: Formatting is dropped, text is preserved
+- **Superscript**: Rendered with `^` prefix (e.g., `^text`)
+- **Subscript**: Formatting is dropped, text is preserved (to avoid conflicts with GFM syntax)
 
-## Current Implementation (Phase 1)
+## Current Implementation (Phase 2)
 
 ### Supported Nodes
 - `doc` - Root document node
 - `paragraph` - Text paragraphs
 - `text` - Text content with formatting
+- `heading` - Headings (H1-H6) with support for nested inline marks
+- `blockquote` - Block quotes with proper nesting support (nested quotes use `>>` format per GFM spec)
+- `rule` - Horizontal rules (---)
+- `hardBreak` - Hard line breaks within paragraphs
 
 ### Supported Marks
 - `strong` - Bold text (**text**)
@@ -108,6 +114,14 @@ When `AllowHTML: false` (default), these features are handled gracefully:
 - `underline` - Underlined text
   - With `AllowHTML: true`: `<u>text</u>`
   - With `AllowHTML: false`: Text preserved, formatting dropped
+- `link` - Hyperlinks with optional titles
+  - Format: `[text](url)` or `[text](url "title")`
+  - Handles edge cases: empty text, missing href, quotes in title
+- `subsup` - Subscript and superscript
+  - With `AllowHTML: true`: `<sub>text</sub>` and `<sup>text</sup>`
+  - With `AllowHTML: false`: 
+    - Superscript: `^text` (carat prefix)
+    - Subscript: plain text (no indicator to avoid GFM syntax conflicts)
 
 ### Mark Continuity
 
@@ -138,36 +152,23 @@ When a paragraph contains text with both `strong` and `em` marks applied simulta
 
 This paragraph-wide detection ensures consistent delimiter usage and proper markdown rendering.
 
-## Limitations (Phase 1)
+## Limitations
 
-### Inline Nodes Not Supported
-
-Phase 1 does not support inline nodes that can appear within paragraphs, such as:
-- `hardBreak` - Line breaks within paragraphs
-- `mention` - User mentions (@username)
-- `emoji` - Emoji nodes
-- `inlineCard` - Inline cards
-
-These will be handled according to the strict/non-strict mode setting:
-- **Strict mode**: Error
-- **Non-strict mode**: `[Unknown node: type]` placeholder
-
-**Support for inline nodes is planned for Phase 2+**. See the [development roadmap](agents/plans/jira-to-gfm.md) for details.
-
-### Other Phase 1 Limitations
+### Features Not Yet Supported
 
 The following ADF features are not yet supported and will be added in future phases:
-- Headings (Phase 2)
 - Lists and task lists (Phase 3)
 - Tables (Phase 4)
 - Code blocks (Phase 3)
-- Block quotes (Phase 2)
 - Panels (Phase 4)
 - Expandable sections (Phase 5)
 - Media/images (Phase 5)
+- Mention nodes (Phase 5)
+- Emoji nodes (Phase 5)
+- Inline cards (Phase 5)
 
 See [agents/plans/jira-to-gfm.md](agents/plans/jira-to-gfm.md) for the complete development roadmap.
 
 ## Development
 
-See [agents/plans/jira-to-gfm.md](agents/plans/jira-to-gfm.md) for the development roadmap and [agents/plans/phase1-detailed.md](agents/plans/phase1-detailed.md) for Phase 1 implementation details.
+See [agents/plans/jira-to-gfm.md](agents/plans/jira-to-gfm.md) for the development roadmap and [agents/plans/phase2-detailed.md](agents/plans/phase2-detailed.md) for Phase 2 implementation details.

@@ -15,6 +15,8 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
     *   **Flag (`Strict`)**:
         *   **Default (false)**: Render a placeholder (e.g., `[Unknown node: type]`) for unimplemented nodes.
         *   **True**: Return an error if an unknown node is encountered.
+5.  **Ignore Empty Blocks**: Structural nodes (headings, blockquotes, paragraphs, panels) that contain no text or only whitespace should be ignored and output an empty string. This maintains a clean, readable document for AI agents and avoids noise.
+
 
 ## Development Phases
 

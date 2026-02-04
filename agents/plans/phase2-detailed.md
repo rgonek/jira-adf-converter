@@ -35,7 +35,7 @@ This phase expands the converter's capabilities to support structural document e
 
 3.  **heading_empty.json/md**
     *   Input: `heading` node with no text content or empty content array.
-    *   Expected: `#` (or appropriate level markers) with no text, or handle gracefully.
+    *   Expected: Empty string (ignored).
 
 4.  **blockquote.json/md**
     *   Input: `blockquote` containing a `paragraph`.
@@ -47,7 +47,7 @@ This phase expands the converter's capabilities to support structural document e
 
 5.  **blockquote_empty.json/md**
     *   Input: Empty `blockquote` node.
-    *   Expected: `> ` (just the prefix).
+    *   Expected: Empty string (ignored).
 
 6.  **nested_blockquote.json/md**
     *   Input: `blockquote` inside `blockquote`.
@@ -105,7 +105,7 @@ This phase expands the converter's capabilities to support structural document e
     *   Output `strings.Repeat("#", level) + " " + content`.
     *   Ensure proper spacing around headings: blank line before AND after heading (except at document start/end).
     *   Handle nested marks correctly (bold, italic, etc. within heading text).
-    *   Handle empty headings: output just the `#` markers with no text.
+    *   **Empty Headings**: Ignore if content is empty (return empty string).
 *   **Rule**:
     *   Output `---` surrounded by newlines (`\n\n---\n\n`).
 *   **HardBreak**:
@@ -126,7 +126,7 @@ This phase expands the converter's capabilities to support structural document e
     *   Process child content recursively.
     *   Prefix *every line* of the result with `> `.
     *   Ensure it handles multiline content correctly (blank lines within blockquote also get `> ` prefix).
-    *   Handle edge case: empty blockquote outputs `> `.
+    *   **Empty Blockquotes**: Ignore if content is empty (return empty string).
     *   Nested blockquotes should result in `>>` (no space between markers, per standard GFM).
 
 **Acceptance Criteria**:
@@ -234,18 +234,46 @@ This phase expands the converter's capabilities to support structural document e
 
 ## Success Criteria for Phase 2
 The phase is complete when:
-- [ ] All Phase 2 structural nodes (`heading`, `blockquote`, `rule`, `hardBreak`) convert correctly.
-- [ ] Headings support nested inline marks (bold, italic, code).
-- [ ] Headings have proper spacing (blank line before and after, except at document boundaries).
-- [ ] Empty headings are handled gracefully (output `#` markers only).
-- [ ] Blockquotes handle multiline content and nested blockquotes with proper GFM formatting (`>>`).
-- [ ] Empty blockquotes are handled gracefully.
-- [ ] Hard breaks use backslash + newline format (per GFM spec).
-- [ ] Links are rendered as standard Markdown with optional title support.
-- [ ] Link edge cases handled: empty text, missing href, quotes in title.
-- [ ] `AllowHTML` flag correctly toggles between HTML tags and plain text for `subsup` and `underline`.
-- [ ] Superscript in plain mode uses `^` prefix; subscript uses plain text only.
-- [ ] All new test cases pass (16 test cases total).
-- [ ] No regression in Phase 1 features.
-- [ ] Code passes linting.
-- [ ] Code is refactored with dedicated methods for each node type (refactoring done before final verification).
+- [x] All Phase 2 structural nodes (`heading`, `blockquote`, `rule`, `hardBreak`) convert correctly.
+- [x] Headings support nested inline marks (bold, italic, code).
+- [x] Headings have proper spacing (blank line before and after, except at document boundaries).
+- [x] Empty headings are ignored (return empty string).
+- [x] Blockquotes handle multiline content and nested blockquotes with proper GFM formatting (`>>`).
+- [x] Empty blockquotes are ignored (return empty string).
+- [x] Hard breaks use backslash + newline format (per GFM spec).
+- [x] Links are rendered as standard Markdown with optional title support.
+- [x] Link edge cases handled: empty text, missing href, quotes in title.
+- [x] `AllowHTML` flag correctly toggles between HTML tags and plain text for `subsup` and `underline`.
+- [x] Superscript in plain mode uses `^` prefix; subscript uses plain text only.
+- [x] All new test cases pass (16 test cases total).
+- [x] No regression in Phase 1 features.
+- [x] Code passes linting.
+- [x] Code is refactored with dedicated methods for each node type (refactoring done before final verification).
+- [x] `marksEqual()` function compares both `Type` and attributes (href/title for links, type for subsup) to handle adjacent text nodes with different mark configurations.
+
+---
+
+## Implementation Notes
+
+### Mark Comparison
+The `marksEqual()` function must compare not just the mark `Type`, but also relevant attributes:
+
+- **link**: Compare `href` and `title` attributes
+- **subsup**: Compare `type` attribute ("sub" vs "sup")
+
+This ensures that adjacent text nodes with different URLs (e.g., `[text1](url1)[text2](url2)`) are handled correctly, rather than incorrectly treating them as one continuous link.
+
+Example scenario:
+```json
+// Input: two links with different URLs adjacent to each other
+[
+  {"type": "text", "text": "Google", "marks": [{"type": "link", "attrs": {"href": "https://google.com"}}]},
+  {"type": "text", "text": "Bing", "marks": [{"type": "link", "attrs": {"href": "https://bing.com"}}]}
+]
+
+// Expected output: separate links
+[Google](https://google.com)[Bing](https://bing.com)
+
+// Without proper attribute comparison, would incorrectly output:
+// [GoogleBing](https://google.com) - wrong!
+```
