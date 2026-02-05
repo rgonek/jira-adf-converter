@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"html"
 	"strings"
 )
 
@@ -341,4 +342,54 @@ func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
 	}
 
 	return quoted, nil
+}
+
+// convertExpand converts expand and nestedExpand nodes
+func (c *Converter) convertExpand(node Node) (string, error) {
+	// Extract title
+	title := ""
+	if node.Attrs != nil {
+		if t, ok := node.Attrs["title"].(string); ok {
+			title = t
+		}
+	}
+
+	// Process content
+	var sb strings.Builder
+	for _, child := range node.Content {
+		result, err := c.convertNode(child)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(result)
+	}
+	content := sb.String()
+
+	if c.config.AllowHTML {
+		var htmlBuilder strings.Builder
+		htmlBuilder.WriteString("<details><summary>")
+		htmlBuilder.WriteString(html.EscapeString(title))
+		htmlBuilder.WriteString("</summary>\n\n")
+		htmlBuilder.WriteString(strings.TrimRight(content, "\n"))
+		htmlBuilder.WriteString("\n\n</details>\n\n")
+		return htmlBuilder.String(), nil
+	}
+
+	// Text Mode: Blockquote with bold title
+	var text strings.Builder
+	if title != "" {
+		text.WriteString("> **" + title + "**\n> \n")
+	}
+
+	// Handle empty content - still need trailing newlines for block separation
+	if content == "" {
+		return text.String() + "\n\n", nil
+	}
+
+	// Apply blockquote to content
+	// If title exists, we've already written the header, so we prefix content with just "> "
+	quotedContent := c.blockquoteContent(content, "")
+	text.WriteString(quotedContent)
+
+	return text.String() + "\n\n", nil
 }
