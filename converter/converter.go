@@ -75,6 +75,21 @@ func (c *Converter) convertNode(node Node) (string, error) {
 	case "text":
 		return c.convertText(node)
 
+	case "emoji":
+		return c.convertEmoji(node)
+
+	case "mention":
+		return c.convertMention(node)
+
+	case "status":
+		return c.convertStatus(node)
+
+	case "date":
+		return c.convertDate(node)
+
+	case "inlineCard":
+		return c.convertInlineCard(node)
+
 	case "table":
 		return c.convertTable(node)
 
@@ -90,6 +105,18 @@ func (c *Converter) convertNode(node Node) (string, error) {
 
 	case "panel":
 		return c.convertPanel(node)
+
+	case "expand", "nestedExpand":
+		return c.convertExpand(node)
+
+	case "mediaSingle":
+		return c.convertMediaSingle(node)
+
+	case "mediaGroup":
+		return c.convertMediaGroup(node)
+
+	case "media":
+		return c.convertMedia(node)
 
 	case "decisionList":
 		return c.convertDecisionList(node)
