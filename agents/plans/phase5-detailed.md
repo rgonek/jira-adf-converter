@@ -306,19 +306,19 @@ case "media":
 
 ## Success Criteria for Phase 5
 The phase is complete when:
-- [ ] **Expanders**: `expand` and `nestedExpand` render as `<details>` (HTML) or blockquotes (Text).
-- [ ] **Nested expanders**: Work correctly in both HTML and text modes.
-- [ ] **Emojis**: Render as shortcodes (`:smile:`) with fallback to `fallback` attribute.
-- [ ] **Mentions**: Render as `User Name (accountId:12345)` format (avoids `@` confusion).
-- [ ] **Statuses**: Render as `[Status: text]` with color attributes ignored.
-- [ ] **Dates**: Render as ISO 8601 dates (`YYYY-MM-DD`) from Unix timestamps.
-- [ ] **Inline cards**: Render as `[url]` or extract data from JSONLD.
-- [ ] **Media images**: Render as `![alt](url)` or `[Image: id]` placeholder.
-- [ ] **Media files**: Render as `[File: id]` placeholder.
-- [ ] **Media groups**: Render multiple media items on separate lines.
-- [ ] **Edge cases**: All 28 test cases pass, including empty nodes, missing attributes, and nested structures.
-- [ ] **No regressions**: All existing Phase 1-4 tests still pass.
-- [ ] **Linting**: `make lint` passes with no issues.
+- [x] **Expanders**: `expand` and `nestedExpand` render as `<details>` (HTML) or blockquotes (Text).
+- [x] **Nested expanders**: Work correctly in both HTML and text modes.
+- [x] **Emojis**: Render as shortcodes (`:smile:`) with fallback to `fallback` attribute.
+- [x] **Mentions**: Render as `User Name (accountId:12345)` format (avoids `@` confusion).
+- [x] **Statuses**: Render as `[Status: text]` with color attributes ignored.
+- [x] **Dates**: Render as ISO 8601 dates (`YYYY-MM-DD`) from Unix timestamps.
+- [x] **Inline cards**: Render as `[url]` or extract data from JSONLD.
+- [x] **Media images**: Render as `![alt](url)` or `[Image: id]` placeholder.
+- [x] **Media files**: Render as `[File: id]` placeholder.
+- [x] **Media groups**: Render multiple media items on separate lines.
+- [x] **Edge cases**: All 28 test cases pass, including empty nodes, missing attributes, and nested structures.
+- [x] **No regressions**: All existing Phase 1-4 tests still pass.
+- [x] **Linting**: `make lint` passes with no issues.
 
 ---
 
