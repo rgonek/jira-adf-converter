@@ -190,9 +190,18 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 		// Get marks for this text node
 		currentMarks := node.Marks
 
+		// Special handling for whitespace-only nodes to avoid "stupid" markdown like ** **
+		// or marks starting/ending on whitespace.
+		effectiveMarks := currentMarks
+		if strings.TrimSpace(node.Text) == "" {
+			// For whitespace-only nodes, we don't want to open new marks.
+			// We only keep marks that were already active.
+			effectiveMarks = c.intersectMarks(activeMarks, currentMarks)
+		}
+
 		// Find marks to close and open
-		marksToClose := c.getMarksToCloseFull(activeMarks, currentMarks)
-		marksToOpen := c.getMarksToOpenFull(activeMarks, currentMarks)
+		marksToClose := c.getMarksToCloseFull(activeMarks, effectiveMarks)
+		marksToOpen := c.getMarksToOpenFull(activeMarks, effectiveMarks)
 
 		// Close marks (in reverse order)
 		for i := len(marksToClose) - 1; i >= 0; i-- {
@@ -216,7 +225,7 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 		sb.WriteString(node.Text)
 
 		// Update active marks
-		activeMarks = currentMarks
+		activeMarks = effectiveMarks
 	}
 
 	// Close any remaining marks at end of content
