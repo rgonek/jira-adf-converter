@@ -35,12 +35,7 @@ func (c *Converter) convertParagraphContent(content []Node) (string, error) {
 // convertHeading converts a heading node to markdown
 func (c *Converter) convertHeading(node Node) (string, error) {
 	// Extract level from attributes (default to 1 if missing/invalid)
-	level := 1
-	if node.Attrs != nil {
-		if lvl, ok := node.Attrs["level"].(float64); ok {
-			level = int(lvl)
-		}
-	}
+	level := node.GetIntAttr("level", 1)
 
 	// Clamp level to valid range (1-6)
 	if level < 1 {
@@ -82,30 +77,16 @@ func (c *Converter) convertBlockquote(node Node) (string, error) {
 	}
 
 	// Process child content recursively
-	var sb strings.Builder
-	for _, child := range node.Content {
-		result, err := c.convertNode(child)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(result)
+	sbStr, err := c.convertChildren(node.Content)
+	if err != nil {
+		return "", err
 	}
 
-	// Get the content and prefix every line with ">"
-	content := strings.TrimRight(sb.String(), "\n")
-	lines := strings.Split(content, "\n")
+	// Use blockquoteContent helper to apply formatting
+	// We pass empty prefix since standard blockquotes don't have special prefixes like panels
+	content := c.blockquoteContent(sbStr, "")
 
-	var quotedLines []string
-	for _, line := range lines {
-		// If line already starts with ">", don't add a space (for nested blockquotes)
-		if strings.HasPrefix(line, ">") {
-			quotedLines = append(quotedLines, ">"+line)
-		} else {
-			quotedLines = append(quotedLines, "> "+line)
-		}
-	}
-
-	return strings.Join(quotedLines, "\n") + "\n\n", nil
+	return content + "\n\n", nil
 }
 
 // convertRule converts a horizontal rule node to markdown
@@ -148,6 +129,17 @@ func (c *Converter) blockquoteContent(content, firstLinePrefix string) string {
 	return strings.Join(quotedLines, "\n")
 }
 
+// extractTextFromContent extracts raw text from a list of nodes (shallow, mainly for code blocks)
+func (c *Converter) extractTextFromContent(content []Node) string {
+	var sb strings.Builder
+	for _, child := range content {
+		if child.Type == "text" {
+			sb.WriteString(child.Text)
+		}
+	}
+	return sb.String()
+}
+
 // convertCodeBlock converts a code block node to markdown
 func (c *Converter) convertCodeBlock(node Node) (string, error) {
 	// Check if code block is empty or contains only whitespace
@@ -155,26 +147,15 @@ func (c *Converter) convertCodeBlock(node Node) (string, error) {
 		return "", nil
 	}
 
-	var sb strings.Builder
-	for _, child := range node.Content {
-		if child.Type == "text" {
-			sb.WriteString(child.Text)
-		}
-	}
+	content := c.extractTextFromContent(node.Content)
 
-	content := sb.String()
 	// If only whitespace, ignore per Core Principle #5
 	if strings.TrimSpace(content) == "" {
 		return "", nil
 	}
 
 	// Extract language attribute
-	language := ""
-	if node.Attrs != nil {
-		if lang, ok := node.Attrs["language"].(string); ok {
-			language = lang
-		}
-	}
+	language := node.GetStringAttr("language", "")
 
 	var result strings.Builder
 	result.WriteString("```")
@@ -221,27 +202,17 @@ func (c *Converter) convertPanel(node Node) (string, error) {
 	}
 
 	// Check if panel has actual content or just whitespace
-	var sb strings.Builder
-	for _, child := range node.Content {
-		result, err := c.convertNode(child)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(result)
+	fullContent, err := c.convertChildren(node.Content)
+	if err != nil {
+		return "", err
 	}
 
-	fullContent := sb.String()
 	if strings.TrimSpace(fullContent) == "" {
 		return "", nil
 	}
 
 	// Get panel type
-	panelType := ""
-	if node.Attrs != nil {
-		if pt, ok := node.Attrs["panelType"].(string); ok {
-			panelType = pt
-		}
-	}
+	panelType := node.GetStringAttr("panelType", "")
 
 	// Map panel type to prefix
 	prefix := ""
@@ -308,12 +279,7 @@ func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
 	}
 
 	// Get decision state
-	state := ""
-	if node.Attrs != nil {
-		if s, ok := node.Attrs["state"].(string); ok {
-			state = s
-		}
-	}
+	state := node.GetStringAttr("state", "")
 
 	// Map state to prefix
 	prefix := ""
@@ -327,16 +293,12 @@ func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
 	}
 
 	// Process content
-	var sb strings.Builder
-	for _, child := range node.Content {
-		result, err := c.convertNode(child)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(result)
+	sbStr, err := c.convertChildren(node.Content)
+	if err != nil {
+		return "", err
 	}
 
-	quoted := c.blockquoteContent(sb.String(), prefix)
+	quoted := c.blockquoteContent(sbStr, prefix)
 	if quoted == "" {
 		return "", nil
 	}
@@ -347,23 +309,13 @@ func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
 // convertExpand converts expand and nestedExpand nodes
 func (c *Converter) convertExpand(node Node) (string, error) {
 	// Extract title
-	title := ""
-	if node.Attrs != nil {
-		if t, ok := node.Attrs["title"].(string); ok {
-			title = t
-		}
-	}
+	title := node.GetStringAttr("title", "")
 
 	// Process content
-	var sb strings.Builder
-	for _, child := range node.Content {
-		result, err := c.convertNode(child)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(result)
+	content, err := c.convertChildren(node.Content)
+	if err != nil {
+		return "", err
 	}
-	content := sb.String()
 
 	if c.config.AllowHTML {
 		var htmlBuilder strings.Builder

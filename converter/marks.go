@@ -156,6 +156,8 @@ func (c *Converter) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string,
 		if c.config.AllowHTML {
 			if subSupType == "sub" {
 				return "<sub>", "</sub>", nil
+				// Wait, I found a bug in existing code? sup uses </u>?
+				// Looking at old code: sup used </sup>, sub used </sub>.
 			} else if subSupType == "sup" {
 				return "<sup>", "</sup>", nil
 			}
@@ -177,4 +179,19 @@ func (c *Converter) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string,
 		// This is acceptable for minor semantic marks like colors, etc.
 		return "", "", nil
 	}
+}
+
+// intersectMarks returns the intersection of two mark slices, preserving the order of the first slice.
+// This is used to maintain mark continuity across whitespace-only nodes without opening new marks.
+func (c *Converter) intersectMarks(activeMarks, currentMarks []Mark) []Mark {
+	var res []Mark
+	for _, am := range activeMarks {
+		for _, cm := range currentMarks {
+			if c.marksEqual(am, cm) {
+				res = append(res, am)
+				break
+			}
+		}
+	}
+	return res
 }

@@ -6,8 +6,21 @@ import (
 
 // convertTable converts a table node to GFM table
 func (c *Converter) convertTable(node Node) (string, error) {
-	if len(node.Content) == 0 {
+	rows, err := c.extractTableRows(node)
+	if err != nil {
+		return "", err
+	}
+	if len(rows) == 0 {
 		return "", nil
+	}
+
+	return c.renderTableGFM(rows), nil
+}
+
+// extractTableRows extracts and normalizes table rows from the node
+func (c *Converter) extractTableRows(node Node) ([][]string, error) {
+	if len(node.Content) == 0 {
+		return nil, nil
 	}
 
 	var rows [][]string
@@ -29,7 +42,7 @@ func (c *Converter) convertTable(node Node) (string, error) {
 			}
 			cellContent, err := c.convertCellContent(cellNode)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			row = append(row, cellContent)
 		}
@@ -43,11 +56,34 @@ func (c *Converter) convertTable(node Node) (string, error) {
 	}
 
 	if len(rows) == 0 {
-		return "", nil
+		return nil, nil
+	}
+
+	// Normalize rows based on whether we have headers or not
+	if !hasHeader {
+		// Create empty header row if missing
+		colCount := 0
+		for _, r := range rows {
+			if len(r) > colCount {
+				colCount = len(r)
+			}
+		}
+		headerRow := make([]string, colCount)
+		// Prepend header row
+		rows = append([][]string{headerRow}, rows...)
+	}
+
+	return rows, nil
+}
+
+// renderTableGFM renders a matrix of strings as a GFM table
+func (c *Converter) renderTableGFM(rows [][]string) string {
+	if len(rows) == 0 {
+		return ""
 	}
 
 	// Determine column count
-	colCount := len(rows[0])
+	colCount := 0
 	for _, row := range rows {
 		if len(row) > colCount {
 			colCount = len(row)
@@ -56,21 +92,9 @@ func (c *Converter) convertTable(node Node) (string, error) {
 
 	var sb strings.Builder
 
-	// Prepare header row and data rows
-	var headerRow []string
-	var dataRows [][]string
-
-	if hasHeader {
-		headerRow = rows[0]
-		dataRows = rows[1:]
-	} else {
-		// Create empty header row
-		headerRow = make([]string, colCount)
-		for i := 0; i < colCount; i++ {
-			headerRow[i] = ""
-		}
-		dataRows = rows
-	}
+	// Header is always row 0 after normalization
+	headerRow := rows[0]
+	dataRows := rows[1:]
 
 	// Write header row
 	sb.WriteString("|")
@@ -106,7 +130,7 @@ func (c *Converter) convertTable(node Node) (string, error) {
 	}
 
 	sb.WriteString("\n")
-	return sb.String(), nil
+	return sb.String()
 }
 
 // convertTableCell processes a table cell (header or data)
@@ -137,58 +161,21 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 			}
 
 		case "bulletList", "orderedList", "taskList":
-			// Process list and convert to single line with <br> between items
-			listContent, err := c.convertNode(child)
+			res, err := c.convertListInTable(child)
 			if err != nil {
 				return "", err
 			}
-			listContent = strings.TrimRight(listContent, "\n")
-			if listContent != "" {
-				// Split by newlines and join with <br>
-				lines := strings.Split(listContent, "\n")
-				var cleanLines []string
-				for _, line := range lines {
-					trimmed := strings.TrimRight(line, "\n")
-					if trimmed != "" {
-						cleanLines = append(cleanLines, trimmed)
-					}
-				}
-				if len(cleanLines) > 0 {
-					sep := "<br>"
-					if !c.config.AllowHTML {
-						sep = " "
-					}
-					parts = append(parts, strings.Join(cleanLines, sep))
-				}
+			if res != "" {
+				parts = append(parts, res)
 			}
 
 		case "codeBlock":
-			// Process code block
-			// Tables don't support fenced code blocks, so we must handle this manually
-			var sb strings.Builder
-			for _, grandChild := range child.Content {
-				if grandChild.Type == "text" {
-					sb.WriteString(grandChild.Text)
-				}
+			res, err := c.convertCodeBlockInTable(child)
+			if err != nil {
+				return "", err
 			}
-			rawCode := sb.String()
-			if strings.TrimSpace(rawCode) == "" {
-				continue
-			}
-
-			if c.config.AllowHTML {
-				// Escape HTML special chars
-				safeCode := strings.ReplaceAll(rawCode, "&", "&amp;")
-				safeCode = strings.ReplaceAll(safeCode, "<", "&lt;")
-				safeCode = strings.ReplaceAll(safeCode, ">", "&gt;")
-				safeCode = strings.ReplaceAll(safeCode, "\"", "&quot;")
-				// Replace newlines with <br>
-				safeCode = strings.ReplaceAll(safeCode, "\n", "<br>")
-				parts = append(parts, "<code>"+safeCode+"</code>")
-			} else {
-				// Flatten and use backticks if HTML is not allowed
-				flatCode := strings.ReplaceAll(rawCode, "\n", " ")
-				parts = append(parts, "`"+flatCode+"`")
+			if res != "" {
+				parts = append(parts, res)
 			}
 
 		case "panel":
@@ -236,4 +223,55 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 	// Note: Child converters must NOT pre-escape pipes as this would cause
 	// double-escaping. Only this final output should escape pipes.
 	return strings.ReplaceAll(result, "|", "\\|"), nil
+}
+
+func (c *Converter) convertListInTable(node Node) (string, error) {
+	listContent, err := c.convertNode(node)
+	if err != nil {
+		return "", err
+	}
+	listContent = strings.TrimRight(listContent, "\n")
+	if listContent == "" {
+		return "", nil
+	}
+
+	// Split by newlines and join with <br>
+	lines := strings.Split(listContent, "\n")
+	var cleanLines []string
+	for _, line := range lines {
+		trimmed := strings.TrimRight(line, "\n")
+		if trimmed != "" {
+			cleanLines = append(cleanLines, trimmed)
+		}
+	}
+	if len(cleanLines) > 0 {
+		sep := "<br>"
+		if !c.config.AllowHTML {
+			sep = " "
+		}
+		return strings.Join(cleanLines, sep), nil
+	}
+	return "", nil
+}
+
+func (c *Converter) convertCodeBlockInTable(node Node) (string, error) {
+	rawCode := c.extractTextFromContent(node.Content)
+	if strings.TrimSpace(rawCode) == "" {
+		return "", nil
+	}
+
+	if c.config.AllowHTML {
+		// Escape HTML special chars
+		safeCode := strings.ReplaceAll(rawCode, "&", "&amp;")
+		safeCode = strings.ReplaceAll(safeCode, "<", "&lt;")
+		safeCode = strings.ReplaceAll(safeCode, ">", "&gt;")
+		safeCode = strings.ReplaceAll(safeCode, "\"", "&quot;")
+		// Replace newlines with <br>
+		safeCode = strings.ReplaceAll(safeCode, "\n", "<br>")
+		return "<code>" + safeCode + "</code>", nil
+	} else {
+		// Flatten and use backticks if HTML is not allowed
+		flatCode := strings.ReplaceAll(rawCode, "\n", " ")
+		return "`" + flatCode + "`", nil
+	}
 }

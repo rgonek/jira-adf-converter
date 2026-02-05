@@ -12,15 +12,11 @@ func (c *Converter) convertMediaSingle(node Node) (string, error) {
 	}
 
 	// Pass through to children
-	var sb strings.Builder
-	for _, child := range node.Content {
-		result, err := c.convertNode(child)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(result)
+	content, err := c.convertChildren(node.Content)
+	if err != nil {
+		return "", err
 	}
-	content := sb.String()
+
 	if strings.TrimSpace(content) == "" {
 		return "", nil
 	}
@@ -46,25 +42,10 @@ func (c *Converter) convertMediaGroup(node Node) (string, error) {
 
 // convertMedia converts a media node
 func (c *Converter) convertMedia(node Node) (string, error) {
-	mediaType := ""
-	id := ""
-	alt := ""
-	url := ""
-
-	if node.Attrs != nil {
-		if t, ok := node.Attrs["type"].(string); ok {
-			mediaType = t
-		}
-		if i, ok := node.Attrs["id"].(string); ok {
-			id = i
-		}
-		if a, ok := node.Attrs["alt"].(string); ok {
-			alt = a
-		}
-		if u, ok := node.Attrs["url"].(string); ok {
-			url = u
-		}
-	}
+	mediaType := node.GetStringAttr("type", "")
+	id := node.GetStringAttr("id", "")
+	alt := node.GetStringAttr("alt", "")
+	url := node.GetStringAttr("url", "")
 
 	// External image
 	if mediaType == "image" && url != "" {
