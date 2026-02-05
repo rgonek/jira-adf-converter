@@ -68,10 +68,20 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
         *   State `TODO`: `- [ ] Item`
         *   State `DONE`: `- [x] Item`
 
-### Phase 4: Complex Layouts (Tables & Panels)
+### Phase 4: Complex Layouts (Tables & Panels) (Completed)
 *   **Nodes**:
     *   `table`: Map to GFM tables.
+        *   **Requirement**: Escape pipe characters (`|`) to `\|` within cells.
+        *   **Requirement**: Preserve indentation for nested lists when flattening to `<br>`.
     *   `panel`: Map to Blockquote with semantic label (e.g., `> **Info**: ...`).
+    *   `decisionList` / `decisionItem`: Map to Blockquote with state indicators.
+*   **Post-Implementation Fixes**:
+    *   Removed unused `convertTableRow` function and its dispatcher registration (dead code elimination).
+    *   Extracted common blockquoting logic into `blockquoteContent()` helper to eliminate duplication in `convertPanel` and `convertDecisionItemContent`.
+    *   Fixed nested list indentation loss in table cells when `AllowHTML=false` (`tables.go:148` - changed `TrimRight(line, " \t\r\n")` to `TrimRight(line, "\n")`).
+    *   Documented unused `isHeader` parameter in `convertTableCell` (API consistency, future extensibility).
+    *   Added comment warning about pipe escaping constraints to prevent double-escaping.
+
 
 ### Phase 5: Rich Media & Interactive Elements
 *   **Nodes**:

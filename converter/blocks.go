@@ -117,6 +117,36 @@ func (c *Converter) convertHardBreak() (string, error) {
 	return "\\\n", nil
 }
 
+// blockquoteContent converts content to blockquoted format with optional first-line prefix
+func (c *Converter) blockquoteContent(content, firstLinePrefix string) string {
+	content = strings.TrimRight(content, "\n")
+	if content == "" {
+		return ""
+	}
+
+	lines := strings.Split(content, "\n")
+
+	var quotedLines []string
+	for i, line := range lines {
+		if i == 0 && firstLinePrefix != "" {
+			// First line gets the prefix
+			quotedLines = append(quotedLines, "> "+firstLinePrefix+line)
+		} else {
+			// Subsequent lines
+			if line == "" {
+				quotedLines = append(quotedLines, "> ")
+			} else if strings.HasPrefix(line, ">") {
+				// Already a blockquote (nested)
+				quotedLines = append(quotedLines, ">"+line)
+			} else {
+				quotedLines = append(quotedLines, "> "+line)
+			}
+		}
+	}
+
+	return strings.Join(quotedLines, "\n")
+}
+
 // convertCodeBlock converts a code block node to markdown
 func (c *Converter) convertCodeBlock(node Node) (string, error) {
 	// Check if code block is empty or contains only whitespace
@@ -180,4 +210,135 @@ func (c *Converter) indent(content, marker string) string {
 	}
 
 	return strings.Join(result, "\n")
+}
+
+// convertPanel converts a panel node to blockquote with semantic label
+func (c *Converter) convertPanel(node Node) (string, error) {
+	// Handle empty panel
+	if len(node.Content) == 0 {
+		return "", nil
+	}
+
+	// Check if panel has actual content or just whitespace
+	var sb strings.Builder
+	for _, child := range node.Content {
+		result, err := c.convertNode(child)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(result)
+	}
+
+	fullContent := sb.String()
+	if strings.TrimSpace(fullContent) == "" {
+		return "", nil
+	}
+
+	// Get panel type
+	panelType := ""
+	if node.Attrs != nil {
+		if pt, ok := node.Attrs["panelType"].(string); ok {
+			panelType = pt
+		}
+	}
+
+	// Map panel type to prefix
+	prefix := ""
+	switch panelType {
+	case "info":
+		prefix = "**Info**: "
+	case "note":
+		prefix = "**Note**: "
+	case "success":
+		prefix = "**Success**: "
+	case "warning":
+		prefix = "**Warning**: "
+	case "error":
+		prefix = "**Error**: "
+	}
+
+	quoted := c.blockquoteContent(fullContent, prefix)
+	if quoted == "" {
+		return "", nil
+	}
+
+	return quoted + "\n\n", nil
+}
+
+// convertDecisionList converts a decision list to a single continuous blockquote
+func (c *Converter) convertDecisionList(node Node) (string, error) {
+	if len(node.Content) == 0 {
+		return "", nil
+	}
+
+	var items []string
+	for _, child := range node.Content {
+		if child.Type != "decisionItem" {
+			continue
+		}
+
+		itemContent, err := c.convertDecisionItemContent(child)
+		if err != nil {
+			return "", err
+		}
+		if itemContent != "" {
+			items = append(items, itemContent)
+		}
+	}
+
+	if len(items) == 0 {
+		return "", nil
+	}
+
+	// Join items with blank quoted line
+	result := strings.Join(items, "\n> \n")
+	return result + "\n\n", nil
+}
+
+// convertDecisionItem is a helper that should not be called directly
+func (c *Converter) convertDecisionItem(node Node) (string, error) {
+	return c.convertDecisionItemContent(node)
+}
+
+// convertDecisionItemContent processes a decision item's content
+func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
+	if len(node.Content) == 0 {
+		return "", nil
+	}
+
+	// Get decision state
+	state := ""
+	if node.Attrs != nil {
+		if s, ok := node.Attrs["state"].(string); ok {
+			state = s
+		}
+	}
+
+	// Map state to prefix
+	prefix := ""
+	switch state {
+	case "DECIDED":
+		prefix = "**✓ Decision**: "
+	case "UNDECIDED":
+		prefix = "**? Decision**: "
+	default:
+		prefix = "**Decision**: "
+	}
+
+	// Process content
+	var sb strings.Builder
+	for _, child := range node.Content {
+		result, err := c.convertNode(child)
+		if err != nil {
+			return "", err
+		}
+		sb.WriteString(result)
+	}
+
+	quoted := c.blockquoteContent(sb.String(), prefix)
+	if quoted == "" {
+		return "", nil
+	}
+
+	return quoted, nil
 }
