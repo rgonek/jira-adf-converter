@@ -7,17 +7,8 @@ import (
 
 // convertEmoji converts an emoji node to a shortcode or fallback
 func (c *Converter) convertEmoji(node Node) (string, error) {
-	shortName := ""
-	fallback := ""
-
-	if node.Attrs != nil {
-		if s, ok := node.Attrs["shortName"].(string); ok {
-			shortName = s
-		}
-		if f, ok := node.Attrs["fallback"].(string); ok {
-			fallback = f
-		}
-	}
+	shortName := node.GetStringAttr("shortName", "")
+	fallback := node.GetStringAttr("fallback", "")
 
 	if shortName != "" {
 		return shortName, nil
@@ -35,36 +26,19 @@ func (c *Converter) convertEmoji(node Node) (string, error) {
 
 // convertMention converts a mention node to text representation
 func (c *Converter) convertMention(node Node) (string, error) {
-	text := "Unknown User"
-
-	if node.Attrs != nil {
-		if t, ok := node.Attrs["text"].(string); ok {
-			text = t
-		}
-	}
-
+	text := node.GetStringAttr("text", "Unknown User")
 	return text, nil
 }
 
 // convertStatus converts a status node to text representation
 func (c *Converter) convertStatus(node Node) (string, error) {
-	text := "Unknown"
-	if node.Attrs != nil {
-		if t, ok := node.Attrs["text"].(string); ok {
-			text = t
-		}
-	}
+	text := node.GetStringAttr("text", "Unknown")
 	return fmt.Sprintf("[Status: %s]", text), nil
 }
 
 // convertDate converts a date node to ISO 8601 format
 func (c *Converter) convertDate(node Node) (string, error) {
-	timestamp := ""
-	if node.Attrs != nil {
-		if t, ok := node.Attrs["timestamp"].(string); ok {
-			timestamp = t
-		}
-	}
+	timestamp := node.GetStringAttr("timestamp", "")
 
 	if timestamp == "" || timestamp == "invalid" {
 		if c.config.Strict {
@@ -101,12 +75,7 @@ func (c *Converter) convertDate(node Node) (string, error) {
 
 // convertInlineCard converts an inlineCard node
 func (c *Converter) convertInlineCard(node Node) (string, error) {
-	url := ""
-	if node.Attrs != nil {
-		if u, ok := node.Attrs["url"].(string); ok {
-			url = u
-		}
-	}
+	url := node.GetStringAttr("url", "")
 
 	// if url is present, return [url](url)
 	if url != "" {

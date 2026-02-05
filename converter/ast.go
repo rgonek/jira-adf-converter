@@ -21,3 +21,36 @@ type Mark struct {
 	Type  string                 `json:"type"`
 	Attrs map[string]interface{} `json:"attrs,omitempty"`
 }
+
+// GetStringAttr retrieves a string attribute or returns the default value.
+func (n Node) GetStringAttr(key, defaultValue string) string {
+	if n.Attrs == nil {
+		return defaultValue
+	}
+	if v, ok := n.Attrs[key].(string); ok {
+		return v
+	}
+	return defaultValue
+}
+
+// GetIntAttr retrieves an integer attribute (from float64) or returns the default value.
+func (n Node) GetIntAttr(key string, defaultValue int) int {
+	if n.Attrs == nil {
+		return defaultValue
+	}
+	if v, ok := n.Attrs[key].(float64); ok {
+		return int(v)
+	}
+	return defaultValue
+}
+
+// GetStringAttr retrieves a string attribute from a Mark or returns the default value.
+func (m Mark) GetStringAttr(key, defaultValue string) string {
+	if m.Attrs == nil {
+		return defaultValue
+	}
+	if v, ok := m.Attrs[key].(string); ok {
+		return v
+	}
+	return defaultValue
+}

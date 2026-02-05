@@ -132,18 +132,27 @@ func (c *Converter) convertNode(node Node) (string, error) {
 	}
 }
 
-// convertDoc converts the root document node
-func (c *Converter) convertDoc(node Node) (string, error) {
+// convertChildren processes a slice of nodes and concatenates their results
+func (c *Converter) convertChildren(content []Node) (string, error) {
 	var sb strings.Builder
-	for _, child := range node.Content {
+	for _, child := range content {
 		res, err := c.convertNode(child)
 		if err != nil {
 			return "", err
 		}
 		sb.WriteString(res)
 	}
+	return sb.String(), nil
+}
+
+// convertDoc converts the root document node
+func (c *Converter) convertDoc(node Node) (string, error) {
+	res, err := c.convertChildren(node.Content)
+	if err != nil {
+		return "", err
+	}
 	// Trim right to avoid excessive newlines at the end of file, then ensure exactly one.
-	result := strings.TrimRight(sb.String(), "\n")
+	result := strings.TrimRight(res, "\n")
 	if result == "" {
 		return "", nil
 	}
@@ -162,13 +171,10 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 	for _, node := range content {
 		if node.Type != "text" {
 			// For non-text nodes, close all active marks, process node, reset marks
-			for i := len(activeMarks) - 1; i >= 0; i-- {
-				closing, err := c.getClosingDelimiterForMark(activeMarks[i], useUnderscoreForEm)
-				if err != nil {
-					return "", err
-				}
-				sb.WriteString(closing)
+			if err := c.closeMarks(activeMarks, useUnderscoreForEm, &sb); err != nil {
+				return "", err
 			}
+
 			result, err := c.convertNode(node)
 			if err != nil {
 				return "", err
@@ -203,13 +209,9 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 		marksToClose := c.getMarksToCloseFull(activeMarks, effectiveMarks)
 		marksToOpen := c.getMarksToOpenFull(activeMarks, effectiveMarks)
 
-		// Close marks (in reverse order)
-		for i := len(marksToClose) - 1; i >= 0; i-- {
-			closing, err := c.getClosingDelimiterForMark(marksToClose[i], useUnderscoreForEm)
-			if err != nil {
-				return "", err
-			}
-			sb.WriteString(closing)
+		// Close marks
+		if err := c.closeMarks(marksToClose, useUnderscoreForEm, &sb); err != nil {
+			return "", err
 		}
 
 		// Open new marks (in priority order)
@@ -229,15 +231,23 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 	}
 
 	// Close any remaining marks at end of content
-	for i := len(activeMarks) - 1; i >= 0; i-- {
-		closing, err := c.getClosingDelimiterForMark(activeMarks[i], useUnderscoreForEm)
-		if err != nil {
-			return "", err
-		}
-		sb.WriteString(closing)
+	if err := c.closeMarks(activeMarks, useUnderscoreForEm, &sb); err != nil {
+		return "", err
 	}
 
 	return sb.String(), nil
+}
+
+// closeMarks closes the provided marks in reverse order
+func (c *Converter) closeMarks(marks []Mark, useUnderscoreForEm bool, sb *strings.Builder) error {
+	for i := len(marks) - 1; i >= 0; i-- {
+		closing, err := c.getClosingDelimiterForMark(marks[i], useUnderscoreForEm)
+		if err != nil {
+			return err
+		}
+		sb.WriteString(closing)
+	}
+	return nil
 }
 
 // hasStrongAndEm checks if any text node in content has both strong and em marks
