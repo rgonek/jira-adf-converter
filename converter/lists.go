@@ -54,6 +54,19 @@ func (c *Converter) convertTaskList(node Node) (string, error) {
 	var sb strings.Builder
 
 	for _, item := range node.Content {
+		if item.Type == "taskList" {
+			res, err := c.convertTaskList(item)
+			if err != nil {
+				return "", err
+			}
+			// Indent nested task lists to preserve hierarchy
+			// We use 2 spaces which is standard for nested lists
+			indented := c.indent(res, "  ")
+			sb.WriteString(indented)
+			sb.WriteString("\n")
+			continue
+		}
+
 		if item.Type != "taskItem" {
 			if c.config.Strict {
 				return "", fmt.Errorf("taskList expects taskItem child, got %s", item.Type)

@@ -1,0 +1,3 @@
+- [ ] Implement authentication
+  - [ ] Add login page
+- [ ] Update user documentation
