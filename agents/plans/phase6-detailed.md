@@ -874,9 +874,9 @@ The phase is complete when:
 - [ ] BulletMarker configurable (`-`, `*`, `+`)
 - [ ] MediaBaseURL constructs proper image URLs for internal media
 - [ ] LanguageMap maps code block languages
-- [ ] CLI `--preset` supports balanced/strict/readable/lossy
-- [ ] CLI preset mapping sets expected config values
-- [ ] Explicit CLI flags override preset values
+- [x] CLI `--preset` supports balanced/strict/readable/lossy
+- [x] CLI preset mapping sets expected config values
+- [x] Explicit CLI flags override preset values
 - [ ] All tests pass with new config API
 - [ ] All new features have dedicated test coverage
 - [ ] Zero references to old `AllowHTML` / `Strict` fields in converter package
