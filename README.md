@@ -49,8 +49,8 @@ jac input.json > output.md
 ```
 
 **Options:**
-*   `--allow-html`: Enable HTML tags for underline, subscript, superscript, and break tags in tables.
-*   `--strict`: Return an error if unknown nodes are encountered (default is to render a placeholder).
+*   `--allow-html`: Enable HTML-oriented rendering for underline/subsup/line breaks/expand blocks.
+*   `--strict`: Return an error for unknown nodes and unknown marks.
 
 ```bash
 jac --allow-html --strict input.json
@@ -83,16 +83,20 @@ func main() {
 
     // Configure the converter
     cfg := converter.Config{
-        AllowHTML: false, // Use pure Markdown
-        Strict:    false, // Graceful error handling
+        UnderlineStyle: converter.UnderlineIgnore,
+        UnknownNodes:   converter.UnknownPlaceholder,
+        UnknownMarks:   converter.UnknownSkip,
     }
-    conv := converter.New(cfg)
-    
-    markdown, err := conv.Convert(jsonData)
+    conv, err := converter.New(cfg)
     if err != nil {
         panic(err)
     }
-    fmt.Println(markdown)
+    
+    result, err := conv.Convert(jsonData)
+    if err != nil {
+        panic(err)
+    }
+    fmt.Println(result.Markdown)
     // Output: Hello, **World!**
 }
 ```
@@ -101,7 +105,8 @@ func main() {
 
 | Option | Description |
 |--------|-------------|
-| **`AllowHTML`** | **`false`**: (Default) Drops non-GFM formatting (underline, sub/sup) or uses text symbols. <br> **`true`**: Renders `<u>`, `<sub>`, `<sup>`, and `<br>` for better fidelity in HTML-enabled viewers. |
-| **`Strict`** | **`false`**: (Default) Renders `[Unknown node: type]` for unsupported nodes. <br> **`true`**: Returns an error immediately on unsupported nodes. |
+| **`UnderlineStyle`** | Controls underline rendering (`ignore`, `bold`, `html`). |
+| **`UnknownNodes`** | Controls unknown node handling (`placeholder`, `skip`, `error`). |
+| **`UnknownMarks`** | Controls unknown mark handling (`skip`, `placeholder`, `error`). |
 
 

@@ -6,7 +6,7 @@ import (
 )
 
 // convertEmoji converts an emoji node to a shortcode or fallback
-func (c *Converter) convertEmoji(node Node) (string, error) {
+func (s *state) convertEmoji(node Node) (string, error) {
 	shortName := node.GetStringAttr("shortName", "")
 	fallback := node.GetStringAttr("fallback", "")
 
@@ -18,32 +18,34 @@ func (c *Converter) convertEmoji(node Node) (string, error) {
 	}
 
 	// Fallback if neither exists
-	if c.config.Strict {
+	if s.config.UnknownNodes == UnknownError {
 		return "", fmt.Errorf("emoji node missing shortName and fallback")
 	}
+	s.addWarning(WarningMissingAttribute, node.Type, "emoji node missing shortName and fallback")
 	return "", nil
 }
 
 // convertMention converts a mention node to text representation
-func (c *Converter) convertMention(node Node) (string, error) {
+func (s *state) convertMention(node Node) (string, error) {
 	text := node.GetStringAttr("text", "Unknown User")
 	return text, nil
 }
 
 // convertStatus converts a status node to text representation
-func (c *Converter) convertStatus(node Node) (string, error) {
+func (s *state) convertStatus(node Node) (string, error) {
 	text := node.GetStringAttr("text", "Unknown")
 	return fmt.Sprintf("[Status: %s]", text), nil
 }
 
 // convertDate converts a date node to ISO 8601 format
-func (c *Converter) convertDate(node Node) (string, error) {
+func (s *state) convertDate(node Node) (string, error) {
 	timestamp := node.GetStringAttr("timestamp", "")
 
 	if timestamp == "" || timestamp == "invalid" {
-		if c.config.Strict {
+		if s.config.UnknownNodes == UnknownError {
 			return "", fmt.Errorf("date node missing or invalid timestamp")
 		}
+		s.addWarning(WarningMissingAttribute, node.Type, "date node missing or invalid timestamp")
 		return "[Date: invalid]", nil
 	}
 
@@ -51,9 +53,10 @@ func (c *Converter) convertDate(node Node) (string, error) {
 	var ts int64
 	_, err := fmt.Sscanf(timestamp, "%d", &ts)
 	if err != nil {
-		if c.config.Strict {
+		if s.config.UnknownNodes == UnknownError {
 			return "", fmt.Errorf("date node has invalid timestamp format: %s", timestamp)
 		}
+		s.addWarning(WarningMissingAttribute, node.Type, fmt.Sprintf("date node has invalid timestamp format: %s", timestamp))
 		return "[Date: invalid]", nil
 	}
 
@@ -74,7 +77,7 @@ func (c *Converter) convertDate(node Node) (string, error) {
 }
 
 // convertInlineCard converts an inlineCard node
-func (c *Converter) convertInlineCard(node Node) (string, error) {
+func (s *state) convertInlineCard(node Node) (string, error) {
 	url := node.GetStringAttr("url", "")
 
 	// if url is present, return [url](url)
@@ -108,8 +111,9 @@ func (c *Converter) convertInlineCard(node Node) (string, error) {
 	}
 
 	// Fallback
-	if c.config.Strict {
+	if s.config.UnknownNodes == UnknownError {
 		return "", fmt.Errorf("inlineCard missing url and valid data")
 	}
+	s.addWarning(WarningMissingAttribute, node.Type, "inlineCard missing url and valid data")
 	return "[Smart Link]", nil
 }

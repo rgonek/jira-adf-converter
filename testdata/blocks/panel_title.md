@@ -1,0 +1,2 @@
+> [!INFO: My Panel]
+> content

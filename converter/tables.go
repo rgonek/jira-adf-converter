@@ -5,8 +5,8 @@ import (
 )
 
 // convertTable converts a table node to GFM table
-func (c *Converter) convertTable(node Node) (string, error) {
-	rows, err := c.extractTableRows(node)
+func (s *state) convertTable(node Node) (string, error) {
+	rows, err := s.extractTableRows(node)
 	if err != nil {
 		return "", err
 	}
@@ -14,11 +14,11 @@ func (c *Converter) convertTable(node Node) (string, error) {
 		return "", nil
 	}
 
-	return c.renderTableGFM(rows), nil
+	return s.renderTableGFM(rows), nil
 }
 
 // extractTableRows extracts and normalizes table rows from the node
-func (c *Converter) extractTableRows(node Node) ([][]string, error) {
+func (s *state) extractTableRows(node Node) ([][]string, error) {
 	if len(node.Content) == 0 {
 		return nil, nil
 	}
@@ -40,7 +40,7 @@ func (c *Converter) extractTableRows(node Node) ([][]string, error) {
 			if cellNode.Type == "tableHeader" {
 				isHeaderRow = true
 			}
-			cellContent, err := c.convertCellContent(cellNode)
+			cellContent, err := s.convertCellContent(cellNode)
 			if err != nil {
 				return nil, err
 			}
@@ -77,7 +77,7 @@ func (c *Converter) extractTableRows(node Node) ([][]string, error) {
 }
 
 // renderTableGFM renders a matrix of strings as a GFM table
-func (c *Converter) renderTableGFM(rows [][]string) string {
+func (s *state) renderTableGFM(rows [][]string) string {
 	if len(rows) == 0 {
 		return ""
 	}
@@ -137,12 +137,12 @@ func (c *Converter) renderTableGFM(rows [][]string) string {
 // Note: isHeader parameter is currently unused since GFM tables don't require
 // different content processing for header vs data cells. The only difference
 // is in the separator row. Kept for API consistency and future extensibility.
-func (c *Converter) convertTableCell(node Node, isHeader bool) (string, error) {
-	return c.convertCellContent(node)
+func (s *state) convertTableCell(node Node, isHeader bool) (string, error) {
+	return s.convertCellContent(node)
 }
 
 // convertCellContent processes the content of a table cell, preserving block-level content
-func (c *Converter) convertCellContent(node Node) (string, error) {
+func (s *state) convertCellContent(node Node) (string, error) {
 	if len(node.Content) == 0 {
 		return "", nil
 	}
@@ -152,7 +152,7 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 		switch child.Type {
 		case "paragraph":
 			// Process paragraph inline content without the trailing newlines
-			content, err := c.convertInlineContent(child.Content)
+			content, err := s.convertInlineContent(child.Content)
 			if err != nil {
 				return "", err
 			}
@@ -161,7 +161,7 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 			}
 
 		case "bulletList", "orderedList", "taskList":
-			res, err := c.convertListInTable(child)
+			res, err := s.convertListInTable(child)
 			if err != nil {
 				return "", err
 			}
@@ -170,7 +170,7 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 			}
 
 		case "codeBlock":
-			res, err := c.convertCodeBlockInTable(child)
+			res, err := s.convertCodeBlockInTable(child)
 			if err != nil {
 				return "", err
 			}
@@ -180,7 +180,7 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 
 		case "panel":
 			// Process panel
-			panelContent, err := c.convertNode(child)
+			panelContent, err := s.convertNode(child)
 			if err != nil {
 				return "", err
 			}
@@ -191,7 +191,7 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 
 		case "blockquote":
 			// Process blockquote
-			quoteContent, err := c.convertNode(child)
+			quoteContent, err := s.convertNode(child)
 			if err != nil {
 				return "", err
 			}
@@ -202,7 +202,7 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 
 		default:
 			// For other node types, try to convert them
-			content, err := c.convertNode(child)
+			content, err := s.convertNode(child)
 			if err != nil {
 				return "", err
 			}
@@ -215,7 +215,7 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 
 	// Join with <br> (or space) for multi-paragraph or block content
 	sep := "<br>"
-	if !c.config.AllowHTML {
+	if s.config.HardBreakStyle != HardBreakHTML {
 		sep = " "
 	}
 	result := strings.Join(parts, sep)
@@ -225,8 +225,8 @@ func (c *Converter) convertCellContent(node Node) (string, error) {
 	return strings.ReplaceAll(result, "|", "\\|"), nil
 }
 
-func (c *Converter) convertListInTable(node Node) (string, error) {
-	listContent, err := c.convertNode(node)
+func (s *state) convertListInTable(node Node) (string, error) {
+	listContent, err := s.convertNode(node)
 	if err != nil {
 		return "", err
 	}
@@ -246,7 +246,7 @@ func (c *Converter) convertListInTable(node Node) (string, error) {
 	}
 	if len(cleanLines) > 0 {
 		sep := "<br>"
-		if !c.config.AllowHTML {
+		if s.config.HardBreakStyle != HardBreakHTML {
 			sep = " "
 		}
 		return strings.Join(cleanLines, sep), nil
@@ -254,13 +254,13 @@ func (c *Converter) convertListInTable(node Node) (string, error) {
 	return "", nil
 }
 
-func (c *Converter) convertCodeBlockInTable(node Node) (string, error) {
-	rawCode := c.extractTextFromContent(node.Content)
+func (s *state) convertCodeBlockInTable(node Node) (string, error) {
+	rawCode := s.extractTextFromContent(node.Content)
 	if strings.TrimSpace(rawCode) == "" {
 		return "", nil
 	}
 
-	if c.config.AllowHTML {
+	if s.config.HardBreakStyle == HardBreakHTML {
 		// Escape HTML special chars
 		safeCode := strings.ReplaceAll(rawCode, "&", "&amp;")
 		safeCode = strings.ReplaceAll(safeCode, "<", "&lt;")

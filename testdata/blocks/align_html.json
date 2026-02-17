@@ -1,0 +1,18 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "attrs": {
+        "layout": "center"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Centered text"
+        }
+      ]
+    }
+  ]
+}

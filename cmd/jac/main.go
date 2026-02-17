@@ -30,17 +30,28 @@ func main() {
 		os.Exit(1)
 	}
 
-	cfg := converter.Config{
-		AllowHTML: *allowHTML,
-		Strict:    *strict,
+	cfg := converter.Config{}
+	if *allowHTML {
+		cfg.UnderlineStyle = converter.UnderlineHTML
+		cfg.SubSupStyle = converter.SubSupHTML
+		cfg.HardBreakStyle = converter.HardBreakHTML
+		cfg.ExpandStyle = converter.ExpandHTML
 	}
-	conv := converter.New(cfg)
+	if *strict {
+		cfg.UnknownNodes = converter.UnknownError
+		cfg.UnknownMarks = converter.UnknownError
+	}
+	conv, err := converter.New(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Invalid config: %v\n", err)
+		os.Exit(1)
+	}
 
-	output, err := conv.Convert(data)
+	result, err := conv.Convert(data)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error converting file: %v\n", err)
 		os.Exit(1)
 	}
 
-	fmt.Print(output)
+	fmt.Print(result.Markdown)
 }

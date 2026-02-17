@@ -6,137 +6,215 @@ import (
 	"strings"
 )
 
-// Config holds converter configuration
-type Config struct {
-	AllowHTML bool // If true, use HTML for unsupported features
-	Strict    bool // If true, return error on unknown nodes
-}
-
 // Converter converts ADF to GFM
 type Converter struct {
 	config Config
 }
 
+// state holds the per-conversion state, making the converter thread-safe.
+type state struct {
+	config   Config
+	warnings []Warning
+}
+
 // New creates a new Converter with the given config
-func New(config Config) *Converter {
-	return &Converter{
-		config: config,
+func New(config Config) (*Converter, error) {
+	cfg := config.applyDefaults()
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
+
+	return &Converter{
+		config: cfg,
+	}, nil
 }
 
 // Convert takes an ADF JSON document and returns GFM markdown
-func (c *Converter) Convert(input []byte) (string, error) {
+func (c *Converter) Convert(input []byte) (Result, error) {
 	var doc Doc
 	if err := json.Unmarshal(input, &doc); err != nil {
-		return "", fmt.Errorf("failed to parse ADF JSON: %w", err)
+		return Result{}, fmt.Errorf("failed to parse ADF JSON: %w", err)
 	}
 
-	return c.convertNode(Node{Type: doc.Type, Content: doc.Content})
+	s := &state{
+		config: c.config,
+	}
+
+	markdown, err := s.convertNode(Node{Type: doc.Type, Content: doc.Content})
+	if err != nil {
+		return Result{}, err
+	}
+
+	return Result{Markdown: markdown, Warnings: s.warnings}, nil
 }
 
-func (c *Converter) convertNode(node Node) (string, error) {
+func (s *state) convertNode(node Node) (string, error) {
 	switch node.Type {
 	case "doc":
-		return c.convertDoc(node)
+		return s.convertDoc(node)
 
 	case "paragraph":
-		return c.convertParagraph(node)
+		return s.convertParagraph(node)
 
 	case "heading":
-		return c.convertHeading(node)
+		return s.convertHeading(node)
 
 	case "blockquote":
-		return c.convertBlockquote(node)
+		return s.convertBlockquote(node)
 
 	case "rule":
-		return c.convertRule()
+		return s.convertRule()
 
 	case "hardBreak":
-		return c.convertHardBreak()
+		return s.convertHardBreak()
 
 	case "codeBlock":
-		return c.convertCodeBlock(node)
+		return s.convertCodeBlock(node)
 
 	case "bulletList":
-		return c.convertBulletList(node)
+		return s.convertBulletList(node)
 
 	case "orderedList":
-		return c.convertOrderedList(node)
+		return s.convertOrderedList(node)
 
 	case "taskList":
-		return c.convertTaskList(node)
+		return s.convertTaskList(node)
 
 	case "taskItem":
-		return c.convertTaskItem(node)
+		return s.convertTaskItem(node)
 
 	case "listItem":
-		return c.convertListItem(node)
+		return s.convertListItem(node)
 
 	case "text":
-		return c.convertText(node)
+		return s.convertText(node)
 
 	case "emoji":
-		return c.convertEmoji(node)
+		return s.convertEmoji(node)
 
 	case "mention":
-		return c.convertMention(node)
+		return s.convertMention(node)
 
 	case "status":
-		return c.convertStatus(node)
+		return s.convertStatus(node)
 
 	case "date":
-		return c.convertDate(node)
+		return s.convertDate(node)
 
 	case "inlineCard":
-		return c.convertInlineCard(node)
+		return s.convertInlineCard(node)
 
 	case "table":
-		return c.convertTable(node)
+		return s.convertTable(node)
 
 	case "tableRow":
 		// Table rows are processed within convertTable, not standalone
 		return "", nil
 
 	case "tableHeader":
-		return c.convertTableCell(node, true)
+		return s.convertTableCell(node, true)
 
 	case "tableCell":
-		return c.convertTableCell(node, false)
+		return s.convertTableCell(node, false)
 
 	case "panel":
-		return c.convertPanel(node)
+		return s.convertPanel(node)
 
 	case "expand", "nestedExpand":
-		return c.convertExpand(node)
+		return s.convertExpand(node)
 
 	case "mediaSingle":
-		return c.convertMediaSingle(node)
+		return s.convertMediaSingle(node)
 
 	case "mediaGroup":
-		return c.convertMediaGroup(node)
+		return s.convertMediaGroup(node)
 
 	case "media":
-		return c.convertMedia(node)
+		return s.convertMedia(node)
 
 	case "decisionList":
-		return c.convertDecisionList(node)
+		return s.convertDecisionList(node)
 
 	case "decisionItem":
-		return c.convertDecisionItem(node)
+		return s.convertDecisionItem(node)
 
 	default:
-		if c.config.Strict {
-			return "", fmt.Errorf("unknown node type: %s", node.Type)
+		if s.isExtensionNode(node.Type) {
+			return s.convertExtension(node)
 		}
-		return fmt.Sprintf("[Unknown node: %s]", node.Type), nil
+
+		switch s.config.UnknownNodes {
+		case UnknownError:
+			return "", fmt.Errorf("unknown node type: %s", node.Type)
+		case UnknownSkip:
+			s.addWarning(WarningUnknownNode, node.Type, fmt.Sprintf("unknown node skipped: %s", node.Type))
+			return "", nil
+		default:
+			s.addWarning(WarningUnknownNode, node.Type, fmt.Sprintf("unknown node rendered as placeholder: %s", node.Type))
+			return fmt.Sprintf("[Unknown node: %s]", node.Type), nil
+		}
 	}
 }
 
+func (s *state) isExtensionNode(nodeType string) bool {
+	switch nodeType {
+	case "extension", "inlineExtension", "bodiedExtension":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *state) convertExtension(node Node) (string, error) {
+	extensionType := node.GetStringAttr("extensionType", "")
+	if extensionType == "" {
+		extensionType = node.GetStringAttr("extensionKey", "")
+	}
+	if extensionType == "" {
+		extensionType = node.Type
+	}
+
+	switch s.config.Extensions.ModeFor(extensionType) {
+	case ExtensionStrip:
+		s.addWarning(WarningDroppedFeature, node.Type, fmt.Sprintf("extension %q stripped", extensionType))
+		return "", nil
+	case ExtensionText:
+		text, err := s.convertChildren(node.Content)
+		if err != nil {
+			return "", err
+		}
+		text = strings.TrimSpace(text)
+		if text == "" {
+			text = node.GetStringAttr("text", "")
+		}
+		if text == "" {
+			s.addWarning(WarningExtensionFallback, node.Type, fmt.Sprintf("extension %q has no fallback text", extensionType))
+		}
+		return text, nil
+	case ExtensionJSON:
+		data, err := json.MarshalIndent(node, "", "  ")
+		if err != nil {
+			return "", fmt.Errorf("failed to marshal extension node: %w", err)
+		}
+		return fmt.Sprintf("```adf:extension\n%s\n```\n\n", string(data)), nil
+	default:
+		return "", fmt.Errorf("unknown extension strategy: %s", s.config.Extensions.ModeFor(extensionType))
+	}
+}
+
+func (s *state) addWarning(warnType WarningType, nodeType, message string) {
+	s.warnings = append(s.warnings, Warning{
+		Type:     warnType,
+		NodeType: nodeType,
+		Message:  message,
+	})
+}
+
 // convertChildren processes a slice of nodes and concatenates their results
-func (c *Converter) convertChildren(content []Node) (string, error) {
+func (s *state) convertChildren(content []Node) (string, error) {
 	var sb strings.Builder
 	for _, child := range content {
-		res, err := c.convertNode(child)
+		res, err := s.convertNode(child)
 		if err != nil {
 			return "", err
 		}
@@ -146,8 +224,8 @@ func (c *Converter) convertChildren(content []Node) (string, error) {
 }
 
 // convertDoc converts the root document node
-func (c *Converter) convertDoc(node Node) (string, error) {
-	res, err := c.convertChildren(node.Content)
+func (s *state) convertDoc(node Node) (string, error) {
+	res, err := s.convertChildren(node.Content)
 	if err != nil {
 		return "", err
 	}
@@ -161,21 +239,21 @@ func (c *Converter) convertDoc(node Node) (string, error) {
 
 // convertInlineContent processes a slice of nodes (typically text with marks)
 // and returns the markdown string without trailing block-level newlines.
-func (c *Converter) convertInlineContent(content []Node) (string, error) {
+func (s *state) convertInlineContent(content []Node) (string, error) {
 	var sb strings.Builder
 	var activeMarks []Mark // Track currently active marks (full Mark objects)
 
 	// Check if any text node has both strong and em anywhere in the paragraph
-	useUnderscoreForEm := c.hasStrongAndEm(content)
+	useUnderscoreForEm := s.hasStrongAndEm(content)
 
 	for _, node := range content {
 		if node.Type != "text" {
 			// For non-text nodes, close all active marks, process node, reset marks
-			if err := c.closeMarks(activeMarks, useUnderscoreForEm, &sb); err != nil {
+			if err := s.closeMarks(activeMarks, useUnderscoreForEm, &sb); err != nil {
 				return "", err
 			}
 
-			result, err := c.convertNode(node)
+			result, err := s.convertNode(node)
 			if err != nil {
 				return "", err
 			}
@@ -184,17 +262,21 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 			continue
 		}
 
-		// Validate marks in strict mode
-		if c.config.Strict {
-			for _, mark := range node.Marks {
-				if !c.isKnownMark(mark.Type) {
-					return "", fmt.Errorf("unknown mark type: %s", mark.Type)
-				}
+		// Filter marks according to unknown-mark policy.
+		currentMarks := make([]Mark, 0, len(node.Marks))
+		for _, mark := range node.Marks {
+			if s.isKnownMark(mark.Type) {
+				currentMarks = append(currentMarks, mark)
+				continue
+			}
+
+			switch s.config.UnknownMarks {
+			case UnknownError:
+				return "", fmt.Errorf("unknown mark type: %s", mark.Type)
+			case UnknownSkip, UnknownPlaceholder:
+				s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark skipped: %s", mark.Type))
 			}
 		}
-
-		// Get marks for this text node
-		currentMarks := node.Marks
 
 		// Special handling for whitespace-only nodes to avoid "stupid" markdown like ** **
 		// or marks starting/ending on whitespace.
@@ -202,21 +284,21 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 		if strings.TrimSpace(node.Text) == "" {
 			// For whitespace-only nodes, we don't want to open new marks.
 			// We only keep marks that were already active.
-			effectiveMarks = c.intersectMarks(activeMarks, currentMarks)
+			effectiveMarks = s.intersectMarks(activeMarks, currentMarks)
 		}
 
 		// Find marks to close and open
-		marksToClose := c.getMarksToCloseFull(activeMarks, effectiveMarks)
-		marksToOpen := c.getMarksToOpenFull(activeMarks, effectiveMarks)
+		marksToClose := s.getMarksToCloseFull(activeMarks, effectiveMarks)
+		marksToOpen := s.getMarksToOpenFull(activeMarks, effectiveMarks)
 
 		// Close marks
-		if err := c.closeMarks(marksToClose, useUnderscoreForEm, &sb); err != nil {
+		if err := s.closeMarks(marksToClose, useUnderscoreForEm, &sb); err != nil {
 			return "", err
 		}
 
 		// Open new marks (in priority order)
 		for _, mark := range marksToOpen {
-			opening, err := c.getOpeningDelimiterForMark(mark, useUnderscoreForEm)
+			opening, err := s.getOpeningDelimiterForMark(mark, useUnderscoreForEm)
 			if err != nil {
 				return "", err
 			}
@@ -231,7 +313,7 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 	}
 
 	// Close any remaining marks at end of content
-	if err := c.closeMarks(activeMarks, useUnderscoreForEm, &sb); err != nil {
+	if err := s.closeMarks(activeMarks, useUnderscoreForEm, &sb); err != nil {
 		return "", err
 	}
 
@@ -239,9 +321,9 @@ func (c *Converter) convertInlineContent(content []Node) (string, error) {
 }
 
 // closeMarks closes the provided marks in reverse order
-func (c *Converter) closeMarks(marks []Mark, useUnderscoreForEm bool, sb *strings.Builder) error {
+func (s *state) closeMarks(marks []Mark, useUnderscoreForEm bool, sb *strings.Builder) error {
 	for i := len(marks) - 1; i >= 0; i-- {
-		closing, err := c.getClosingDelimiterForMark(marks[i], useUnderscoreForEm)
+		closing, err := s.getClosingDelimiterForMark(marks[i], useUnderscoreForEm)
 		if err != nil {
 			return err
 		}
@@ -251,7 +333,7 @@ func (c *Converter) closeMarks(marks []Mark, useUnderscoreForEm bool, sb *string
 }
 
 // hasStrongAndEm checks if any text node in content has both strong and em marks
-func (c *Converter) hasStrongAndEm(content []Node) bool {
+func (s *state) hasStrongAndEm(content []Node) bool {
 	for _, node := range content {
 		if node.Type != "text" {
 			continue
