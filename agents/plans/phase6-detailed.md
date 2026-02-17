@@ -877,13 +877,13 @@ The phase is complete when:
 - [x] CLI `--preset` supports balanced/strict/readable/lossy
 - [x] CLI preset mapping sets expected config values
 - [x] Explicit CLI flags override preset values
-- [ ] All tests pass with new config API
+- [x] All tests pass with new config API
 - [ ] All new features have dedicated test coverage
-- [ ] Zero references to old `AllowHTML` / `Strict` fields in converter package
-- [ ] Zero `log.Printf` calls in converter package
+- [x] Zero references to old `AllowHTML` / `Strict` fields in converter package
+- [x] Zero `log.Printf` calls in converter package
 - [ ] Unknown handling is policy-driven (UnknownNodes, UnknownMarks)
 - [ ] Config is JSON-serializable for future reverse converter use
-- [ ] No HTML comment generation code exists
+- [x] No HTML comment generation code exists
 
 ---
 
