@@ -35,8 +35,9 @@ func (s *state) convertListItems(content []Node, childType string, getMarker fun
 
 // convertBulletList converts a bullet list node to markdown
 func (s *state) convertBulletList(node Node) (string, error) {
+	marker := fmt.Sprintf("%c ", s.config.BulletMarker)
 	return s.convertListItems(node.Content, "listItem", func(i int) string {
-		return "- "
+		return marker
 	})
 }
 
@@ -46,6 +47,9 @@ func (s *state) convertOrderedList(node Node) (string, error) {
 	order := node.GetIntAttr("order", 1)
 
 	return s.convertListItems(node.Content, "listItem", func(i int) string {
+		if s.config.OrderedListStyle == OrderedLazy {
+			return "1. "
+		}
 		return fmt.Sprintf("%d. ", order+i)
 	})
 }

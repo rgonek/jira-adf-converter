@@ -1,14 +1,30 @@
 package converter
 
 import (
+	"fmt"
 	"html"
 	"strings"
 )
 
 // convertParagraph converts a paragraph node to markdown
 func (s *state) convertParagraph(node Node) (string, error) {
-	// Process paragraph content with mark continuity
-	return s.convertParagraphContent(node.Content)
+	// Process paragraph content with mark continuity.
+	content, err := s.convertParagraphContent(node.Content)
+	if err != nil {
+		return "", err
+	}
+	if content == "" {
+		return "", nil
+	}
+
+	if s.config.AlignmentStyle == AlignHTML {
+		if alignment := s.getNodeAlignment(node); alignment != "" {
+			trimmed := strings.TrimSuffix(content, "\n\n")
+			return fmt.Sprintf(`<div align="%s">%s</div>`+"\n\n", alignment, trimmed), nil
+		}
+	}
+
+	return content, nil
 }
 
 // convertText converts a text node (standalone, not within paragraph)
@@ -34,8 +50,16 @@ func (s *state) convertParagraphContent(content []Node) (string, error) {
 
 // convertHeading converts a heading node to markdown
 func (s *state) convertHeading(node Node) (string, error) {
-	// Extract level from attributes (default to 1 if missing/invalid)
-	level := node.GetIntAttr("level", 1)
+	// Extract level from attributes (default to 1 if missing/invalid).
+	level := node.GetIntAttr("level", 0)
+	if level <= 0 {
+		level = node.Level
+	}
+	if level <= 0 {
+		level = 1
+	}
+
+	level += s.config.HeadingOffset
 
 	// Clamp level to valid range (1-6)
 	if level < 1 {
@@ -58,15 +82,18 @@ func (s *state) convertHeading(node Node) (string, error) {
 	content = strings.TrimSuffix(content, "\\")
 
 	// Build heading
-	var sb strings.Builder
-	sb.WriteString(strings.Repeat("#", level))
+	heading := strings.Repeat("#", level)
 	if len(content) > 0 {
-		sb.WriteString(" ")
-		sb.WriteString(content)
+		heading += " " + content
 	}
-	sb.WriteString("\n\n") // Newline after heading + blank line after
 
-	return sb.String(), nil
+	if s.config.AlignmentStyle == AlignHTML {
+		if alignment := s.getNodeAlignment(node); alignment != "" {
+			return fmt.Sprintf(`<div align="%s">%s</div>`+"\n\n", alignment, heading), nil
+		}
+	}
+
+	return heading + "\n\n", nil // Newline after heading + blank line after
 }
 
 // convertBlockquote converts a blockquote node to markdown
@@ -96,7 +123,24 @@ func (s *state) convertRule() (string, error) {
 
 // convertHardBreak converts a hard line break to markdown (backslash + newline)
 func (s *state) convertHardBreak() (string, error) {
+	if s.config.HardBreakStyle == HardBreakHTML {
+		return "<br>", nil
+	}
 	return "\\\n", nil
+}
+
+func (s *state) getNodeAlignment(node Node) string {
+	alignment := node.GetStringAttr("align", "")
+	if alignment == "" {
+		alignment = node.GetStringAttr("layout", "")
+	}
+
+	switch alignment {
+	case "left", "center", "right":
+		return alignment
+	default:
+		return ""
+	}
 }
 
 // blockquoteContent converts content to blockquoted format with optional first-line prefix
@@ -211,30 +255,60 @@ func (s *state) convertPanel(node Node) (string, error) {
 		return "", nil
 	}
 
-	// Get panel type
-	panelType := node.GetStringAttr("panelType", "")
+	panelType := strings.ToLower(node.GetStringAttr("panelType", ""))
+	hasPanelType := panelType != ""
+	panelTitle := node.GetStringAttr("title", "")
+	panelUpper, panelTitleCase := panelTypeLabels(panelType)
 
-	// Map panel type to prefix
-	prefix := ""
-	switch panelType {
-	case "info":
-		prefix = "**Info**: "
-	case "note":
-		prefix = "**Note**: "
-	case "success":
-		prefix = "**Success**: "
-	case "warning":
-		prefix = "**Warning**: "
-	case "error":
-		prefix = "**Error**: "
+	switch s.config.PanelStyle {
+	case PanelNone:
+		quoted := s.blockquoteContent(fullContent, "")
+		if quoted == "" {
+			return "", nil
+		}
+		return quoted + "\n\n", nil
+	case PanelBold:
+		prefix := ""
+		if hasPanelType {
+			prefix = fmt.Sprintf("**%s**: ", panelTitleCase)
+		}
+		quoted := s.blockquoteContent(fullContent, prefix)
+		if quoted == "" {
+			return "", nil
+		}
+		return quoted + "\n\n", nil
+	case PanelTitle:
+		if !hasPanelType {
+			quoted := s.blockquoteContent(fullContent, "")
+			if quoted == "" {
+				return "", nil
+			}
+			return quoted + "\n\n", nil
+		}
+		callout := fmt.Sprintf("[!%s]", panelUpper)
+		if panelTitle != "" {
+			callout = fmt.Sprintf("[!%s: %s]", panelUpper, panelTitle)
+		}
+		quoted := s.blockquoteContent(fullContent, "")
+		if quoted == "" {
+			return "> " + callout + "\n\n", nil
+		}
+		return "> " + callout + "\n" + quoted + "\n\n", nil
+	default: // PanelGitHub
+		if !hasPanelType {
+			quoted := s.blockquoteContent(fullContent, "")
+			if quoted == "" {
+				return "", nil
+			}
+			return quoted + "\n\n", nil
+		}
+		callout := fmt.Sprintf("[!%s]", panelUpper)
+		quoted := s.blockquoteContent(fullContent, "")
+		if quoted == "" {
+			return "> " + callout + "\n\n", nil
+		}
+		return "> " + callout + "\n" + quoted + "\n\n", nil
 	}
-
-	quoted := s.blockquoteContent(fullContent, prefix)
-	if quoted == "" {
-		return "", nil
-	}
-
-	return quoted + "\n\n", nil
 }
 
 // convertDecisionList converts a decision list to a single continuous blockquote
@@ -285,11 +359,23 @@ func (s *state) convertDecisionItemContent(node Node) (string, error) {
 	prefix := ""
 	switch state {
 	case "DECIDED":
-		prefix = "**✓ Decision**: "
+		if s.config.DecisionStyle == DecisionText {
+			prefix = "**DECIDED**: "
+		} else {
+			prefix = "**✓ Decision**: "
+		}
 	case "UNDECIDED":
-		prefix = "**? Decision**: "
+		if s.config.DecisionStyle == DecisionText {
+			prefix = "**UNDECIDED**: "
+		} else {
+			prefix = "**? Decision**: "
+		}
 	default:
-		prefix = "**Decision**: "
+		if s.config.DecisionStyle == DecisionText {
+			prefix = "**DECISION**: "
+		} else {
+			prefix = "**Decision**: "
+		}
 	}
 
 	// Process content
@@ -304,6 +390,33 @@ func (s *state) convertDecisionItemContent(node Node) (string, error) {
 	}
 
 	return quoted, nil
+}
+
+func panelTypeLabels(panelType string) (string, string) {
+	switch panelType {
+	case "info":
+		return "INFO", "Info"
+	case "note":
+		return "NOTE", "Note"
+	case "success":
+		return "SUCCESS", "Success"
+	case "warning":
+		return "WARNING", "Warning"
+	case "error":
+		return "ERROR", "Error"
+	default:
+		upper := strings.ToUpper(panelType)
+		if upper == "" {
+			upper = "INFO"
+		}
+		titleCase := panelType
+		if titleCase == "" {
+			titleCase = "Info"
+		} else {
+			titleCase = strings.ToUpper(titleCase[:1]) + strings.ToLower(titleCase[1:])
+		}
+		return upper, titleCase
+	}
 }
 
 // convertExpand converts expand and nestedExpand nodes

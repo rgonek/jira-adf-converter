@@ -165,43 +165,6 @@ func (s *state) isExtensionNode(nodeType string) bool {
 	}
 }
 
-func (s *state) convertExtension(node Node) (string, error) {
-	extensionType := node.GetStringAttr("extensionType", "")
-	if extensionType == "" {
-		extensionType = node.GetStringAttr("extensionKey", "")
-	}
-	if extensionType == "" {
-		extensionType = node.Type
-	}
-
-	switch s.config.Extensions.ModeFor(extensionType) {
-	case ExtensionStrip:
-		s.addWarning(WarningDroppedFeature, node.Type, fmt.Sprintf("extension %q stripped", extensionType))
-		return "", nil
-	case ExtensionText:
-		text, err := s.convertChildren(node.Content)
-		if err != nil {
-			return "", err
-		}
-		text = strings.TrimSpace(text)
-		if text == "" {
-			text = node.GetStringAttr("text", "")
-		}
-		if text == "" {
-			s.addWarning(WarningExtensionFallback, node.Type, fmt.Sprintf("extension %q has no fallback text", extensionType))
-		}
-		return text, nil
-	case ExtensionJSON:
-		data, err := json.MarshalIndent(node, "", "  ")
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal extension node: %w", err)
-		}
-		return fmt.Sprintf("```adf:extension\n%s\n```\n\n", string(data)), nil
-	default:
-		return "", fmt.Errorf("unknown extension strategy: %s", s.config.Extensions.ModeFor(extensionType))
-	}
-}
-
 func (s *state) addWarning(warnType WarningType, nodeType, message string) {
 	s.warnings = append(s.warnings, Warning{
 		Type:     warnType,

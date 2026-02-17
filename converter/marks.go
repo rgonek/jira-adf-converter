@@ -56,6 +56,8 @@ func (s *state) marksEqual(m1, m2 Mark) bool {
 		return s.markAttrsEqual(m1.Attrs, m2.Attrs, []string{"href", "title"})
 	case "subsup":
 		return s.markAttrsEqual(m1.Attrs, m2.Attrs, []string{"type"})
+	case "textColor", "backgroundColor":
+		return s.markAttrsEqual(m1.Attrs, m2.Attrs, []string{"color"})
 	}
 
 	return true
@@ -79,7 +81,7 @@ func (s *state) markAttrsEqual(attrs1, attrs2 map[string]any, keys []string) boo
 // isKnownMark checks if a mark type is supported
 func (s *state) isKnownMark(markType string) bool {
 	switch markType {
-	case "strong", "em", "strike", "code", "underline", "link", "subsup":
+	case "strong", "em", "strike", "code", "underline", "link", "subsup", "textColor", "backgroundColor":
 		return true
 	default:
 		return false
@@ -114,12 +116,13 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		return "`", "`", nil
 	case "underline":
 		switch s.config.UnderlineStyle {
+		case UnderlineIgnore:
+			return "", "", nil
 		case UnderlineHTML:
 			return "<u>", "</u>", nil
 		case UnderlineBold:
 			return "**", "**", nil
 		default:
-			// In ignore mode, silently drop underline formatting.
 			return "", "", nil
 		}
 	case "link":
@@ -177,6 +180,32 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		}
 
 		return "", "", nil
+	case "textColor":
+		switch s.config.TextColorStyle {
+		case ColorIgnore:
+			return "", "", nil
+		case ColorHTML:
+			color := mark.GetStringAttr("color", "")
+			if color == "" {
+				return "", "", nil
+			}
+			return `<span style="color: ` + color + `">`, "</span>", nil
+		default:
+			return "", "", nil
+		}
+	case "backgroundColor":
+		switch s.config.BackgroundColorStyle {
+		case ColorIgnore:
+			return "", "", nil
+		case ColorHTML:
+			color := mark.GetStringAttr("color", "")
+			if color == "" {
+				return "", "", nil
+			}
+			return `<span style="background-color: ` + color + `">`, "</span>", nil
+		default:
+			return "", "", nil
+		}
 	default:
 		if s.config.UnknownMarks == UnknownError {
 			return "", "", fmt.Errorf("unknown mark type: %s", mark.Type)

@@ -1,7 +1,9 @@
 package converter
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -10,11 +12,21 @@ func (s *state) convertEmoji(node Node) (string, error) {
 	shortName := node.GetStringAttr("shortName", "")
 	fallback := node.GetStringAttr("fallback", "")
 
-	if shortName != "" {
-		return shortName, nil
-	}
-	if fallback != "" {
-		return fallback, nil
+	switch s.config.EmojiStyle {
+	case EmojiUnicode:
+		if fallback != "" {
+			return fallback, nil
+		}
+		if shortName != "" {
+			return shortName, nil
+		}
+	default:
+		if shortName != "" {
+			return shortName, nil
+		}
+		if fallback != "" {
+			return fallback, nil
+		}
 	}
 
 	// Fallback if neither exists
@@ -27,13 +39,43 @@ func (s *state) convertEmoji(node Node) (string, error) {
 
 // convertMention converts a mention node to text representation
 func (s *state) convertMention(node Node) (string, error) {
-	text := node.GetStringAttr("text", "Unknown User")
-	return text, nil
+	id := node.GetStringAttr("id", "")
+	rawText := node.GetStringAttr("text", "")
+	text := rawText
+	if text == "" {
+		text = "Unknown User"
+	}
+	mentionText := text
+	if rawText != "" && id != "" && !strings.HasPrefix(mentionText, "@") {
+		mentionText = "@" + mentionText
+	}
+
+	switch s.config.MentionStyle {
+	case MentionText:
+		return mentionText, nil
+	case MentionLink:
+		if id == "" {
+			s.addWarning(WarningMissingAttribute, node.Type, "mention node missing id")
+			return mentionText, nil
+		}
+		return fmt.Sprintf("[%s](mention:%s)", mentionText, id), nil
+	case MentionHTML:
+		if id == "" {
+			s.addWarning(WarningMissingAttribute, node.Type, "mention node missing id")
+			return mentionText, nil
+		}
+		return fmt.Sprintf(`<span data-mention-id="%s">%s</span>`, id, mentionText), nil
+	default:
+		return mentionText, nil
+	}
 }
 
 // convertStatus converts a status node to text representation
 func (s *state) convertStatus(node Node) (string, error) {
 	text := node.GetStringAttr("text", "Unknown")
+	if s.config.StatusStyle == StatusText {
+		return text, nil
+	}
 	return fmt.Sprintf("[Status: %s]", text), nil
 }
 
@@ -73,40 +115,35 @@ func (s *state) convertDate(node Node) (string, error) {
 	}
 
 	t := time.Unix(ts, 0).UTC()
-	return t.Format("2006-01-02"), nil
+	return t.Format(s.config.DateFormat), nil
 }
 
 // convertInlineCard converts an inlineCard node
 func (s *state) convertInlineCard(node Node) (string, error) {
-	url := node.GetStringAttr("url", "")
+	title, url := s.getInlineCardLinkData(node)
 
-	// if url is present, return [url](url)
-	if url != "" {
-		return fmt.Sprintf("[%s](%s)", url, url), nil
-	}
-
-	// check for data
-	if node.Attrs != nil && node.Attrs["data"] != nil {
-		data, ok := node.Attrs["data"].(map[string]interface{})
-		if ok {
-			name := ""
-			dataUrl := ""
-			if n, ok := data["name"].(string); ok {
-				name = n
+	switch s.config.InlineCardStyle {
+	case InlineCardURL:
+		if url != "" {
+			return url, nil
+		}
+	case InlineCardEmbed:
+		if len(node.Attrs) > 0 {
+			data, err := json.MarshalIndent(node.Attrs, "", "  ")
+			if err != nil {
+				return "", fmt.Errorf("failed to marshal inlineCard attrs: %w", err)
 			}
-			if u, ok := data["url"].(string); ok {
-				dataUrl = u
+			return fmt.Sprintf("```adf:inlineCard\n%s\n```\n\n", string(data)), nil
+		}
+	case InlineCardLink:
+		if url != "" {
+			if title == "" {
+				title = url
 			}
-
-			if name != "" && dataUrl != "" {
-				return fmt.Sprintf("[%s](%s)", name, dataUrl), nil
-			}
-			if dataUrl != "" {
-				return fmt.Sprintf("[%s](%s)", dataUrl, dataUrl), nil
-			}
-			if name != "" {
-				return name, nil
-			}
+			return fmt.Sprintf("[%s](%s)", title, url), nil
+		}
+		if title != "" {
+			return title, nil
 		}
 	}
 
@@ -116,4 +153,33 @@ func (s *state) convertInlineCard(node Node) (string, error) {
 	}
 	s.addWarning(WarningMissingAttribute, node.Type, "inlineCard missing url and valid data")
 	return "[Smart Link]", nil
+}
+
+func (s *state) getInlineCardLinkData(node Node) (string, string) {
+	url := node.GetStringAttr("url", "")
+	title := ""
+	if url != "" {
+		title = url
+	}
+
+	if node.Attrs == nil || node.Attrs["data"] == nil {
+		return title, url
+	}
+
+	data, ok := node.Attrs["data"].(map[string]interface{})
+	if !ok {
+		return title, url
+	}
+
+	if n, ok := data["name"].(string); ok && n != "" {
+		title = n
+	}
+	if u, ok := data["url"].(string); ok && u != "" {
+		url = u
+		if title == "" {
+			title = u
+		}
+	}
+
+	return title, url
 }

@@ -27,6 +27,7 @@ func goldenConfigForPath(path string) Config {
 		UnderlineStyle: UnderlineIgnore,
 		SubSupStyle:    SubSupIgnore,
 		MentionStyle:   MentionText,
+		PanelStyle:     PanelBold,
 		ExpandStyle:    ExpandBlockquote,
 		UnknownNodes:   UnknownPlaceholder,
 		UnknownMarks:   UnknownSkip,
@@ -82,6 +83,9 @@ func goldenConfigForPath(path string) Config {
 	}
 	if strings.Contains(base, "heading_offset1") {
 		cfg.HeadingOffset = 1
+	}
+	if strings.Contains(base, "decision_text") {
+		cfg.DecisionStyle = DecisionText
 	}
 
 	// Lists
@@ -228,8 +232,8 @@ func TestNonStrictMode(t *testing.T) {
 }
 
 func TestStrictModeWithUnknownMark(t *testing.T) {
-	// Test that strict mode returns error for truly unknown marks (not underline)
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"textColor"}]}]}]}`)
+	// Test that strict mode returns error for truly unknown marks.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"mysteryMark"}]}]}]}`)
 
 	cfg := Config{
 		UnknownMarks: UnknownError,
@@ -238,13 +242,13 @@ func TestStrictModeWithUnknownMark(t *testing.T) {
 
 	result, err := conv.Convert(input)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown mark type: textColor")
+	assert.Contains(t, err.Error(), "unknown mark type: mysteryMark")
 	assert.Empty(t, result.Markdown)
 }
 
 func TestNonStrictModeWithUnknownMark(t *testing.T) {
-	// Test that non-strict mode handles unknown marks by preserving text without formatting
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"textColor"}]}]}]}`)
+	// Test that non-strict mode handles unknown marks by preserving text without formatting.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"mysteryMark"}]}]}]}`)
 
 	cfg := Config{
 		UnknownMarks: UnknownSkip,

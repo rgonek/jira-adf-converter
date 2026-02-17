@@ -55,6 +55,18 @@ func (s *state) convertMedia(node Node) (string, error) {
 		return fmt.Sprintf("![%s](%s)", alt, url), nil
 	}
 
+	// Internal media resolved via configured base URL.
+	if url == "" && id != "" && s.config.MediaBaseURL != "" {
+		if alt == "" {
+			alt = "Image"
+		}
+		base := s.config.MediaBaseURL
+		if !strings.HasSuffix(base, "/") {
+			base += "/"
+		}
+		return fmt.Sprintf("![%s](%s%s)", alt, base, id), nil
+	}
+
 	// Internal image
 	if mediaType == "image" {
 		if id == "" {

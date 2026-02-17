@@ -10,6 +10,7 @@ type Doc struct {
 // Node represents any node in the ADF tree (e.g., paragraph, text, etc.).
 type Node struct {
 	Type    string                 `json:"type"`
+	Level   int                    `json:"level,omitempty"`
 	Text    string                 `json:"text,omitempty"`
 	Content []Node                 `json:"content,omitempty"`
 	Marks   []Mark                 `json:"marks,omitempty"`

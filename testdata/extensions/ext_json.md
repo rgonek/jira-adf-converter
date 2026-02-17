@@ -2,8 +2,8 @@
 {
   "type": "bodiedExtension",
   "attrs": {
-    "extensionType": "com.atlassian.confluence.macro.core",
     "extensionKey": "code",
+    "extensionType": "com.atlassian.confluence.macro.core",
     "parameters": {
       "language": "go"
     }
