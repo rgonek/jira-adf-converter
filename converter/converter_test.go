@@ -304,6 +304,21 @@ func TestUnderlineStrictMode(t *testing.T) {
 	assert.Equal(t, "underlined\n", result.Markdown)
 }
 
+func TestCodeBlockLanguageMap(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"c++"},"content":[{"type":"text","text":"int main() {}"}]}]}`)
+
+	cfg := Config{
+		LanguageMap: map[string]string{
+			"c++": "cpp",
+		},
+	}
+	conv := newTestConverter(t, cfg)
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Equal(t, "```cpp\nint main() {}\n```\n", result.Markdown)
+}
+
 // Unit tests for helper methods
 
 func TestGetMarksToClose(t *testing.T) {

@@ -44,7 +44,7 @@ func (s *state) isComplexTable(node Node) bool {
 				return true
 			}
 			for _, child := range cellNode.Content {
-				if child.Type == "table" {
+				if isComplexTableBlockNode(child.Type) {
 					return true
 				}
 			}
@@ -52,6 +52,15 @@ func (s *state) isComplexTable(node Node) bool {
 	}
 
 	return false
+}
+
+func isComplexTableBlockNode(nodeType string) bool {
+	switch nodeType {
+	case "bulletList", "orderedList", "taskList", "codeBlock", "table":
+		return true
+	default:
+		return false
+	}
 }
 
 // extractTableRows extracts and normalizes table rows from the node.

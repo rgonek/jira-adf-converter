@@ -200,6 +200,9 @@ func (s *state) convertCodeBlock(node Node) (string, error) {
 
 	// Extract language attribute
 	language := node.GetStringAttr("language", "")
+	if mapped, ok := s.config.LanguageMap[language]; ok {
+		language = mapped
+	}
 
 	var result strings.Builder
 	result.WriteString("```")

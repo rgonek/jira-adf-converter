@@ -40,7 +40,7 @@ func TestTableCodeBlock(t *testing.T) {
 	}`)
 
 	t.Run("AllowHTML=true", func(t *testing.T) {
-		cfg := Config{HardBreakStyle: HardBreakHTML}
+		cfg := Config{HardBreakStyle: HardBreakHTML, TableMode: TablePipe}
 		conv, err := New(cfg)
 		require.NoError(t, err)
 		result, err := conv.Convert(input)
@@ -51,12 +51,22 @@ func TestTableCodeBlock(t *testing.T) {
 	})
 
 	t.Run("AllowHTML=false", func(t *testing.T) {
-		cfg := Config{HardBreakStyle: HardBreakBackslash}
+		cfg := Config{HardBreakStyle: HardBreakBackslash, TableMode: TablePipe}
 		conv, err := New(cfg)
 		require.NoError(t, err)
 		result, err := conv.Convert(input)
 		require.NoError(t, err)
 		// Expected: | `fmt.Println("Hello") return` |
 		assert.Contains(t, result.Markdown, "`fmt.Println(\"Hello\") return`")
+	})
+
+	t.Run("TableAuto renders HTML", func(t *testing.T) {
+		cfg := Config{TableMode: TableAuto}
+		conv, err := New(cfg)
+		require.NoError(t, err)
+		result, err := conv.Convert(input)
+		require.NoError(t, err)
+		assert.Contains(t, result.Markdown, "<table>")
+		assert.Contains(t, result.Markdown, "```")
 	})
 }
