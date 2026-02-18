@@ -132,3 +132,25 @@ func TestZeroConfigUsable(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, conv.config.Validate())
 }
+
+func TestValidateLanguageMapEmptyValue(t *testing.T) {
+	cfg := (Config{}).applyDefaults()
+
+	cfg.LanguageMap = map[string]string{
+		"js": "",
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "languageMap")
+}
+
+func TestValidateExtensionsByTypeEmptyKey(t *testing.T) {
+	cfg := (Config{}).applyDefaults()
+
+	cfg.Extensions.ByType = map[string]ExtensionMode{
+		"": ExtensionText,
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty key")
+}

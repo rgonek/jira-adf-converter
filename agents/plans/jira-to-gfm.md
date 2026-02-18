@@ -120,4 +120,5 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
 *   See Phase 6 for the comprehensive configuration system.
 
 ## Next Step
-*   Implement Phase 6: Configuration/Params System.
+*   Phase 6 Complete.
+*   See `agents/plans/phase6-detailed.md` for details.

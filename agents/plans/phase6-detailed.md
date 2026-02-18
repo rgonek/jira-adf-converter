@@ -851,38 +851,38 @@ func (c *Converter) getExtensionFallbackText(node Node) string {
 
 ## Success Criteria for Phase 6
 The phase is complete when:
-- [ ] `converter/config.go` defines all granular types, flat Config, Validate(), applyDefaults()
-- [ ] `converter/result.go` defines Result and Warning types
-- [ ] `New()` returns `(*Converter, error)` with config validation
-- [ ] `Convert()` returns `(Result, error)` with warnings
-- [ ] No FidelityProfile, LossControl, or MarkdownDialect in the library
-- [ ] Granular inline controls work (underline, subsup, text color, background color independently)
-- [ ] Mention rendering supports text/link/html modes
-- [ ] Emoji rendering supports shortcode/unicode modes
-- [ ] Status rendering supports bracket/text modes
-- [ ] Date rendering uses configurable format string
-- [ ] InlineCard rendering supports link/url/embed modes
-- [ ] Decision rendering supports emoji/text prefix styles
-- [ ] TableMode "auto" detects complexity and chooses pipe vs HTML
-- [ ] PanelStyle supports none/bold/github/title with title preservation
-- [ ] ExtensionRules support per-type handling with JSON code block output (default: JSON)
-- [ ] HeadingOffset shifts heading levels with clamping
-- [ ] HardBreakStyle supports backslash/html
-- [ ] ExpandStyle supports blockquote/html
-- [ ] AlignmentStyle supports ignore/html
-- [ ] OrderedListStyle supports incremental/lazy
-- [ ] BulletMarker configurable (`-`, `*`, `+`)
-- [ ] MediaBaseURL constructs proper image URLs for internal media
-- [ ] LanguageMap maps code block languages
+- [x] `converter/config.go` defines all granular types, flat Config, Validate(), applyDefaults()
+- [x] `converter/result.go` defines Result and Warning types
+- [x] `New()` returns `(*Converter, error)` with config validation
+- [x] `Convert()` returns `(Result, error)` with warnings
+- [x] No FidelityProfile, LossControl, or MarkdownDialect in the library
+- [x] Granular inline controls work (underline, subsup, text color, background color independently)
+- [x] Mention rendering supports text/link/html modes
+- [x] Emoji rendering supports shortcode/unicode modes
+- [x] Status rendering supports bracket/text modes
+- [x] Date rendering uses configurable format string
+- [x] InlineCard rendering supports link/url/embed modes
+- [x] Decision rendering supports emoji/text prefix styles
+- [x] TableMode "auto" detects complexity and chooses pipe vs HTML
+- [x] PanelStyle supports none/bold/github/title with title preservation
+- [x] ExtensionRules support per-type handling with JSON code block output (default: JSON)
+- [x] HeadingOffset shifts heading levels with clamping
+- [x] HardBreakStyle supports backslash/html
+- [x] ExpandStyle supports blockquote/html
+- [x] AlignmentStyle supports ignore/html
+- [x] OrderedListStyle supports incremental/lazy
+- [x] BulletMarker configurable (`-`, `*`, `+`)
+- [x] MediaBaseURL constructs proper image URLs for internal media
+- [x] LanguageMap maps code block languages
 - [x] CLI `--preset` supports balanced/strict/readable/lossy
 - [x] CLI preset mapping sets expected config values
 - [x] Explicit CLI flags override preset values
 - [x] All tests pass with new config API
-- [ ] All new features have dedicated test coverage
+- [x] All new features have dedicated test coverage
 - [x] Zero references to old `AllowHTML` / `Strict` fields in converter package
 - [x] Zero `log.Printf` calls in converter package
-- [ ] Unknown handling is policy-driven (UnknownNodes, UnknownMarks)
-- [ ] Config is JSON-serializable for future reverse converter use
+- [x] Unknown handling is policy-driven (UnknownNodes, UnknownMarks)
+- [x] Config is JSON-serializable for future reverse converter use
 - [x] No HTML comment generation code exists
 
 ---
