@@ -1,9 +1,11 @@
 package converter
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
+	"sync"
 	"strings"
 	"testing"
 
@@ -380,6 +382,130 @@ func TestCodeBlockLanguageMap(t *testing.T) {
 	result, err := conv.Convert(input)
 	require.NoError(t, err)
 	assert.Equal(t, "```cpp\nint main() {}\n```\n", result.Markdown)
+}
+
+func TestNewCopiesMapBackedConfigFields(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"js"},"content":[{"type":"text","text":"const x = 1;"}]},{"type":"extension","attrs":{"extensionType":"custom","text":"fallback text"}}]}`)
+
+	cfg := Config{
+		LanguageMap: map[string]string{
+			"js": "javascript",
+		},
+		Extensions: ExtensionRules{
+			Default: ExtensionJSON,
+			ByType: map[string]ExtensionMode{
+				"custom": ExtensionText,
+			},
+		},
+	}
+
+	conv := newTestConverter(t, cfg)
+
+	// Mutate source config after creating converter. Converter behavior should not change.
+	cfg.LanguageMap["js"] = "typescript"
+	cfg.Extensions.ByType["custom"] = ExtensionStrip
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Contains(t, result.Markdown, "```javascript\nconst x = 1;\n```")
+	assert.Contains(t, result.Markdown, "fallback text")
+	assert.NotContains(t, result.Markdown, "```typescript\n")
+}
+
+func TestMentionHTMLEscapesIDAndText(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"id":"abc\" onmouseover=\"x&y<z","text":"User <Admin> & \"Ops\""}}]}]}`)
+
+	conv := newTestConverter(t, Config{
+		MentionStyle: MentionHTML,
+	})
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Contains(t, result.Markdown, `<span data-mention-id="abc&#34; onmouseover=&#34;x&amp;y&lt;z">@User &lt;Admin&gt; &amp; &#34;Ops&#34;</span>`)
+	assert.NotContains(t, result.Markdown, `<Admin>`)
+}
+
+func TestConverterConfigIsolationConcurrent(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"js"},"content":[{"type":"text","text":"const x = 1;"}]},{"type":"extension","attrs":{"extensionType":"custom","text":"fallback text"}}]}`)
+
+	cfg := Config{
+		LanguageMap: map[string]string{
+			"js": "javascript",
+		},
+		Extensions: ExtensionRules{
+			Default: ExtensionJSON,
+			ByType: map[string]ExtensionMode{
+				"custom": ExtensionText,
+			},
+		},
+	}
+
+	conv := newTestConverter(t, cfg)
+
+	var mutatorWG sync.WaitGroup
+	var workersWG sync.WaitGroup
+	errCh := make(chan error, 1)
+	stopMutator := make(chan struct{})
+
+	sendErr := func(err error) {
+		select {
+		case errCh <- err:
+		default:
+		}
+	}
+
+	mutatorWG.Add(1)
+	go func() {
+		defer mutatorWG.Done()
+		for {
+			select {
+			case <-stopMutator:
+				return
+			default:
+				cfg.LanguageMap["js"] = "typescript"
+				cfg.LanguageMap["js"] = "javascript"
+				cfg.Extensions.ByType["custom"] = ExtensionStrip
+				cfg.Extensions.ByType["custom"] = ExtensionText
+			}
+		}
+	}()
+
+	workers := 8
+	iterations := 200
+	for i := 0; i < workers; i++ {
+		workersWG.Add(1)
+		go func() {
+			defer workersWG.Done()
+			for j := 0; j < iterations; j++ {
+				result, err := conv.Convert(input)
+				if err != nil {
+					sendErr(err)
+					return
+				}
+				if !strings.Contains(result.Markdown, "```javascript\nconst x = 1;\n```") {
+					sendErr(errors.New("unexpected language mapping output during concurrent conversion"))
+					return
+				}
+				if !strings.Contains(result.Markdown, "fallback text") {
+					sendErr(errors.New("extension fallback text missing during concurrent conversion"))
+					return
+				}
+				if strings.Contains(result.Markdown, "```typescript\n") {
+					sendErr(errors.New("converter observed caller config mutation"))
+					return
+				}
+			}
+		}()
+	}
+
+	workersWG.Wait()
+	close(stopMutator)
+	mutatorWG.Wait()
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	default:
+	}
 }
 
 // Unit tests for helper methods

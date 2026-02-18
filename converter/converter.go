@@ -19,7 +19,7 @@ type state struct {
 
 // New creates a new Converter with the given config
 func New(config Config) (*Converter, error) {
-	cfg := config.applyDefaults()
+	cfg := config.applyDefaults().clone()
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}

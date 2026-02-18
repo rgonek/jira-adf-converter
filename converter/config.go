@@ -251,6 +251,14 @@ func (c Config) applyDefaults() Config {
 	return c
 }
 
+// clone returns a deep copy of Config for map-backed fields.
+func (c Config) clone() Config {
+	cloned := c
+	cloned.Extensions.ByType = cloneExtensionModeMap(c.Extensions.ByType)
+	cloned.LanguageMap = cloneStringMap(c.LanguageMap)
+	return cloned
+}
+
 // Validate checks that config values are valid.
 func (c Config) Validate() error {
 	if c.UnderlineStyle != UnderlineIgnore && c.UnderlineStyle != UnderlineBold && c.UnderlineStyle != UnderlineHTML {
@@ -347,4 +355,30 @@ func hasDateReferenceTokens(format string) bool {
 		}
 	}
 	return false
+}
+
+func cloneExtensionModeMap(src map[string]ExtensionMode) map[string]ExtensionMode {
+	if src == nil {
+		return nil
+	}
+
+	dst := make(map[string]ExtensionMode, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+
+	return dst
+}
+
+func cloneStringMap(src map[string]string) map[string]string {
+	if src == nil {
+		return nil
+	}
+
+	dst := make(map[string]string, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+
+	return dst
 }

@@ -1,4 +1,4 @@
-.PHONY: build test test-update lint fmt clean install
+.PHONY: build test test-race test-update lint fmt clean install
 
 # Use a repo-local Go build cache to avoid permission issues.
 GOCACHE ?= $(CURDIR)/.gocache
@@ -11,6 +11,10 @@ build:
 # Run all tests
 test:
 	go test ./...
+
+# Run tests with race detector (requires CGO and a C compiler)
+test-race:
+	go test -race ./...
 
 # Update golden files
 test-update:

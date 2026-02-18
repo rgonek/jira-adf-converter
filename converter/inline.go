@@ -3,6 +3,7 @@ package converter
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"strings"
 	"time"
 )
@@ -64,7 +65,7 @@ func (s *state) convertMention(node Node) (string, error) {
 			s.addWarning(WarningMissingAttribute, node.Type, "mention node missing id")
 			return mentionText, nil
 		}
-		return fmt.Sprintf(`<span data-mention-id="%s">%s</span>`, id, mentionText), nil
+		return fmt.Sprintf(`<span data-mention-id="%s">%s</span>`, html.EscapeString(id), html.EscapeString(mentionText)), nil
 	default:
 		return mentionText, nil
 	}
