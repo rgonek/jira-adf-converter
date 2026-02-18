@@ -65,6 +65,9 @@ func (c *Converter) ConvertWithContext(ctx context.Context, input []byte, opts C
 	if err != nil {
 		return Result{}, err
 	}
+	if err := s.checkContext(); err != nil {
+		return Result{}, err
+	}
 
 	return Result{Markdown: markdown, Warnings: s.warnings}, nil
 }

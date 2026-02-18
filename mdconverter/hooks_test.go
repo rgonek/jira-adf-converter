@@ -262,6 +262,28 @@ func TestConvertWithContextCancellationPropagatesToHook(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
+func TestConvertWithContextCancellationAfterHandledHookReturnsCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	hookCalled := false
+	conv := newHookReverseConverter(t, ReverseConfig{
+		LinkHook: func(_ context.Context, in LinkParseInput) (LinkParseOutput, error) {
+			hookCalled = true
+			cancel()
+			return LinkParseOutput{
+				Destination: in.Destination,
+				ForceCard:   true,
+				Handled:     true,
+			}, nil
+		},
+	})
+
+	_, err := conv.ConvertWithContext(ctx, `[Docs](../docs.md)`, ConvertOptions{})
+	require.Error(t, err)
+	assert.True(t, hookCalled)
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
 func TestLinkParseHookValidation(t *testing.T) {
 	t.Run("forceLink and forceCard conflict", func(t *testing.T) {
 		conv := newHookReverseConverter(t, ReverseConfig{

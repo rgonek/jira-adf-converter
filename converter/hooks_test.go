@@ -208,6 +208,30 @@ func TestConvertWithContextCancellationPropagatesToHook(t *testing.T) {
 	assert.ErrorIs(t, err, context.Canceled)
 }
 
+func TestConvertWithContextCancellationAfterHandledHookReturnsCanceled(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Page","marks":[{"type":"link","attrs":{"href":"https://example.com"}}]}]}]}`)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	var hookCalled atomic.Bool
+
+	conv := newTestConverter(t, Config{
+		LinkHook: func(_ context.Context, in LinkRenderInput) (LinkRenderOutput, error) {
+			hookCalled.Store(true)
+			cancel()
+			return LinkRenderOutput{
+				Href:    in.Href,
+				Title:   in.Title,
+				Handled: true,
+			}, nil
+		},
+	})
+
+	_, err := conv.ConvertWithContext(ctx, input, ConvertOptions{})
+	require.Error(t, err)
+	assert.True(t, hookCalled.Load())
+	assert.ErrorIs(t, err, context.Canceled)
+}
+
 func TestConcurrentConvertWithThreadSafeHook(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"mediaSingle","content":[{"type":"media","attrs":{"type":"image","url":"https://example.com/a.png"}}]}]}`)
 

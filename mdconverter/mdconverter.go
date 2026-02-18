@@ -78,10 +78,16 @@ func (c *Converter) ConvertWithContext(ctx context.Context, markdown string, opt
 	if err != nil {
 		return Result{}, err
 	}
+	if err := s.checkContext(); err != nil {
+		return Result{}, err
+	}
 
 	adf, err := json.Marshal(doc)
 	if err != nil {
 		return Result{}, fmt.Errorf("failed to marshal ADF JSON: %w", err)
+	}
+	if err := s.checkContext(); err != nil {
+		return Result{}, err
 	}
 
 	return Result{
