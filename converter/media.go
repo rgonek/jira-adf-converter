@@ -47,6 +47,25 @@ func (s *state) convertMedia(node Node) (string, error) {
 	alt := node.GetStringAttr("alt", "")
 	url := node.GetStringAttr("url", "")
 
+	hookOutput, handled, err := s.applyMediaRenderHook(
+		node.Type,
+		MediaRenderInput{
+			SourcePath: s.options.SourcePath,
+			MediaType:  mediaType,
+			ID:         id,
+			URL:        url,
+			Alt:        alt,
+			Meta:       mediaMetadataFromAttrs(node.Attrs, id, url),
+			Attrs:      cloneAnyMap(node.Attrs),
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+	if handled {
+		return hookOutput.Markdown, nil
+	}
+
 	// External image
 	if mediaType == "image" && url != "" {
 		if alt == "" {

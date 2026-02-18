@@ -10,11 +10,12 @@ type Result struct {
 type WarningType string
 
 const (
-	WarningUnknownNode       WarningType = "unknown_node"
-	WarningUnknownMark       WarningType = "unknown_mark"
-	WarningDroppedFeature    WarningType = "dropped_feature"
-	WarningExtensionFallback WarningType = "extension_fallback"
-	WarningMissingAttribute  WarningType = "missing_attribute"
+	WarningUnknownNode         WarningType = "unknown_node"
+	WarningUnknownMark         WarningType = "unknown_mark"
+	WarningDroppedFeature      WarningType = "dropped_feature"
+	WarningExtensionFallback   WarningType = "extension_fallback"
+	WarningMissingAttribute    WarningType = "missing_attribute"
+	WarningUnresolvedReference WarningType = "unresolved_reference"
 )
 
 // Warning represents a non-fatal issue encountered during conversion.

@@ -181,9 +181,12 @@ type Config struct {
 	OrderedListStyle     OrderedListStyle  `json:"orderedListStyle,omitempty"`
 	Extensions           ExtensionRules    `json:"extensions,omitempty"`
 	MediaBaseURL         string            `json:"mediaBaseURL,omitempty"`
+	ResolutionMode       ResolutionMode    `json:"resolutionMode,omitempty"`
 	LanguageMap          map[string]string `json:"languageMap,omitempty"`
 	UnknownNodes         UnknownPolicy     `json:"unknownNodes,omitempty"`
 	UnknownMarks         UnknownPolicy     `json:"unknownMarks,omitempty"`
+	LinkHook             LinkRenderHook    `json:"-"`
+	MediaHook            MediaRenderHook   `json:"-"`
 }
 
 func (c Config) applyDefaults() Config {
@@ -247,6 +250,9 @@ func (c Config) applyDefaults() Config {
 	if c.UnknownMarks == "" {
 		c.UnknownMarks = UnknownSkip
 	}
+	if c.ResolutionMode == "" {
+		c.ResolutionMode = ResolutionBestEffort
+	}
 
 	return c
 }
@@ -256,6 +262,8 @@ func (c Config) clone() Config {
 	cloned := c
 	cloned.Extensions.ByType = cloneExtensionModeMap(c.Extensions.ByType)
 	cloned.LanguageMap = cloneStringMap(c.LanguageMap)
+	cloned.LinkHook = c.LinkHook
+	cloned.MediaHook = c.MediaHook
 	return cloned
 }
 
@@ -336,6 +344,9 @@ func (c Config) Validate() error {
 	}
 	if c.UnknownMarks != UnknownError && c.UnknownMarks != UnknownSkip && c.UnknownMarks != UnknownPlaceholder {
 		return fmt.Errorf("invalid unknownMarks policy %q", c.UnknownMarks)
+	}
+	if c.ResolutionMode != ResolutionBestEffort && c.ResolutionMode != ResolutionStrict {
+		return fmt.Errorf("invalid resolutionMode %q", c.ResolutionMode)
 	}
 
 	return nil

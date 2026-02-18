@@ -122,6 +122,39 @@ func (s *state) convertDate(node Node) (string, error) {
 // convertInlineCard converts an inlineCard node
 func (s *state) convertInlineCard(node Node) (string, error) {
 	title, url := s.getInlineCardLinkData(node)
+	hookHandled := false
+
+	hookOutput, handled, err := s.applyLinkRenderHook(
+		node.Type,
+		LinkRenderInput{
+			Source:     "inlineCard",
+			SourcePath: s.options.SourcePath,
+			Href:       url,
+			Title:      title,
+			Text:       title,
+			Meta:       linkMetadataFromAttrs(node.Attrs, url),
+			Attrs:      cloneAnyMap(node.Attrs),
+		},
+	)
+	if err != nil {
+		return "", err
+	}
+	if handled {
+		hookHandled = true
+		if hookOutput.TextOnly {
+			textValue := firstNonEmptyTrimmed(hookOutput.Title, title, url)
+			if textValue != "" {
+				return textValue, nil
+			}
+			if s.config.UnknownNodes == UnknownError {
+				return "", fmt.Errorf("inlineCard missing url and valid data")
+			}
+			s.addWarning(WarningMissingAttribute, node.Type, "inlineCard missing url and valid data")
+			return "[Smart Link]", nil
+		}
+		title = hookOutput.Title
+		url = hookOutput.Href
+	}
 
 	switch s.config.InlineCardStyle {
 	case InlineCardURL:
@@ -129,8 +162,12 @@ func (s *state) convertInlineCard(node Node) (string, error) {
 			return url, nil
 		}
 	case InlineCardEmbed:
-		if len(node.Attrs) > 0 {
-			data, err := json.MarshalIndent(node.Attrs, "", "  ")
+		embedAttrs := node.Attrs
+		if hookHandled {
+			embedAttrs = rewriteInlineCardAttrs(node.Attrs, title, url)
+		}
+		if len(embedAttrs) > 0 {
+			data, err := json.MarshalIndent(embedAttrs, "", "  ")
 			if err != nil {
 				return "", fmt.Errorf("failed to marshal inlineCard attrs: %w", err)
 			}
@@ -154,6 +191,51 @@ func (s *state) convertInlineCard(node Node) (string, error) {
 	}
 	s.addWarning(WarningMissingAttribute, node.Type, "inlineCard missing url and valid data")
 	return "[Smart Link]", nil
+}
+
+func rewriteInlineCardAttrs(attrs map[string]any, title, href string) map[string]any {
+	rewritten := cloneAnyMap(attrs)
+	if rewritten == nil {
+		rewritten = map[string]any{}
+	}
+
+	href = strings.TrimSpace(href)
+	title = strings.TrimSpace(title)
+
+	if href != "" {
+		rewritten["url"] = href
+	}
+
+	rawData, ok := rewritten["data"]
+	if !ok {
+		return rewritten
+	}
+
+	dataMap, ok := rawData.(map[string]any)
+	if !ok {
+		return rewritten
+	}
+
+	clonedData := cloneAnyMap(dataMap)
+	if href != "" {
+		clonedData["url"] = href
+	}
+	if title != "" {
+		clonedData["name"] = title
+	}
+	rewritten["data"] = clonedData
+
+	return rewritten
+}
+
+func firstNonEmptyTrimmed(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func (s *state) getInlineCardLinkData(node Node) (string, string) {

@@ -388,6 +388,10 @@ func countLeadingWhitespace(value string) int {
 }
 
 func (s *state) convertInlineFragment(fragment string) ([]converter.Node, error) {
+	if err := s.checkContext(); err != nil {
+		return nil, err
+	}
+
 	trimmed := strings.TrimSpace(fragment)
 	if trimmed == "" {
 		return nil, nil
@@ -407,6 +411,9 @@ func (s *state) convertInlineFragment(fragment string) ([]converter.Node, error)
 	s.htmlSpanStack = nil
 
 	root := s.parser.Parser().Parse(text.NewReader(s.source))
+	if err := s.checkContext(); err != nil {
+		return nil, err
+	}
 	content := make([]converter.Node, 0, 4)
 	for child := root.FirstChild(); child != nil; child = child.NextSibling() {
 		switch typed := child.(type) {
@@ -433,6 +440,10 @@ func (s *state) convertInlineFragment(fragment string) ([]converter.Node, error)
 }
 
 func (s *state) convertBlockFragment(fragment string) ([]converter.Node, error) {
+	if err := s.checkContext(); err != nil {
+		return nil, err
+	}
+
 	trimmed := strings.TrimSpace(fragment)
 	if trimmed == "" {
 		return nil, nil
@@ -452,5 +463,8 @@ func (s *state) convertBlockFragment(fragment string) ([]converter.Node, error) 
 	s.htmlSpanStack = nil
 
 	root := s.parser.Parser().Parse(text.NewReader(s.source))
+	if err := s.checkContext(); err != nil {
+		return nil, err
+	}
 	return s.convertNodeSequence(root)
 }

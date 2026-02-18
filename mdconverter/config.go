@@ -93,6 +93,9 @@ type ReverseConfig struct {
 	MediaBaseURL    string            `json:"mediaBaseURL,omitempty"`
 	MentionRegistry map[string]string `json:"mentionRegistry,omitempty"`
 	EmojiRegistry   map[string]string `json:"emojiRegistry,omitempty"`
+	ResolutionMode  ResolutionMode    `json:"resolutionMode,omitempty"`
+	LinkHook        LinkParseHook     `json:"-"`
+	MediaHook       MediaParseHook    `json:"-"`
 }
 
 func (c ReverseConfig) applyDefaults() ReverseConfig {
@@ -120,6 +123,9 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 	if c.DateFormat == "" {
 		c.DateFormat = "2006-01-02"
 	}
+	if c.ResolutionMode == "" {
+		c.ResolutionMode = ResolutionBestEffort
+	}
 
 	return c
 }
@@ -129,6 +135,8 @@ func (c ReverseConfig) clone() ReverseConfig {
 	cloned.LanguageMap = cloneStringMap(c.LanguageMap)
 	cloned.MentionRegistry = cloneStringMap(c.MentionRegistry)
 	cloned.EmojiRegistry = cloneStringMap(c.EmojiRegistry)
+	cloned.LinkHook = c.LinkHook
+	cloned.MediaHook = c.MediaHook
 	return cloned
 }
 
@@ -208,6 +216,10 @@ func (c ReverseConfig) Validate() error {
 		if strings.TrimSpace(shortcode) == "" || strings.TrimSpace(id) == "" {
 			return fmt.Errorf("emojiRegistry keys and values must be non-empty")
 		}
+	}
+
+	if c.ResolutionMode != ResolutionBestEffort && c.ResolutionMode != ResolutionStrict {
+		return fmt.Errorf("invalid resolutionMode %q", c.ResolutionMode)
 	}
 
 	return nil
