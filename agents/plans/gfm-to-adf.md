@@ -300,6 +300,20 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
+### Phase 13: Link & Media Hooks (Planned)
+**Goal**: Add runtime hooks for markdown links/images so callers can map local references back to Confluence page URLs and media identifiers.
+
+**Deliverables**:
+- Hook entry points for standard links, inline-card candidates, and image/media nodes during inline parsing.
+- Config-level callback fields (`json:"-"`) so hooks are runtime-only and do not affect config serialization.
+- Deterministic hook ordering with existing mention detection and media base URL stripping.
+- Clear error/warning behavior for hook failures and invalid hook output.
+- Dedicated unit tests for rewrite, fallback, and concurrency safety.
+
+**Reference**: `agents/plans/link-media-hooks.md`
+
+---
+
 ## Testing Strategy
 
 | Test Type | What | How |
@@ -338,4 +352,4 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 ---
 
 ## Next Steps
-See `phase7-detailed.md` for a step-by-step breakdown of Phase 1 (Foundation) implementation tasks.
+See `agents/plans/link-media-hooks.md` for the cross-direction plan to add link/media hooks for Confluence URL <-> relative Markdown mapping and local media path workflows.

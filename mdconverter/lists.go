@@ -136,12 +136,23 @@ func (s *state) convertTaskListItem(node *ast.ListItem) (converter.Node, []conve
 	for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 		switch typed := child.(type) {
 		case *ast.TextBlock, *ast.Paragraph:
-			inlineContent, state, err := s.convertTaskInlineContent(typed)
+			inlineContent, state, hasCheckbox, err := s.convertTaskInlineContent(typed)
 			if err != nil {
 				return converter.Node{}, nil, false, err
 			}
-			taskItem.Attrs["state"] = state
-			taskItem.Content = inlineContent
+			if hasCheckbox {
+				taskItem.Attrs["state"] = state
+				hasInlineContent = true
+			}
+			if len(inlineContent) == 0 {
+				continue
+			}
+			if len(taskItem.Content) > 0 {
+				taskItem.Content = append(taskItem.Content, converter.Node{Type: "hardBreak"})
+			}
+			for _, inlineNode := range inlineContent {
+				taskItem.Content = appendInlineNode(taskItem.Content, inlineNode)
+			}
 			hasInlineContent = true
 		case *ast.List:
 			converted, ok, err := s.convertListNode(typed)
@@ -169,14 +180,16 @@ func (s *state) convertTaskListItem(node *ast.ListItem) (converter.Node, []conve
 	return taskItem, nestedLists, true, nil
 }
 
-func (s *state) convertTaskInlineContent(container ast.Node) ([]converter.Node, string, error) {
+func (s *state) convertTaskInlineContent(container ast.Node) ([]converter.Node, string, bool, error) {
 	stack := newMarkStack()
 	state := "TODO"
+	hasCheckbox := false
 	var content []converter.Node
 
 	for child := container.FirstChild(); child != nil; child = child.NextSibling() {
 		checkbox, isCheckbox := child.(*extast.TaskCheckBox)
 		if isCheckbox {
+			hasCheckbox = true
 			if checkbox.IsChecked {
 				state = "DONE"
 			}
@@ -185,7 +198,7 @@ func (s *state) convertTaskInlineContent(container ast.Node) ([]converter.Node, 
 
 		converted, err := s.convertInlineNode(child, stack)
 		if err != nil {
-			return nil, "", err
+			return nil, "", false, err
 		}
 		for _, node := range converted {
 			if node.Type == "mediaSingle" || node.Type == "table" {
@@ -200,5 +213,5 @@ func (s *state) convertTaskInlineContent(container ast.Node) ([]converter.Node, 
 		}
 	}
 
-	return content, state, nil
+	return s.applyInlinePatterns(content), state, hasCheckbox, nil
 }

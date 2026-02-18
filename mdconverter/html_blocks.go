@@ -111,6 +111,13 @@ func (s *state) parseAlignedHeading(raw string) (converter.Node, bool, error) {
 	if err != nil {
 		return converter.Node{}, false, fmt.Errorf("invalid heading level in html block: %w", err)
 	}
+	level += s.config.HeadingOffset
+	if level < 1 {
+		level = 1
+	}
+	if level > 6 {
+		level = 6
+	}
 
 	inlineContent, err := s.convertInlineFragment(match[3])
 	if err != nil {
@@ -395,13 +402,16 @@ func (s *state) convertInlineFragment(fragment string) ([]converter.Node, error)
 
 	originalSource := s.source
 	originalMentionStack := s.htmlMentionStack
+	originalSpanStack := s.htmlSpanStack
 	defer func() {
 		s.source = originalSource
 		s.htmlMentionStack = originalMentionStack
+		s.htmlSpanStack = originalSpanStack
 	}()
 
 	s.source = []byte(trimmed)
 	s.htmlMentionStack = nil
+	s.htmlSpanStack = nil
 
 	root := s.parser.Parser().Parse(text.NewReader(s.source))
 	content := make([]converter.Node, 0, 4)
@@ -437,13 +447,16 @@ func (s *state) convertBlockFragment(fragment string) ([]converter.Node, error) 
 
 	originalSource := s.source
 	originalMentionStack := s.htmlMentionStack
+	originalSpanStack := s.htmlSpanStack
 	defer func() {
 		s.source = originalSource
 		s.htmlMentionStack = originalMentionStack
+		s.htmlSpanStack = originalSpanStack
 	}()
 
 	s.source = []byte(trimmed)
 	s.htmlMentionStack = nil
+	s.htmlSpanStack = nil
 
 	root := s.parser.Parser().Parse(text.NewReader(s.source))
 	return s.convertNodeSequence(root)

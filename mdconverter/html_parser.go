@@ -24,6 +24,15 @@ var (
 	hardBreakTag3        = "<br />"
 )
 
+type htmlSpanContext string
+
+const (
+	htmlSpanUnknown         htmlSpanContext = ""
+	htmlSpanMention         htmlSpanContext = "mention"
+	htmlSpanBackgroundColor htmlSpanContext = "backgroundColor"
+	htmlSpanTextColor       htmlSpanContext = "textColor"
+)
+
 func (s *state) convertRawHTML(rawHTML string, stack *markStack) []converter.Node {
 	trimmed := strings.TrimSpace(rawHTML)
 	lower := strings.ToLower(trimmed)
@@ -67,6 +76,7 @@ func (s *state) convertRawHTML(rawHTML string, stack *markStack) []converter.Nod
 	if strings.HasPrefix(lower, openingSpanTagPrefix) {
 		if mentionID, ok := extractSpanMentionID(trimmed); ok && s.shouldDetectMentionHTML() {
 			s.pushHTMLMentionID(mentionID)
+			s.pushHTMLSpanContext(htmlSpanMention)
 			return nil
 		}
 
@@ -77,6 +87,7 @@ func (s *state) convertRawHTML(rawHTML string, stack *markStack) []converter.Nod
 					"color": color,
 				},
 			})
+			s.pushHTMLSpanContext(htmlSpanBackgroundColor)
 			return nil
 		}
 		if color, ok := extractSpanStyleColor(trimmed, false); ok {
@@ -86,16 +97,31 @@ func (s *state) convertRawHTML(rawHTML string, stack *markStack) []converter.Nod
 					"color": color,
 				},
 			})
+			s.pushHTMLSpanContext(htmlSpanTextColor)
 			return nil
 		}
 
+		s.pushHTMLSpanContext(htmlSpanUnknown)
 		return nil
 	}
 
 	if strings.HasPrefix(lower, closingSpanTagPrefix) {
+		if kind, ok := s.popHTMLSpanContext(); ok {
+			switch kind {
+			case htmlSpanMention:
+				s.popHTMLMentionID()
+			case htmlSpanBackgroundColor:
+				stack.popByType("backgroundColor")
+			case htmlSpanTextColor:
+				stack.popByType("textColor")
+			}
+			return nil
+		}
+
 		if stack.popByType("backgroundColor") || stack.popByType("textColor") {
 			return nil
 		}
+
 		s.popHTMLMentionID()
 		return nil
 	}
@@ -138,6 +164,21 @@ func extractSpanMentionID(tag string) (string, bool) {
 
 func (s *state) pushHTMLMentionID(id string) {
 	s.htmlMentionStack = append(s.htmlMentionStack, id)
+}
+
+func (s *state) pushHTMLSpanContext(kind htmlSpanContext) {
+	s.htmlSpanStack = append(s.htmlSpanStack, kind)
+}
+
+func (s *state) popHTMLSpanContext() (htmlSpanContext, bool) {
+	if len(s.htmlSpanStack) == 0 {
+		return htmlSpanUnknown, false
+	}
+
+	lastIndex := len(s.htmlSpanStack) - 1
+	kind := s.htmlSpanStack[lastIndex]
+	s.htmlSpanStack = s.htmlSpanStack[:lastIndex]
+	return kind, true
 }
 
 func (s *state) popHTMLMentionID() {

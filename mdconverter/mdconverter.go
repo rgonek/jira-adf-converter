@@ -22,6 +22,7 @@ type state struct {
 	parser           goldmark.Markdown
 	warnings         []converter.Warning
 	htmlMentionStack []string
+	htmlSpanStack    []htmlSpanContext
 }
 
 // New creates a new reverse Converter with the given config.
