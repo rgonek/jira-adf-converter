@@ -97,6 +97,27 @@ Marks apply formatting to text nodes. Some marks behave differently based on the
 *   Empty text links are handled: `[](url)`.
 *   Missing URLs fallback to plain text.
 
+### Runtime Link and Media Hooks
+
+Both conversion directions support optional runtime hooks:
+
+*   **ADF -> Markdown (`converter`)**
+    *   `LinkHook(ctx, LinkRenderInput) -> LinkRenderOutput`
+    *   `MediaHook(ctx, MediaRenderInput) -> MediaRenderOutput`
+*   **Markdown -> ADF (`mdconverter`)**
+    *   `LinkHook(ctx, LinkParseInput) -> LinkParseOutput`
+    *   `MediaHook(ctx, MediaParseInput) -> MediaParseOutput`
+
+Hook behavior:
+
+*   Return `Handled: false` to preserve built-in behavior.
+*   Return `converter.ErrUnresolved` / `mdconverter.ErrUnresolved` to trigger resolution-mode handling.
+*   Hooks receive typed metadata (`PageID`, `SpaceKey`, `AttachmentID`, `Filename`, `Anchor`) and raw attrs payloads.
+
+Reverse-path note:
+
+*   Prefer `ConvertWithContext(..., ConvertOptions{SourcePath: ...})` so hooks can resolve relative markdown links (`../page.md`) and local media paths consistently.
+
 ## Configuration Options
 
 ### `AllowHTML`
@@ -106,3 +127,13 @@ Marks apply formatting to text nodes. Some marks behave differently based on the
 ### `Strict`
 *   **False (Default)**: Gracefully handles unknown nodes by outputting a placeholder `[Unknown node: type]` or ignoring unknown marks. Recommended for general use.
 *   **True**: Returns an error immediately upon encountering an unknown node or mark. Useful for validation or ensuring 100% conversion fidelity.
+
+### `ResolutionMode` (Hook unresolved behavior)
+
+*   **`best_effort` (Default)**: unresolved hook lookups add warnings and fall back to existing conversion logic.
+*   **`strict`**: unresolved hook lookups fail conversion.
+
+### Concurrency Contract
+
+*   Converters keep per-conversion state and can be called concurrently.
+*   Hook closures are caller-owned code and must synchronize shared mutable state.

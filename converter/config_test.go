@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -31,6 +32,7 @@ func TestApplyDefaults(t *testing.T) {
 	assert.Equal(t, ExtensionJSON, cfg.Extensions.Default)
 	assert.Equal(t, UnknownPlaceholder, cfg.UnknownNodes)
 	assert.Equal(t, UnknownSkip, cfg.UnknownMarks)
+	assert.Equal(t, ResolutionBestEffort, cfg.ResolutionMode)
 }
 
 func TestValidateValid(t *testing.T) {
@@ -62,8 +64,9 @@ func TestValidateValid(t *testing.T) {
 		LanguageMap: map[string]string{
 			"c++": "cpp",
 		},
-		UnknownNodes: UnknownSkip,
-		UnknownMarks: UnknownError,
+		UnknownNodes:   UnknownSkip,
+		UnknownMarks:   UnknownError,
+		ResolutionMode: ResolutionStrict,
 	}
 
 	require.NoError(t, cfg.Validate())
@@ -111,6 +114,7 @@ func TestConfigSerialization(t *testing.T) {
 		LanguageMap: map[string]string{
 			"js": "javascript",
 		},
+		ResolutionMode: ResolutionStrict,
 	}).applyDefaults()
 
 	data, err := json.Marshal(cfg)
@@ -125,6 +129,25 @@ func TestConfigSerialization(t *testing.T) {
 	assert.Equal(t, cfg.Extensions.Default, decoded.Extensions.Default)
 	assert.Equal(t, cfg.Extensions.ByType["custom"], decoded.Extensions.ByType["custom"])
 	assert.Equal(t, cfg.LanguageMap["js"], decoded.LanguageMap["js"])
+	assert.Equal(t, cfg.ResolutionMode, decoded.ResolutionMode)
+}
+
+func TestConfigSerializationExcludesHooks(t *testing.T) {
+	cfg := (Config{
+		LinkHook: func(_ context.Context, _ LinkRenderInput) (LinkRenderOutput, error) {
+			return LinkRenderOutput{}, nil
+		},
+		MediaHook: func(_ context.Context, _ MediaRenderInput) (MediaRenderOutput, error) {
+			return MediaRenderOutput{}, nil
+		},
+	}).applyDefaults()
+
+	data, err := json.Marshal(cfg)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "LinkHook")
+	assert.NotContains(t, string(data), "MediaHook")
+	assert.NotContains(t, string(data), "linkHook")
+	assert.NotContains(t, string(data), "mediaHook")
 }
 
 func TestZeroConfigUsable(t *testing.T) {
