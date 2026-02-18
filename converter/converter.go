@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -14,6 +15,8 @@ type Converter struct {
 // state holds the per-conversion state, making the converter thread-safe.
 type state struct {
 	config   Config
+	ctx      context.Context
+	options  ConvertOptions
 	warnings []Warning
 }
 
@@ -31,17 +34,38 @@ func New(config Config) (*Converter, error) {
 
 // Convert takes an ADF JSON document and returns GFM markdown
 func (c *Converter) Convert(input []byte) (Result, error) {
+	return c.ConvertWithContext(context.Background(), input, ConvertOptions{})
+}
+
+// ConvertWithContext takes an ADF JSON document and returns GFM markdown.
+func (c *Converter) ConvertWithContext(ctx context.Context, input []byte, opts ConvertOptions) (Result, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+
 	var doc Doc
 	if err := json.Unmarshal(input, &doc); err != nil {
 		return Result{}, fmt.Errorf("failed to parse ADF JSON: %w", err)
 	}
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
 
 	s := &state{
-		config: c.config,
+		config:  c.config,
+		ctx:     ctx,
+		options: opts,
 	}
 
 	markdown, err := s.convertNode(Node{Type: doc.Type, Content: doc.Content})
 	if err != nil {
+		return Result{}, err
+	}
+	if err := s.checkContext(); err != nil {
 		return Result{}, err
 	}
 
@@ -49,6 +73,10 @@ func (c *Converter) Convert(input []byte) (Result, error) {
 }
 
 func (s *state) convertNode(node Node) (string, error) {
+	if err := s.checkContext(); err != nil {
+		return "", err
+	}
+
 	switch node.Type {
 	case "doc":
 		return s.convertDoc(node)
@@ -173,10 +201,26 @@ func (s *state) addWarning(warnType WarningType, nodeType, message string) {
 	})
 }
 
+func (s *state) checkContext() error {
+	if s.ctx == nil {
+		return nil
+	}
+
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	default:
+		return nil
+	}
+}
+
 // convertChildren processes a slice of nodes and concatenates their results
 func (s *state) convertChildren(content []Node) (string, error) {
 	var sb strings.Builder
 	for _, child := range content {
+		if err := s.checkContext(); err != nil {
+			return "", err
+		}
 		res, err := s.convertNode(child)
 		if err != nil {
 			return "", err
@@ -210,6 +254,10 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 	useUnderscoreForEm := s.hasStrongAndEm(content)
 
 	for _, node := range content {
+		if err := s.checkContext(); err != nil {
+			return "", err
+		}
+
 		if node.Type != "text" {
 			// For non-text nodes, close all active marks, process node, reset marks
 			if err := s.closeMarks(activeMarks, useUnderscoreForEm, &sb); err != nil {

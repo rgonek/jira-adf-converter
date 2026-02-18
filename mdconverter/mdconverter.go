@@ -1,6 +1,7 @@
 package mdconverter
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -18,6 +19,8 @@ type Converter struct {
 
 type state struct {
 	config           ReverseConfig
+	ctx              context.Context
+	options          ConvertOptions
 	source           []byte
 	parser           goldmark.Markdown
 	warnings         []converter.Warning
@@ -42,15 +45,40 @@ func New(config ReverseConfig) (*Converter, error) {
 
 // Convert takes a markdown document and returns ADF JSON.
 func (c *Converter) Convert(markdown string) (Result, error) {
+	return c.ConvertWithContext(context.Background(), markdown, ConvertOptions{})
+}
+
+// ConvertWithContext takes a markdown document and returns ADF JSON.
+func (c *Converter) ConvertWithContext(ctx context.Context, markdown string, opts ConvertOptions) (Result, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	if err := ctx.Err(); err != nil {
+		return Result{}, err
+	}
+
 	s := &state{
-		config: c.config,
-		source: []byte(markdown),
-		parser: c.parser,
+		config:  c.config,
+		ctx:     ctx,
+		options: opts,
+		source:  []byte(markdown),
+		parser:  c.parser,
+	}
+
+	if err := s.checkContext(); err != nil {
+		return Result{}, err
 	}
 
 	root := c.parser.Parser().Parse(text.NewReader(s.source))
+	if err := s.checkContext(); err != nil {
+		return Result{}, err
+	}
 	doc, err := s.convertDocument(root)
 	if err != nil {
+		return Result{}, err
+	}
+	if err := s.checkContext(); err != nil {
 		return Result{}, err
 	}
 
@@ -58,11 +86,27 @@ func (c *Converter) Convert(markdown string) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("failed to marshal ADF JSON: %w", err)
 	}
+	if err := s.checkContext(); err != nil {
+		return Result{}, err
+	}
 
 	return Result{
 		ADF:      adf,
 		Warnings: s.warnings,
 	}, nil
+}
+
+func (s *state) checkContext() error {
+	if s.ctx == nil {
+		return nil
+	}
+
+	select {
+	case <-s.ctx.Done():
+		return s.ctx.Err()
+	default:
+		return nil
+	}
 }
 
 func (s *state) addWarning(warnType converter.WarningType, nodeType, message string) {

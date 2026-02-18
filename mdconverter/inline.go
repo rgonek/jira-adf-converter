@@ -12,6 +12,10 @@ func (s *state) convertInlineChildren(parent ast.Node, stack *markStack) ([]conv
 	var content []converter.Node
 
 	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		if err := s.checkContext(); err != nil {
+			return nil, err
+		}
+
 		converted, err := s.convertInlineNode(child, stack)
 		if err != nil {
 			return nil, err
@@ -94,7 +98,44 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 			}
 		}
 
-		if title == "" && linkText != "" && linkText == href {
+		forceLink := false
+		forceCard := false
+
+		hookOutput, handled, err := s.applyLinkParseHook(
+			LinkParseInput{
+				SourcePath:  s.options.SourcePath,
+				Destination: href,
+				Title:       title,
+				Text:        linkText,
+				Meta:        linkMetadataFromDestination(href),
+				Raw: map[string]any{
+					"kind":  "link",
+					"title": title,
+				},
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		if handled {
+			href = hookOutput.Destination
+			title = hookOutput.Title
+			forceLink = hookOutput.ForceLink
+			forceCard = hookOutput.ForceCard
+		}
+
+		if forceCard {
+			return []converter.Node{
+				{
+					Type: "inlineCard",
+					Attrs: map[string]interface{}{
+						"url": href,
+					},
+				},
+			}, nil
+		}
+
+		if !forceLink && title == "" && linkText != "" && linkText == href {
 			return []converter.Node{
 				{
 					Type: "inlineCard",
@@ -124,11 +165,59 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 		return s.convertRawHTML(string(typed.Text(s.source)), stack), nil
 
 	case *ast.Image:
-		alt := strings.TrimSpace(string(typed.Text(s.source)))
+		rawAlt := strings.TrimSpace(string(typed.Text(s.source)))
+		alt := rawAlt
 		if alt == "" {
 			alt = "Image"
 		}
 		href := strings.TrimSpace(string(typed.Destination))
+
+		hookOutput, handled, err := s.applyMediaParseHook(
+			MediaParseInput{
+				SourcePath:  s.options.SourcePath,
+				Destination: href,
+				Alt:         rawAlt,
+				Meta:        mediaMetadataFromDestination(href),
+				Raw: map[string]any{
+					"kind": "image",
+				},
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+		if handled {
+			resolvedAlt := strings.TrimSpace(hookOutput.Alt)
+			if resolvedAlt == "" {
+				resolvedAlt = alt
+			}
+
+			mediaAttrs := map[string]interface{}{
+				"type": strings.ToLower(strings.TrimSpace(hookOutput.MediaType)),
+			}
+			if hookOutput.ID != "" {
+				mediaAttrs["id"] = hookOutput.ID
+			}
+			if hookOutput.URL != "" {
+				mediaAttrs["url"] = hookOutput.URL
+			}
+			if resolvedAlt != "" {
+				mediaAttrs["alt"] = resolvedAlt
+			}
+
+			return []converter.Node{
+				{
+					Type: "mediaSingle",
+					Content: []converter.Node{
+						{
+							Type:  "media",
+							Attrs: mediaAttrs,
+						},
+					},
+				},
+			}, nil
+		}
+
 		mediaAttrs := map[string]interface{}{
 			"type": "image",
 		}

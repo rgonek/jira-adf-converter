@@ -10,6 +10,10 @@ import (
 )
 
 func (s *state) convertDocument(root ast.Node) (converter.Doc, error) {
+	if err := s.checkContext(); err != nil {
+		return converter.Doc{}, err
+	}
+
 	doc := converter.Doc{
 		Version: 1,
 		Type:    "doc",
@@ -82,6 +86,10 @@ func (s *state) convertBlockSlice(children []ast.Node, parent ast.Node) ([]conve
 	mergeNextParagraph := false
 
 	for index := 0; index < len(children); {
+		if err := s.checkContext(); err != nil {
+			return nil, err
+		}
+
 		if s.shouldDetectExpandHTML() {
 			if opening, ok := children[index].(*ast.HTMLBlock); ok {
 				if title, isOpen := parseDetailsOpenTagFromHTMLBlock(opening, s.source); isOpen {

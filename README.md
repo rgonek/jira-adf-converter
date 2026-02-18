@@ -12,6 +12,7 @@ The primary goal is to generate markdown that is **semantic**, **clean**, and **
 *   **Rich Formatting**: Supports bold, italic, strikethrough, inline code, and links.
 *   **Rich Media & Interactive Elements**: Expandable sections, emojis, user mentions, status badges, dates, and media embeds (images, files).
 *   **Smart Links**: Atlassian inline cards with URL/JSON-LD extraction.
+*   **Runtime Link/Media Hooks**: Rewrite links/media in both directions (ADF -> Markdown and Markdown -> ADF) with context-aware callbacks.
 *   **Configurable Output**:
     *   **Pure Markdown**: (Default) Strictly adheres to GFM.
     *   **HTML Fallback**: Optional flag to use HTML tags for features GFM lacks (underline, subscript/superscript).
@@ -101,6 +102,75 @@ func main() {
 }
 ```
 
+### Context-Aware Conversion and Runtime Hooks
+
+Use `ConvertWithContext` when you need source-path-aware rewriting, cancellation/timeouts, or custom link/media mapping.
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+defer cancel()
+
+cfg := converter.Config{
+    ResolutionMode: converter.ResolutionBestEffort,
+    LinkHook: func(ctx context.Context, in converter.LinkRenderInput) (converter.LinkRenderOutput, error) {
+        if strings.HasPrefix(in.Href, "https://confluence.example/wiki/pages/") {
+            return converter.LinkRenderOutput{
+                Href:    "../pages/123.md",
+                Handled: true,
+            }, nil
+        }
+        return converter.LinkRenderOutput{Handled: false}, nil
+    },
+    MediaHook: func(ctx context.Context, in converter.MediaRenderInput) (converter.MediaRenderOutput, error) {
+        if in.MediaType == "image" && in.ID != "" {
+            return converter.MediaRenderOutput{
+                Markdown: "![Image](./assets/" + in.ID + ".png)",
+                Handled:  true,
+            }, nil
+        }
+        return converter.MediaRenderOutput{Handled: false}, nil
+    },
+}
+
+conv, _ := converter.New(cfg)
+result, err := conv.ConvertWithContext(ctx, jsonData, converter.ConvertOptions{SourcePath: "docs/spec.adf.json"})
+_ = result
+_ = err
+```
+
+Reverse conversion supports the same model:
+
+```go
+reverseCfg := mdconverter.ReverseConfig{
+    ResolutionMode: mdconverter.ResolutionStrict,
+    LinkHook: func(ctx context.Context, in mdconverter.LinkParseInput) (mdconverter.LinkParseOutput, error) {
+        if strings.HasPrefix(in.Destination, "../") {
+            return mdconverter.LinkParseOutput{
+                Destination: "https://confluence.example/wiki/pages/123",
+                ForceLink:   true,
+                Handled:     true,
+            }, nil
+        }
+        return mdconverter.LinkParseOutput{Handled: false}, nil
+    },
+}
+
+reverseConv, _ := mdconverter.New(reverseCfg)
+reverseResult, err := reverseConv.ConvertWithContext(ctx, "[Page](../page.md)", mdconverter.ConvertOptions{SourcePath: "docs/page.md"})
+_ = reverseResult
+_ = err
+```
+
+Resolution modes:
+
+*   `best_effort` (default): unresolved hook references (`ErrUnresolved`) produce warnings and fall back to built-in behavior.
+*   `strict`: unresolved references fail conversion immediately.
+
+Concurrency note:
+
+*   Converter instances are safe for concurrent `Convert`/`ConvertWithContext` calls.
+*   Hook closures are caller-provided and must be thread-safe when shared across goroutines.
+
 ## ⚙️ Configuration
 
 | Option | Description |
@@ -108,5 +178,6 @@ func main() {
 | **`UnderlineStyle`** | Controls underline rendering (`ignore`, `bold`, `html`). |
 | **`UnknownNodes`** | Controls unknown node handling (`placeholder`, `skip`, `error`). |
 | **`UnknownMarks`** | Controls unknown mark handling (`skip`, `placeholder`, `error`). |
+| **`ResolutionMode`** | Hook unresolved handling (`best_effort`, `strict`). |
 
 

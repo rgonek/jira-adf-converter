@@ -7,13 +7,13 @@ import (
 )
 
 var (
-	cssHexColorRe       = regexp.MustCompile(`(?i)^#[0-9a-f]{3,8}$`)
-	cssNamedColorRe     = regexp.MustCompile(`^[a-zA-Z]+$`)
-	cssRGBColorRe       = regexp.MustCompile(`(?i)^rgb\(\s*(?:\d{1,3}%?\s*,\s*){2}\d{1,3}%?\s*\)$`)
-	cssRGBAColorRe      = regexp.MustCompile(`(?i)^rgba\(\s*(?:\d{1,3}%?\s*,\s*){3}(?:0|1|0?\.\d+)\s*\)$`)
-	cssHSLColorRe       = regexp.MustCompile(`(?i)^hsl\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*\)$`)
-	cssHSLAColorRe      = regexp.MustCompile(`(?i)^hsla\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*,\s*(?:0|1|0?\.\d+)\s*\)$`)
-	cssVarColorRe       = regexp.MustCompile(`(?i)^var\(\s*--[a-z0-9_-]+\s*\)$`)
+	cssHexColorRe   = regexp.MustCompile(`(?i)^#[0-9a-f]{3,8}$`)
+	cssNamedColorRe = regexp.MustCompile(`^[a-zA-Z]+$`)
+	cssRGBColorRe   = regexp.MustCompile(`(?i)^rgb\(\s*(?:\d{1,3}%?\s*,\s*){2}\d{1,3}%?\s*\)$`)
+	cssRGBAColorRe  = regexp.MustCompile(`(?i)^rgba\(\s*(?:\d{1,3}%?\s*,\s*){3}(?:0|1|0?\.\d+)\s*\)$`)
+	cssHSLColorRe   = regexp.MustCompile(`(?i)^hsl\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*\)$`)
+	cssHSLAColorRe  = regexp.MustCompile(`(?i)^hsla\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*,\s*(?:0|1|0?\.\d+)\s*\)$`)
+	cssVarColorRe   = regexp.MustCompile(`(?i)^var\(\s*--[a-z0-9_-]+\s*\)$`)
 )
 
 // getMarksToCloseFull returns marks that need to be closed
@@ -147,12 +147,49 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 			// No href - just return plain text
 			return "", "", nil
 		}
+		title, _ := mark.Attrs["title"].(string)
+
+		if s.config.LinkHook != nil {
+			hookOutput := LinkRenderOutput{}
+			handled := false
+
+			if cachedOutput, ok := loadLinkHookCache(mark.Attrs); ok {
+				hookOutput = cachedOutput
+				handled = cachedOutput.Handled
+			} else {
+				var err error
+				hookOutput, handled, err = s.applyLinkRenderHook(
+					mark.Type,
+					LinkRenderInput{
+						Source:     "mark",
+						SourcePath: s.options.SourcePath,
+						Href:       href,
+						Title:      title,
+						Text:       "",
+						Meta:       linkMetadataFromAttrs(mark.Attrs, href),
+						Attrs:      cloneAnyMap(mark.Attrs),
+					},
+				)
+				if err != nil {
+					return "", "", err
+				}
+				storeLinkHookCache(mark.Attrs, hookOutput, handled)
+			}
+
+			if handled {
+				if hookOutput.TextOnly {
+					return "", "", nil
+				}
+				href = hookOutput.Href
+				title = hookOutput.Title
+			}
+		}
 
 		// Build link syntax: [text](href) or [text](href "title")
 		opening := "["
 		closing := "](" + href
 
-		if title, hasTitle := mark.Attrs["title"].(string); hasTitle && title != "" {
+		if title != "" {
 			// Escape quotes in title
 			escapedTitle := strings.ReplaceAll(title, "\\", "\\\\")
 			escapedTitle = strings.ReplaceAll(escapedTitle, "\"", "\\\"")
