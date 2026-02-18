@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(git -C \"D:/Dev/jira-adf-converter\" log --oneline -10)",
-      "Bash(git -C \"D:/Dev/jira-adf-converter\" diff main..feature/params --stat)"
+      "Bash(git -C \"D:/Dev/jira-adf-converter\" diff main..feature/params --stat)",
+      "Bash(ls:*)",
+      "Bash(wc:*)",
+      "Bash(dir:*)"
     ]
   }
 }

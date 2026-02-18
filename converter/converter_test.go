@@ -5,8 +5,8 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-	"sync"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -105,8 +105,17 @@ func goldenConfigForPath(path string) Config {
 	if strings.Contains(base, "table_auto") {
 		cfg.TableMode = TableAuto
 	}
+	if strings.Contains(base, "table_pipe") {
+		cfg.TableMode = TablePipe
+	}
 	if strings.Contains(base, "table_html") {
 		cfg.TableMode = TableHTML
+	}
+	if strings.Contains(base, "hardbreakhtml") {
+		cfg.HardBreakStyle = HardBreakHTML
+	}
+	if strings.Contains(base, "hardbreakbackslash") {
+		cfg.HardBreakStyle = HardBreakBackslash
 	}
 
 	// Extensions
@@ -342,7 +351,6 @@ func TestUnderlineStrictMode(t *testing.T) {
 	assert.Equal(t, "underlined\n", result.Markdown)
 }
 
-
 func TestNewCopiesMapBackedConfigFields(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"js"},"content":[{"type":"text","text":"const x = 1;"}]},{"type":"extension","attrs":{"extensionType":"custom","text":"fallback text"}}]}`)
 
@@ -399,21 +407,21 @@ func TestMentionHTMLFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
 
 func TestInvalidColorValuesEmitDroppedFeatureWarning(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   []byte
-		cfg     Config
+		name     string
+		input    []byte
+		cfg      Config
 		markType string
 	}{
 		{
-			name:    "text color",
-			input:   []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"textColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
-			cfg:     Config{TextColorStyle: ColorHTML},
+			name:     "text color",
+			input:    []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"textColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
+			cfg:      Config{TextColorStyle: ColorHTML},
 			markType: "textColor",
 		},
 		{
-			name:    "background color",
-			input:   []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"backgroundColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
-			cfg:     Config{BackgroundColorStyle: ColorHTML},
+			name:     "background color",
+			input:    []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"backgroundColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
+			cfg:      Config{BackgroundColorStyle: ColorHTML},
 			markType: "backgroundColor",
 		},
 	}

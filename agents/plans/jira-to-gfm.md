@@ -105,6 +105,14 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
 *   **Frontmatter**: Not in converter lib — CLI's responsibility (will include Confluence metadata)
 *   See `agents/plans/phase6-detailed.md` for full implementation plan.
 
+### Phase 7: Link & Media Hooks (Planned)
+*   Add runtime hooks for `link` marks, `inlineCard` links, and `media` nodes so callers can rewrite targets while converting ADF to Markdown.
+*   Support Confluence page URL -> relative Markdown link mapping (for local docs mirrors and repo-native linking).
+*   Support media download workflows where the caller stores attachments/images locally and returns filesystem paths in emitted Markdown.
+*   Keep default behavior unchanged when hooks are not configured.
+*   Coordinate with reverse converter hooks so Markdown -> ADF can map relative links and local media paths back to Confluence URLs/IDs.
+*   See `agents/plans/link-media-hooks.md` for the detailed bidirectional plan.
+
 ## Testing Strategy
 *   **Framework**: Use `github.com/stretchr/testify/assert` for test assertions.
 *   **Location**: `testdata/` directory.
@@ -120,5 +128,5 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
 *   See Phase 6 for the comprehensive configuration system.
 
 ## Next Step
-*   Phase 6 Complete.
-*   See `agents/plans/phase6-detailed.md` for details.
+*   Implement the bidirectional link/media hook plan.
+*   See `agents/plans/link-media-hooks.md` for details.
