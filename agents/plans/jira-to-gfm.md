@@ -83,7 +83,7 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
     *   Added comment warning about pipe escaping constraints to prevent double-escaping.
 
 
-### Phase 5: Rich Media & Interactive Elements
+### Phase 5: Rich Media & Interactive Elements (Completed)
 *   **Nodes**:
     *   `expand` / `nestedExpand`:
         *   Default: `> **Expand: {Title}** \n > {Content}`
@@ -92,6 +92,18 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
     *   `mention`: Convert to `[Name - @id]`.
     *   `status`: Convert to `[Status: TEXT]`.
     *   `media`: `![alt](url)` or `[Media: type]`.
+
+### Phase 6: Configuration/Params System
+*   **Breaking change**: `New()` returns `(*Converter, error)`, old `AllowHTML`/`Strict` removed entirely
+*   **New config options**:
+    *   `FormattingStrategy`: `simple` (default) | `html` | `latex`
+    *   `UnrecognizedNodeHandling`: `warn` | `strip` | `stringify` | `error`
+    *   `HeadingShift`: integer (0+), shifts heading levels
+    *   `HardBreakStrategy`: `backslash` | `double-space` | `html`
+    *   `MediaConfig`: `BaseURL`, `AltTextPolicy`, `DownloadImages`, `MediaResolver` interface
+*   **New marks**: `textColor` (HTML: `<span>`, simple: stripped)
+*   **Frontmatter**: Not in converter lib — CLI's responsibility (will include Confluence metadata)
+*   See `agents/plans/phase6-detailed.md` for full implementation plan.
 
 ## Testing Strategy
 *   **Framework**: Use `github.com/stretchr/testify/assert` for test assertions.
@@ -103,10 +115,10 @@ Build a Go library to convert Jira Atlassian Document Format (ADF) to GitHub Fla
     *   `go test -update`: Auto-updates `.md` files with actual output (requires git diff review).
 
 ## Configuration
-*   **Library**: Configuration via `Converter` struct fields (`AllowHTML`, `Strict`).
-*   **CLI**: Configuration via command-line flags (`--allow-html`, `--strict`).
+*   **Library**: Configuration via `Config` struct with strategy enums and option objects.
+*   **CLI**: Configuration via command-line flags (strategy flags replacing old `--allow-html`, `--strict`).
+*   See Phase 6 for the comprehensive configuration system.
 
 ## Next Step
-*   Create `agents/plans/` directory.
-*   Save this plan.
-*   Begin Phase 1.
+*   Phase 6 Complete.
+*   See `agents/plans/phase6-detailed.md` for details.

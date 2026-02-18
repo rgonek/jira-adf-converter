@@ -1,18 +1,34 @@
 package converter
 
 import (
+	"fmt"
 	"html"
 	"strings"
 )
 
 // convertParagraph converts a paragraph node to markdown
-func (c *Converter) convertParagraph(node Node) (string, error) {
-	// Process paragraph content with mark continuity
-	return c.convertParagraphContent(node.Content)
+func (s *state) convertParagraph(node Node) (string, error) {
+	// Process paragraph content with mark continuity.
+	content, err := s.convertParagraphContent(node.Content)
+	if err != nil {
+		return "", err
+	}
+	if content == "" {
+		return "", nil
+	}
+
+	if s.config.AlignmentStyle == AlignHTML {
+		if alignment := s.getNodeAlignment(node); alignment != "" {
+			trimmed := strings.TrimSuffix(content, "\n\n")
+			return fmt.Sprintf(`<div align="%s">%s</div>`+"\n\n", alignment, trimmed), nil
+		}
+	}
+
+	return content, nil
 }
 
 // convertText converts a text node (standalone, not within paragraph)
-func (c *Converter) convertText(node Node) (string, error) {
+func (s *state) convertText(node Node) (string, error) {
 	// Text nodes should be processed within paragraph context
 	// This case handles standalone text (shouldn't normally occur)
 	return node.Text, nil
@@ -20,8 +36,8 @@ func (c *Converter) convertText(node Node) (string, error) {
 
 // convertParagraphContent processes all content nodes in a paragraph
 // while maintaining mark continuity across adjacent text nodes
-func (c *Converter) convertParagraphContent(content []Node) (string, error) {
-	res, err := c.convertInlineContent(content)
+func (s *state) convertParagraphContent(content []Node) (string, error) {
+	res, err := s.convertInlineContent(content)
 	if err != nil {
 		return "", err
 	}
@@ -33,9 +49,17 @@ func (c *Converter) convertParagraphContent(content []Node) (string, error) {
 }
 
 // convertHeading converts a heading node to markdown
-func (c *Converter) convertHeading(node Node) (string, error) {
-	// Extract level from attributes (default to 1 if missing/invalid)
-	level := node.GetIntAttr("level", 1)
+func (s *state) convertHeading(node Node) (string, error) {
+	// Extract level from attributes (default to 1 if missing/invalid).
+	level := node.GetIntAttr("level", 0)
+	if level <= 0 {
+		level = node.Level
+	}
+	if level <= 0 {
+		level = 1
+	}
+
+	level += s.config.HeadingOffset
 
 	// Clamp level to valid range (1-6)
 	if level < 1 {
@@ -46,7 +70,7 @@ func (c *Converter) convertHeading(node Node) (string, error) {
 	}
 
 	// Process content with mark continuity
-	content, err := c.convertInlineContent(node.Content)
+	content, err := s.convertInlineContent(node.Content)
 	if err != nil {
 		return "", err
 	}
@@ -58,49 +82,69 @@ func (c *Converter) convertHeading(node Node) (string, error) {
 	content = strings.TrimSuffix(content, "\\")
 
 	// Build heading
-	var sb strings.Builder
-	sb.WriteString(strings.Repeat("#", level))
+	heading := strings.Repeat("#", level)
 	if len(content) > 0 {
-		sb.WriteString(" ")
-		sb.WriteString(content)
+		heading += " " + content
 	}
-	sb.WriteString("\n\n") // Newline after heading + blank line after
 
-	return sb.String(), nil
+	if s.config.AlignmentStyle == AlignHTML {
+		if alignment := s.getNodeAlignment(node); alignment != "" {
+			return fmt.Sprintf(`<h%d align="%s">%s</h%d>`+"\n\n", level, alignment, content, level), nil
+		}
+	}
+
+	return heading + "\n\n", nil // Newline after heading + blank line after
 }
 
 // convertBlockquote converts a blockquote node to markdown
-func (c *Converter) convertBlockquote(node Node) (string, error) {
+func (s *state) convertBlockquote(node Node) (string, error) {
 	// Handle empty blockquote
 	if len(node.Content) == 0 {
 		return "", nil
 	}
 
 	// Process child content recursively
-	sbStr, err := c.convertChildren(node.Content)
+	sbStr, err := s.convertChildren(node.Content)
 	if err != nil {
 		return "", err
 	}
 
 	// Use blockquoteContent helper to apply formatting
 	// We pass empty prefix since standard blockquotes don't have special prefixes like panels
-	content := c.blockquoteContent(sbStr, "")
+	content := s.blockquoteContent(sbStr, "")
 
 	return content + "\n\n", nil
 }
 
 // convertRule converts a horizontal rule node to markdown
-func (c *Converter) convertRule() (string, error) {
+func (s *state) convertRule() (string, error) {
 	return "---\n\n", nil
 }
 
 // convertHardBreak converts a hard line break to markdown (backslash + newline)
-func (c *Converter) convertHardBreak() (string, error) {
+func (s *state) convertHardBreak() (string, error) {
+	if s.config.HardBreakStyle == HardBreakHTML {
+		return "<br>", nil
+	}
 	return "\\\n", nil
 }
 
+func (s *state) getNodeAlignment(node Node) string {
+	alignment := node.GetStringAttr("align", "")
+	if alignment == "" {
+		alignment = node.GetStringAttr("layout", "")
+	}
+
+	switch alignment {
+	case "left", "center", "right":
+		return alignment
+	default:
+		return ""
+	}
+}
+
 // blockquoteContent converts content to blockquoted format with optional first-line prefix
-func (c *Converter) blockquoteContent(content, firstLinePrefix string) string {
+func (s *state) blockquoteContent(content, firstLinePrefix string) string {
 	content = strings.TrimRight(content, "\n")
 	if content == "" {
 		return ""
@@ -130,7 +174,7 @@ func (c *Converter) blockquoteContent(content, firstLinePrefix string) string {
 }
 
 // extractTextFromContent extracts raw text from a list of nodes (shallow, mainly for code blocks)
-func (c *Converter) extractTextFromContent(content []Node) string {
+func (s *state) extractTextFromContent(content []Node) string {
 	var sb strings.Builder
 	for _, child := range content {
 		if child.Type == "text" {
@@ -141,13 +185,13 @@ func (c *Converter) extractTextFromContent(content []Node) string {
 }
 
 // convertCodeBlock converts a code block node to markdown
-func (c *Converter) convertCodeBlock(node Node) (string, error) {
+func (s *state) convertCodeBlock(node Node) (string, error) {
 	// Check if code block is empty or contains only whitespace
 	if len(node.Content) == 0 {
 		return "", nil
 	}
 
-	content := c.extractTextFromContent(node.Content)
+	content := s.extractTextFromContent(node.Content)
 
 	// If only whitespace, ignore per Core Principle #5
 	if strings.TrimSpace(content) == "" {
@@ -156,6 +200,9 @@ func (c *Converter) convertCodeBlock(node Node) (string, error) {
 
 	// Extract language attribute
 	language := node.GetStringAttr("language", "")
+	if mapped, ok := s.config.LanguageMap[language]; ok {
+		language = mapped
+	}
 
 	var result strings.Builder
 	result.WriteString("```")
@@ -169,7 +216,7 @@ func (c *Converter) convertCodeBlock(node Node) (string, error) {
 
 // indent applies uniform indentation to content within a list item.
 // The first line is prefixed with the marker, subsequent lines with spaces matching marker length.
-func (c *Converter) indent(content, marker string) string {
+func (s *state) indent(content, marker string) string {
 	content = strings.TrimRight(content, "\n")
 	if content == "" {
 		return ""
@@ -195,14 +242,14 @@ func (c *Converter) indent(content, marker string) string {
 }
 
 // convertPanel converts a panel node to blockquote with semantic label
-func (c *Converter) convertPanel(node Node) (string, error) {
+func (s *state) convertPanel(node Node) (string, error) {
 	// Handle empty panel
 	if len(node.Content) == 0 {
 		return "", nil
 	}
 
 	// Check if panel has actual content or just whitespace
-	fullContent, err := c.convertChildren(node.Content)
+	fullContent, err := s.convertChildren(node.Content)
 	if err != nil {
 		return "", err
 	}
@@ -211,34 +258,64 @@ func (c *Converter) convertPanel(node Node) (string, error) {
 		return "", nil
 	}
 
-	// Get panel type
-	panelType := node.GetStringAttr("panelType", "")
+	panelType := strings.ToLower(node.GetStringAttr("panelType", ""))
+	hasPanelType := panelType != ""
+	panelTitle := node.GetStringAttr("title", "")
+	panelUpper, panelTitleCase := panelTypeLabels(panelType)
 
-	// Map panel type to prefix
-	prefix := ""
-	switch panelType {
-	case "info":
-		prefix = "**Info**: "
-	case "note":
-		prefix = "**Note**: "
-	case "success":
-		prefix = "**Success**: "
-	case "warning":
-		prefix = "**Warning**: "
-	case "error":
-		prefix = "**Error**: "
+	switch s.config.PanelStyle {
+	case PanelNone:
+		quoted := s.blockquoteContent(fullContent, "")
+		if quoted == "" {
+			return "", nil
+		}
+		return quoted + "\n\n", nil
+	case PanelBold:
+		prefix := ""
+		if hasPanelType {
+			prefix = fmt.Sprintf("**%s**: ", panelTitleCase)
+		}
+		quoted := s.blockquoteContent(fullContent, prefix)
+		if quoted == "" {
+			return "", nil
+		}
+		return quoted + "\n\n", nil
+	case PanelTitle:
+		if !hasPanelType {
+			quoted := s.blockquoteContent(fullContent, "")
+			if quoted == "" {
+				return "", nil
+			}
+			return quoted + "\n\n", nil
+		}
+		callout := fmt.Sprintf("[!%s]", panelUpper)
+		if panelTitle != "" {
+			callout = fmt.Sprintf("[!%s: %s]", panelUpper, panelTitle)
+		}
+		quoted := s.blockquoteContent(fullContent, "")
+		if quoted == "" {
+			return "> " + callout + "\n\n", nil
+		}
+		return "> " + callout + "\n" + quoted + "\n\n", nil
+	default: // PanelGitHub
+		if !hasPanelType {
+			quoted := s.blockquoteContent(fullContent, "")
+			if quoted == "" {
+				return "", nil
+			}
+			return quoted + "\n\n", nil
+		}
+		callout := fmt.Sprintf("[!%s]", panelUpper)
+		quoted := s.blockquoteContent(fullContent, "")
+		if quoted == "" {
+			return "> " + callout + "\n\n", nil
+		}
+		return "> " + callout + "\n" + quoted + "\n\n", nil
 	}
-
-	quoted := c.blockquoteContent(fullContent, prefix)
-	if quoted == "" {
-		return "", nil
-	}
-
-	return quoted + "\n\n", nil
 }
 
 // convertDecisionList converts a decision list to a single continuous blockquote
-func (c *Converter) convertDecisionList(node Node) (string, error) {
+func (s *state) convertDecisionList(node Node) (string, error) {
 	if len(node.Content) == 0 {
 		return "", nil
 	}
@@ -249,7 +326,7 @@ func (c *Converter) convertDecisionList(node Node) (string, error) {
 			continue
 		}
 
-		itemContent, err := c.convertDecisionItemContent(child)
+		itemContent, err := s.convertDecisionItemContent(child)
 		if err != nil {
 			return "", err
 		}
@@ -268,12 +345,12 @@ func (c *Converter) convertDecisionList(node Node) (string, error) {
 }
 
 // convertDecisionItem is a helper that should not be called directly
-func (c *Converter) convertDecisionItem(node Node) (string, error) {
-	return c.convertDecisionItemContent(node)
+func (s *state) convertDecisionItem(node Node) (string, error) {
+	return s.convertDecisionItemContent(node)
 }
 
 // convertDecisionItemContent processes a decision item's content
-func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
+func (s *state) convertDecisionItemContent(node Node) (string, error) {
 	if len(node.Content) == 0 {
 		return "", nil
 	}
@@ -285,20 +362,32 @@ func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
 	prefix := ""
 	switch state {
 	case "DECIDED":
-		prefix = "**✓ Decision**: "
+		if s.config.DecisionStyle == DecisionText {
+			prefix = "**DECIDED**: "
+		} else {
+			prefix = "**✓ Decision**: "
+		}
 	case "UNDECIDED":
-		prefix = "**? Decision**: "
+		if s.config.DecisionStyle == DecisionText {
+			prefix = "**UNDECIDED**: "
+		} else {
+			prefix = "**? Decision**: "
+		}
 	default:
-		prefix = "**Decision**: "
+		if s.config.DecisionStyle == DecisionText {
+			prefix = "**DECISION**: "
+		} else {
+			prefix = "**Decision**: "
+		}
 	}
 
 	// Process content
-	sbStr, err := c.convertChildren(node.Content)
+	sbStr, err := s.convertChildren(node.Content)
 	if err != nil {
 		return "", err
 	}
 
-	quoted := c.blockquoteContent(sbStr, prefix)
+	quoted := s.blockquoteContent(sbStr, prefix)
 	if quoted == "" {
 		return "", nil
 	}
@@ -306,18 +395,45 @@ func (c *Converter) convertDecisionItemContent(node Node) (string, error) {
 	return quoted, nil
 }
 
+func panelTypeLabels(panelType string) (string, string) {
+	switch panelType {
+	case "info":
+		return "INFO", "Info"
+	case "note":
+		return "NOTE", "Note"
+	case "success":
+		return "SUCCESS", "Success"
+	case "warning":
+		return "WARNING", "Warning"
+	case "error":
+		return "ERROR", "Error"
+	default:
+		upper := strings.ToUpper(panelType)
+		if upper == "" {
+			upper = "INFO"
+		}
+		titleCase := panelType
+		if titleCase == "" {
+			titleCase = "Info"
+		} else {
+			titleCase = strings.ToUpper(titleCase[:1]) + strings.ToLower(titleCase[1:])
+		}
+		return upper, titleCase
+	}
+}
+
 // convertExpand converts expand and nestedExpand nodes
-func (c *Converter) convertExpand(node Node) (string, error) {
+func (s *state) convertExpand(node Node) (string, error) {
 	// Extract title
 	title := node.GetStringAttr("title", "")
 
 	// Process content
-	content, err := c.convertChildren(node.Content)
+	content, err := s.convertChildren(node.Content)
 	if err != nil {
 		return "", err
 	}
 
-	if c.config.AllowHTML {
+	if s.config.ExpandStyle == ExpandHTML {
 		var htmlBuilder strings.Builder
 		htmlBuilder.WriteString("<details><summary>")
 		htmlBuilder.WriteString(html.EscapeString(title))
@@ -340,7 +456,7 @@ func (c *Converter) convertExpand(node Node) (string, error) {
 
 	// Apply blockquote to content
 	// If title exists, we've already written the header, so we prefix content with just "> "
-	quotedContent := c.blockquoteContent(content, "")
+	quotedContent := s.blockquoteContent(content, "")
 	text.WriteString(quotedContent)
 
 	return text.String() + "\n\n", nil

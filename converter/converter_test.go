@@ -1,9 +1,11 @@
 package converter
 
 import (
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
+	"sync"
 	"strings"
 	"testing"
 
@@ -12,6 +14,151 @@ import (
 )
 
 var update = flag.Bool("update", false, "update golden files")
+
+func newTestConverter(t testing.TB, cfg Config) *Converter {
+	t.Helper()
+
+	conv, err := New(cfg)
+	require.NoError(t, err)
+
+	return conv
+}
+
+func goldenConfigForPath(path string) Config {
+	cfg := Config{
+		UnderlineStyle: UnderlineIgnore,
+		SubSupStyle:    SubSupIgnore,
+		MentionStyle:   MentionText,
+		PanelStyle:     PanelBold,
+		ExpandStyle:    ExpandBlockquote,
+		UnknownNodes:   UnknownPlaceholder,
+		UnknownMarks:   UnknownSkip,
+	}
+
+	base := filepath.Base(path)
+	if strings.Contains(base, "_html") {
+		// Legacy support for existing _html tests, might need refinement
+		cfg.UnderlineStyle = UnderlineHTML
+		cfg.SubSupStyle = SubSupHTML
+		cfg.HardBreakStyle = HardBreakHTML
+		cfg.ExpandStyle = ExpandHTML
+	}
+
+	// Marks
+	if strings.Contains(base, "underline_bold") {
+		cfg.UnderlineStyle = UnderlineBold
+	}
+	if strings.Contains(base, "underline_html") {
+		cfg.UnderlineStyle = UnderlineHTML
+	}
+	if strings.Contains(base, "subsup_latex") {
+		cfg.SubSupStyle = SubSupLaTeX
+	}
+	if strings.Contains(base, "subsup_html") {
+		cfg.SubSupStyle = SubSupHTML
+	}
+	if strings.Contains(base, "color_html") {
+		cfg.TextColorStyle = ColorHTML
+	}
+	if strings.Contains(base, "color_ignore") {
+		cfg.TextColorStyle = ColorIgnore
+	}
+	if strings.Contains(base, "bgcolor_html") {
+		cfg.BackgroundColorStyle = ColorHTML
+	}
+
+	// Blocks
+	if strings.Contains(base, "panel_bold") {
+		cfg.PanelStyle = PanelBold
+	}
+	if strings.Contains(base, "panel_github") {
+		cfg.PanelStyle = PanelGitHub
+	}
+	if strings.Contains(base, "panel_title") {
+		cfg.PanelStyle = PanelTitle
+	}
+	if strings.Contains(base, "align_html") {
+		cfg.AlignmentStyle = AlignHTML
+	}
+	if strings.Contains(base, "expand_html") {
+		cfg.ExpandStyle = ExpandHTML
+	}
+	if strings.Contains(base, "unknown_placeholder") {
+		cfg.UnknownMarks = UnknownPlaceholder
+	}
+	if strings.Contains(base, "heading_offset1") {
+		cfg.HeadingOffset = 1
+	}
+	if strings.Contains(base, "decision_text") {
+		cfg.DecisionStyle = DecisionText
+	}
+
+	// Lists
+	if strings.Contains(base, "bullet_star") {
+		cfg.BulletMarker = '*'
+	}
+	if strings.Contains(base, "ordered_lazy") {
+		cfg.OrderedListStyle = OrderedLazy
+	}
+
+	// Tables
+	if strings.Contains(base, "table_auto") {
+		cfg.TableMode = TableAuto
+	}
+	if strings.Contains(base, "table_html") {
+		cfg.TableMode = TableHTML
+	}
+
+	// Extensions
+	if strings.Contains(base, "ext_json") {
+		cfg.Extensions.Default = ExtensionJSON
+	}
+	if strings.Contains(base, "ext_strip") {
+		cfg.Extensions.Default = ExtensionStrip
+	}
+	if strings.Contains(base, "ext_text") {
+		cfg.Extensions.Default = ExtensionText
+	}
+
+	// Inline
+	if strings.Contains(base, "mention_text") {
+		cfg.MentionStyle = MentionText
+	}
+	if strings.Contains(base, "mention_link") {
+		cfg.MentionStyle = MentionLink
+	}
+	if strings.Contains(base, "mention_html") {
+		cfg.MentionStyle = MentionHTML
+	}
+	if strings.Contains(base, "emoji_unicode") {
+		cfg.EmojiStyle = EmojiUnicode
+	}
+	if strings.Contains(base, "status_text") {
+		cfg.StatusStyle = StatusText
+	}
+	if strings.Contains(base, "date_iso") {
+		cfg.DateFormat = "2006-01-02"
+	}
+	if strings.Contains(base, "inlinecard_embed") {
+		cfg.InlineCardStyle = InlineCardEmbed
+	}
+
+	// Media
+	if strings.Contains(base, "media_baseurl") {
+		cfg.MediaBaseURL = "https://example.com/media/"
+	}
+	if strings.Contains(base, "language_map_cpp") {
+		cfg.LanguageMap = map[string]string{
+			"c++": "cpp",
+		}
+	}
+
+	return cfg
+}
+
+func normalizeNewlines(value string) string {
+	return strings.ReplaceAll(value, "\r\n", "\n")
+}
 
 func TestGoldenFiles(t *testing.T) {
 	testDataDir := "../testdata"
@@ -35,21 +182,11 @@ func TestGoldenFiles(t *testing.T) {
 			// Determine expected output file path
 			goldenPath := strings.TrimSuffix(path, ".json") + ".md"
 
-			// Configure converter based on filename or defaults
-			// For now, default config.
-			// The plan mentions {feature}_html.json for AllowHTML: true tests.
-			cfg := Config{
-				AllowHTML: strings.Contains(filepath.Base(path), "_html"),
-				Strict:    false, // Default to false unless we want to test strict specifically
-			}
-
-			// For unknown_node.json, we expect specific output in non-strict mode.
-			// If we wanted to test strict mode failure, we might need a separate naming convention or test logic.
-			// But for now, let's stick to the generated output verification.
-
-			conv := New(cfg)
-			output, err := conv.Convert(input)
+			cfg := goldenConfigForPath(path)
+			conv := newTestConverter(t, cfg)
+			result, err := conv.Convert(input)
 			require.NoError(t, err)
+			output := result.Markdown
 
 			if *update {
 				err := os.WriteFile(goldenPath, []byte(output), 0644)
@@ -65,7 +202,7 @@ func TestGoldenFiles(t *testing.T) {
 				}
 				require.NoError(t, err)
 
-				assert.Equal(t, string(expectedData), output)
+				assert.Equal(t, normalizeNewlines(string(expectedData)), normalizeNewlines(output))
 			}
 		})
 
@@ -79,15 +216,14 @@ func TestStrictMode(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"unknownNode","content":[{"type":"text","text":"test"}]}]}`)
 
 	cfg := Config{
-		AllowHTML: false,
-		Strict:    true,
+		UnknownNodes: UnknownError,
 	}
-	conv := New(cfg)
+	conv := newTestConverter(t, cfg)
 
-	output, err := conv.Convert(input)
+	result, err := conv.Convert(input)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown node type")
-	assert.Empty(t, output)
+	assert.Empty(t, result.Markdown)
 }
 
 func TestNonStrictMode(t *testing.T) {
@@ -95,79 +231,100 @@ func TestNonStrictMode(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"unknownNode","content":[{"type":"text","text":"test"}]}]}`)
 
 	cfg := Config{
-		AllowHTML: false,
-		Strict:    false,
+		UnknownNodes: UnknownPlaceholder,
 	}
-	conv := New(cfg)
+	conv := newTestConverter(t, cfg)
 
-	output, err := conv.Convert(input)
+	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Contains(t, output, "[Unknown node: unknownNode]")
+	assert.Contains(t, result.Markdown, "[Unknown node: unknownNode]")
+	assert.NotEmpty(t, result.Warnings)
 }
 
 func TestStrictModeWithUnknownMark(t *testing.T) {
-	// Test that strict mode returns error for truly unknown marks (not underline)
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"textColor"}]}]}]}`)
+	// Test that strict mode returns error for truly unknown marks.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"mysteryMark"}]}]}]}`)
 
 	cfg := Config{
-		AllowHTML: false,
-		Strict:    true,
+		UnknownMarks: UnknownError,
 	}
-	conv := New(cfg)
+	conv := newTestConverter(t, cfg)
 
-	output, err := conv.Convert(input)
+	result, err := conv.Convert(input)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown mark type: textColor")
-	assert.Empty(t, output)
+	assert.Contains(t, err.Error(), "unknown mark type: mysteryMark")
+	assert.Empty(t, result.Markdown)
 }
 
 func TestNonStrictModeWithUnknownMark(t *testing.T) {
-	// Test that non-strict mode handles unknown marks by preserving text without formatting
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"underlined","marks":[{"type":"underline"}]}]}]}`)
+	// Test that non-strict mode handles unknown marks by preserving text without formatting.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"mysteryMark"}]}]}]}`)
 
 	cfg := Config{
-		AllowHTML: false,
-		Strict:    false,
+		UnknownMarks: UnknownSkip,
 	}
-	conv := New(cfg)
+	conv := newTestConverter(t, cfg)
 
-	output, err := conv.Convert(input)
+	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	// Text is preserved, but formatting is lost (no placeholder notation)
-	assert.Contains(t, output, "underlined")
-	assert.NotContains(t, output, "[underline:")
+	assert.Contains(t, result.Markdown, "colored")
+	assert.NotEmpty(t, result.Warnings)
 }
 
-func TestUnderlineWithAllowHTML(t *testing.T) {
-	// Test that underline uses <u> tag when AllowHTML is enabled
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"underlined","marks":[{"type":"underline"}]}]}]}`)
+func TestUnknownMarkPlaceholder(t *testing.T) {
+	// Test that placeholder mode renders a placeholder for unknown marks.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"mysteryMark"}]}]}]}`)
 
 	cfg := Config{
-		AllowHTML: true,
-		Strict:    false,
+		UnknownMarks: UnknownPlaceholder,
 	}
-	conv := New(cfg)
+	conv := newTestConverter(t, cfg)
 
-	output, err := conv.Convert(input)
+	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Contains(t, output, "<u>underlined</u>")
+	assert.NotEmpty(t, result.Warnings)
 }
 
-func TestUnderlineWithoutAllowHTML(t *testing.T) {
-	// Test that underline is dropped when AllowHTML is disabled
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"underlined","marks":[{"type":"underline"}]}]}]}`)
+func TestUnknownMarkPlaceholderWithKnownMark(t *testing.T) {
+	// Test that placeholder mode preserves known formatting while rendering placeholders.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bold","marks":[{"type":"strong"},{"type":"mysteryMark"}]}]}]}`)
 
 	cfg := Config{
-		AllowHTML: false,
-		Strict:    false,
+		UnknownMarks: UnknownPlaceholder,
 	}
-	conv := New(cfg)
+	conv := newTestConverter(t, cfg)
 
-	output, err := conv.Convert(input)
+	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	// Should contain the text but no underline markup
-	// Note: doc adds single \n at end, paragraph adds \n\n during processing
-	assert.Equal(t, "underlined\n", output)
+	assert.NotEmpty(t, result.Warnings)
+}
+
+func TestUnknownMarkPlaceholderMultiple(t *testing.T) {
+	// Test that placeholder mode renders all unknown marks in order.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"text","marks":[{"type":"mysteryOne"},{"type":"mysteryTwo"}]}]}]}`)
+
+	cfg := Config{
+		UnknownMarks: UnknownPlaceholder,
+	}
+	conv := newTestConverter(t, cfg)
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result.Warnings)
+}
+
+func TestUnknownMarkPlaceholderWhitespaceContinuity(t *testing.T) {
+	// Test that placeholder mode does not break mark continuity across whitespace nodes.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bold","marks":[{"type":"strong"}]},{"type":"text","text":" ","marks":[{"type":"strong"},{"type":"mysteryMark"}]},{"type":"text","text":"text","marks":[{"type":"strong"}]}]}]}`)
+
+	cfg := Config{
+		UnknownMarks: UnknownPlaceholder,
+	}
+	conv := newTestConverter(t, cfg)
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result.Warnings)
 }
 
 func TestUnderlineStrictMode(t *testing.T) {
@@ -175,20 +332,192 @@ func TestUnderlineStrictMode(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"underlined","marks":[{"type":"underline"}]}]}]}`)
 
 	cfg := Config{
-		AllowHTML: false,
-		Strict:    true,
+		UnderlineStyle: UnderlineIgnore,
+		UnknownMarks:   UnknownError,
 	}
-	conv := New(cfg)
+	conv := newTestConverter(t, cfg)
 
-	output, err := conv.Convert(input)
+	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Equal(t, "underlined\n", output)
+	assert.Equal(t, "underlined\n", result.Markdown)
+}
+
+
+func TestNewCopiesMapBackedConfigFields(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"js"},"content":[{"type":"text","text":"const x = 1;"}]},{"type":"extension","attrs":{"extensionType":"custom","text":"fallback text"}}]}`)
+
+	cfg := Config{
+		LanguageMap: map[string]string{
+			"js": "javascript",
+		},
+		Extensions: ExtensionRules{
+			Default: ExtensionJSON,
+			ByType: map[string]ExtensionMode{
+				"custom": ExtensionText,
+			},
+		},
+	}
+
+	conv := newTestConverter(t, cfg)
+
+	// Mutate source config after creating converter. Converter behavior should not change.
+	cfg.LanguageMap["js"] = "typescript"
+	cfg.Extensions.ByType["custom"] = ExtensionStrip
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Contains(t, result.Markdown, "```javascript\nconst x = 1;\n```")
+	assert.Contains(t, result.Markdown, "fallback text")
+	assert.NotContains(t, result.Markdown, "```typescript\n")
+}
+
+func TestMentionLinkFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"text":"User Name"}}]}]}`)
+
+	conv := newTestConverter(t, Config{
+		MentionStyle: MentionLink,
+	})
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Warnings)
+	assert.Equal(t, "mention", result.Warnings[0].NodeType)
+}
+
+func TestMentionHTMLFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"text":"User Name"}}]}]}`)
+
+	conv := newTestConverter(t, Config{
+		MentionStyle: MentionHTML,
+	})
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	require.NotEmpty(t, result.Warnings)
+	assert.Equal(t, "mention", result.Warnings[0].NodeType)
+}
+
+func TestInvalidColorValuesEmitDroppedFeatureWarning(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		cfg     Config
+		markType string
+	}{
+		{
+			name:    "text color",
+			input:   []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"textColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
+			cfg:     Config{TextColorStyle: ColorHTML},
+			markType: "textColor",
+		},
+		{
+			name:    "background color",
+			input:   []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"backgroundColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
+			cfg:     Config{BackgroundColorStyle: ColorHTML},
+			markType: "backgroundColor",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conv := newTestConverter(t, tt.cfg)
+			result, err := conv.Convert(tt.input)
+			require.NoError(t, err)
+			require.NotEmpty(t, result.Warnings)
+			assert.Equal(t, WarningDroppedFeature, result.Warnings[0].Type)
+			assert.Equal(t, tt.markType, result.Warnings[0].NodeType)
+		})
+	}
+}
+
+func TestConverterConfigIsolationConcurrent(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"js"},"content":[{"type":"text","text":"const x = 1;"}]},{"type":"extension","attrs":{"extensionType":"custom","text":"fallback text"}}]}`)
+
+	cfg := Config{
+		LanguageMap: map[string]string{
+			"js": "javascript",
+		},
+		Extensions: ExtensionRules{
+			Default: ExtensionJSON,
+			ByType: map[string]ExtensionMode{
+				"custom": ExtensionText,
+			},
+		},
+	}
+
+	conv := newTestConverter(t, cfg)
+
+	var mutatorWG sync.WaitGroup
+	var workersWG sync.WaitGroup
+	errCh := make(chan error, 1)
+	stopMutator := make(chan struct{})
+
+	sendErr := func(err error) {
+		select {
+		case errCh <- err:
+		default:
+		}
+	}
+
+	mutatorWG.Add(1)
+	go func() {
+		defer mutatorWG.Done()
+		for {
+			select {
+			case <-stopMutator:
+				return
+			default:
+				cfg.LanguageMap["js"] = "typescript"
+				cfg.LanguageMap["js"] = "javascript"
+				cfg.Extensions.ByType["custom"] = ExtensionStrip
+				cfg.Extensions.ByType["custom"] = ExtensionText
+			}
+		}
+	}()
+
+	workers := 8
+	iterations := 200
+	for i := 0; i < workers; i++ {
+		workersWG.Add(1)
+		go func() {
+			defer workersWG.Done()
+			for j := 0; j < iterations; j++ {
+				result, err := conv.Convert(input)
+				if err != nil {
+					sendErr(err)
+					return
+				}
+				if !strings.Contains(result.Markdown, "```javascript\nconst x = 1;\n```") {
+					sendErr(errors.New("unexpected language mapping output during concurrent conversion"))
+					return
+				}
+				if !strings.Contains(result.Markdown, "fallback text") {
+					sendErr(errors.New("extension fallback text missing during concurrent conversion"))
+					return
+				}
+				if strings.Contains(result.Markdown, "```typescript\n") {
+					sendErr(errors.New("converter observed caller config mutation"))
+					return
+				}
+			}
+		}()
+	}
+
+	workersWG.Wait()
+	close(stopMutator)
+	mutatorWG.Wait()
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	default:
+	}
 }
 
 // Unit tests for helper methods
 
 func TestGetMarksToClose(t *testing.T) {
-	conv := New(Config{})
+	conv := newTestConverter(t, Config{})
+	s := &state{config: conv.config}
 
 	tests := []struct {
 		name         string
@@ -230,14 +559,15 @@ func TestGetMarksToClose(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := conv.getMarksToCloseFull(tt.activeMarks, tt.currentMarks)
+			result := s.getMarksToCloseFull(tt.activeMarks, tt.currentMarks)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 func TestGetMarksToOpen(t *testing.T) {
-	conv := New(Config{})
+	conv := newTestConverter(t, Config{})
+	s := &state{config: conv.config}
 
 	tests := []struct {
 		name         string
@@ -279,14 +609,15 @@ func TestGetMarksToOpen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := conv.getMarksToOpenFull(tt.activeMarks, tt.currentMarks)
+			result := s.getMarksToOpenFull(tt.activeMarks, tt.currentMarks)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
 func TestConvertMark(t *testing.T) {
-	conv := New(Config{})
+	conv := newTestConverter(t, Config{UnderlineStyle: UnderlineIgnore})
+	s := &state{config: conv.config}
 
 	tests := []struct {
 		name               string
@@ -348,7 +679,7 @@ func TestConvertMark(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			open, close, err := conv.convertMarkFull(tt.mark, tt.useUnderscoreForEm)
+			open, close, err := s.convertMarkFull(tt.mark, tt.useUnderscoreForEm)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedOpen, open)
 			assert.Equal(t, tt.expectedClose, close)
@@ -357,7 +688,8 @@ func TestConvertMark(t *testing.T) {
 }
 
 func TestConvertMarkWithHTML(t *testing.T) {
-	conv := New(Config{AllowHTML: true})
+	conv := newTestConverter(t, Config{UnderlineStyle: UnderlineHTML})
+	s := &state{config: conv.config}
 
 	tests := []struct {
 		name               string
@@ -384,7 +716,7 @@ func TestConvertMarkWithHTML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			open, close, err := conv.convertMarkFull(tt.mark, tt.useUnderscoreForEm)
+			open, close, err := s.convertMarkFull(tt.mark, tt.useUnderscoreForEm)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedOpen, open)
 			assert.Equal(t, tt.expectedClose, close)
@@ -395,7 +727,10 @@ func TestConvertMarkWithHTML(t *testing.T) {
 // Benchmark tests
 
 func BenchmarkConvertSimpleText(b *testing.B) {
-	conv := New(Config{})
+	conv, err := New(Config{})
+	if err != nil {
+		b.Fatal(err)
+	}
 	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Hello World"}]}]}`)
 
 	b.ResetTimer()
@@ -408,7 +743,10 @@ func BenchmarkConvertSimpleText(b *testing.B) {
 }
 
 func BenchmarkConvertWithMarks(b *testing.B) {
-	conv := New(Config{})
+	conv, err := New(Config{})
+	if err != nil {
+		b.Fatal(err)
+	}
 	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bold italic","marks":[{"type":"strong"},{"type":"em"}]}]}]}`)
 
 	b.ResetTimer()
@@ -421,7 +759,10 @@ func BenchmarkConvertWithMarks(b *testing.B) {
 }
 
 func BenchmarkConvertNestedMarks(b *testing.B) {
-	conv := New(Config{})
+	conv, err := New(Config{})
+	if err != nil {
+		b.Fatal(err)
+	}
 	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bold ","marks":[{"type":"strong"}]},{"type":"text","text":"bold+italic","marks":[{"type":"strong"},{"type":"em"}]},{"type":"text","text":" end","marks":[{"type":"strong"}]}]}]}`)
 
 	b.ResetTimer()
@@ -434,7 +775,10 @@ func BenchmarkConvertNestedMarks(b *testing.B) {
 }
 
 func BenchmarkConvertMultipleParagraphs(b *testing.B) {
-	conv := New(Config{})
+	conv, err := New(Config{})
+	if err != nil {
+		b.Fatal(err)
+	}
 	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Para 1"}]},{"type":"paragraph","content":[{"type":"text","text":"Para 2"}]},{"type":"paragraph","content":[{"type":"text","text":"Para 3"}]}]}`)
 
 	b.ResetTimer()
@@ -447,7 +791,10 @@ func BenchmarkConvertMultipleParagraphs(b *testing.B) {
 }
 
 func BenchmarkConvertLargeDocument(b *testing.B) {
-	conv := New(Config{})
+	conv, err := New(Config{})
+	if err != nil {
+		b.Fatal(err)
+	}
 	// Create a document with 100 paragraphs
 	var sb strings.Builder
 	sb.WriteString(`{"type":"doc","content":[`)

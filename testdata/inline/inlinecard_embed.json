@@ -1,0 +1,22 @@
+{
+  "type": "doc",
+  "version": 1,
+  "content": [
+    {
+      "type": "paragraph",
+      "content": [
+        {
+          "type": "inlineCard",
+          "attrs": {
+            "data": {
+              "@context": "http://schema.org",
+              "@type": "SoftwareSourceCode",
+              "name": "jira-adf-converter",
+              "url": "https://github.com/rgonek/jira-adf-converter"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

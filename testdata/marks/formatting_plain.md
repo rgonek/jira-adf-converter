@@ -1,1 +1,1 @@
-This is subscript and ^superscript and underline
+This is subscript and superscript and underline

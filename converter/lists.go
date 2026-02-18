@@ -6,25 +6,26 @@ import (
 )
 
 // convertListItems iterates over list items, converts them, and applies indentation with the provided marker.
-func (c *Converter) convertListItems(content []Node, childType string, getMarker func(index int) string) (string, error) {
+func (s *state) convertListItems(content []Node, childType string, getMarker func(index int) string) (string, error) {
 	var sb strings.Builder
 
 	for i, item := range content {
 		if item.Type != childType {
-			if c.config.Strict {
+			if s.config.UnknownNodes == UnknownError {
 				// We don't have the parent type here easily, so we give a generic error
 				return "", fmt.Errorf("expected %s child, got %s", childType, item.Type)
 			}
+			s.addWarning(WarningUnknownNode, item.Type, fmt.Sprintf("unexpected list child %s, expected %s", item.Type, childType))
 			continue
 		}
 
-		itemContent, err := c.convertListItemContent(item.Content)
+		itemContent, err := s.convertListItemContent(item.Content)
 		if err != nil {
 			return "", err
 		}
 
 		marker := getMarker(i)
-		indented := c.indent(itemContent, marker)
+		indented := s.indent(itemContent, marker)
 		sb.WriteString(indented)
 		sb.WriteString("\n")
 	}
@@ -33,48 +34,53 @@ func (c *Converter) convertListItems(content []Node, childType string, getMarker
 }
 
 // convertBulletList converts a bullet list node to markdown
-func (c *Converter) convertBulletList(node Node) (string, error) {
-	return c.convertListItems(node.Content, "listItem", func(i int) string {
-		return "- "
+func (s *state) convertBulletList(node Node) (string, error) {
+	marker := fmt.Sprintf("%c ", s.config.BulletMarker)
+	return s.convertListItems(node.Content, "listItem", func(i int) string {
+		return marker
 	})
 }
 
 // convertOrderedList converts an ordered list node to markdown
-func (c *Converter) convertOrderedList(node Node) (string, error) {
+func (s *state) convertOrderedList(node Node) (string, error) {
 	// Extract starting order from attributes (default to 1)
 	order := node.GetIntAttr("order", 1)
 
-	return c.convertListItems(node.Content, "listItem", func(i int) string {
+	return s.convertListItems(node.Content, "listItem", func(i int) string {
+		if s.config.OrderedListStyle == OrderedLazy {
+			return "1. "
+		}
 		return fmt.Sprintf("%d. ", order+i)
 	})
 }
 
 // convertTaskList converts a task list node to markdown
-func (c *Converter) convertTaskList(node Node) (string, error) {
+func (s *state) convertTaskList(node Node) (string, error) {
 	var sb strings.Builder
 
 	for _, item := range node.Content {
 		if item.Type == "taskList" {
-			res, err := c.convertTaskList(item)
+			res, err := s.convertTaskList(item)
 			if err != nil {
 				return "", err
 			}
 			// Indent nested task lists to preserve hierarchy
 			// We use 2 spaces which is standard for nested lists
-			indented := c.indent(res, "  ")
+			indented := s.indent(res, "  ")
 			sb.WriteString(indented)
 			sb.WriteString("\n")
 			continue
 		}
 
 		if item.Type != "taskItem" {
-			if c.config.Strict {
+			if s.config.UnknownNodes == UnknownError {
 				return "", fmt.Errorf("taskList expects taskItem child, got %s", item.Type)
 			}
+			s.addWarning(WarningUnknownNode, item.Type, fmt.Sprintf("unexpected task list child %s", item.Type))
 			continue
 		}
 
-		itemContent, err := c.convertTaskItem(item)
+		itemContent, err := s.convertTaskItem(item)
 		if err != nil {
 			return "", err
 		}
@@ -86,7 +92,7 @@ func (c *Converter) convertTaskList(node Node) (string, error) {
 }
 
 // convertTaskItem converts a task item node to markdown
-func (c *Converter) convertTaskItem(node Node) (string, error) {
+func (s *state) convertTaskItem(node Node) (string, error) {
 	// Extract state from attributes
 	state := node.GetStringAttr("state", "TODO")
 
@@ -97,27 +103,27 @@ func (c *Converter) convertTaskItem(node Node) (string, error) {
 	}
 
 	// Convert content using inline content converter to support marks
-	itemContent, err := c.convertInlineContent(node.Content)
+	itemContent, err := s.convertInlineContent(node.Content)
 	if err != nil {
 		return "", err
 	}
 
-	indented := c.indent(itemContent, marker)
+	indented := s.indent(itemContent, marker)
 
 	return indented + "\n", nil
 }
 
 // convertListItem converts a list item node to markdown
-func (c *Converter) convertListItem(node Node) (string, error) {
-	return c.convertListItemContent(node.Content)
+func (s *state) convertListItem(node Node) (string, error) {
+	return s.convertListItemContent(node.Content)
 }
 
 // convertListItemContent processes the content of a list item
-func (c *Converter) convertListItemContent(content []Node) (string, error) {
+func (s *state) convertListItemContent(content []Node) (string, error) {
 	var sb strings.Builder
 
 	for i, child := range content {
-		result, err := c.convertNode(child)
+		result, err := s.convertNode(child)
 		if err != nil {
 			return "", err
 		}

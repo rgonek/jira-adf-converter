@@ -1,4 +1,31 @@
-| Header | Content |
-| --- | --- |
-| List | - Item 1 - Item 2 |
-| Link | [Example](https://example.com) |
+<table>
+  <thead>
+    <tr>
+      <th>
+        Header
+      </th>
+      <th>
+        Content
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>
+        List
+      </td>
+      <td>
+        - Item 1
+        - Item 2
+      </td>
+    </tr>
+    <tr>
+      <td>
+        Link
+      </td>
+      <td>
+        [Example](https://example.com)
+      </td>
+    </tr>
+  </tbody>
+</table>
