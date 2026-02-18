@@ -50,15 +50,11 @@ func (s *state) convertListItemNode(node ast.Node) (converter.Node, bool, error)
 		Type: "listItem",
 	}
 
-	for child := listItem.FirstChild(); child != nil; child = child.NextSibling() {
-		converted, shouldAppend, err := s.convertBlockNode(child)
-		if err != nil {
-			return converter.Node{}, false, err
-		}
-		if shouldAppend {
-			itemNode.Content = append(itemNode.Content, converted)
-		}
+	content, err := s.convertBlockChildren(listItem)
+	if err != nil {
+		return converter.Node{}, false, err
 	}
+	itemNode.Content = content
 
 	return itemNode, true, nil
 }

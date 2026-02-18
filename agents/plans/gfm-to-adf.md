@@ -288,13 +288,15 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 12: Polish & Edge Cases
+### Phase 12: Polish & Edge Cases ✅
 **Deliverables**:
 - Full roundtrip golden file test suite with categorized lossless vs. lossy expectations
 - `reverseGoldenConfigForPath()` mirroring `goldenConfigForPath()` from `converter/converter_test.go`
 - Fuzz test: any markdown input → valid ADF JSON (no panics)
 - Benchmark tests
 - Edge cases: empty docs, whitespace-only, deeply nested content, unknown HTML tags
+
+**Status**: Implemented (reverse golden harness with config mapping, fuzz + benchmark tests, and normalized comparisons for expected lossy metadata differences).
 
 ---
 
@@ -325,13 +327,13 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 ---
 
 ## Success Criteria
-- [ ] `go build ./...` compiles with no errors
-- [ ] `go test ./mdconverter/...` all tests pass
-- [ ] `go test ./...` no regressions in forward converter tests
-- [ ] Golden file roundtrip tests pass for all lossless test cases
-- [ ] `jac --reverse input.md` produces valid, well-formed ADF JSON
-- [ ] Fuzz tests run without panics for 30 seconds
-- [ ] `make lint` passes
+- [x] `go build ./...` compiles with no errors
+- [x] `go test ./mdconverter/...` all tests pass
+- [x] `go test ./...` no regressions in forward converter tests
+- [x] Golden file roundtrip tests pass for all lossless test cases
+- [x] `jac --reverse input.md` produces valid, well-formed ADF JSON
+- [x] Fuzz tests run without panics for 30 seconds
+- [x] `make lint` passes
 
 ---
 

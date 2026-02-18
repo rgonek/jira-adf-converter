@@ -239,25 +239,33 @@ func (s *state) findMentionRegistryMatch(textValue string) (patternMatch, bool) 
 
 	for _, candidate := range candidates {
 		token := "@" + candidate.name
-		start := strings.Index(textValue, token)
-		if start < 0 {
-			continue
-		}
-
-		end := start + len(token)
-		if !isMentionBoundary(textValue, start, end) {
-			continue
-		}
-
-		if !found || start < best.start || (start == best.start && end > best.end) {
-			best = patternMatch{
-				kind:  "mentionAt",
-				start: start,
-				end:   end,
-				value: candidate.name,
-				extra: candidate.id,
+		searchOffset := 0
+		for searchOffset < len(textValue) {
+			relative := strings.Index(textValue[searchOffset:], token)
+			if relative < 0 {
+				break
 			}
-			found = true
+
+			start := searchOffset + relative
+			end := start + len(token)
+			searchOffset = start + 1
+
+			if !isMentionBoundary(textValue, start, end) {
+				continue
+			}
+
+			if !found || start < best.start || (start == best.start && end > best.end) {
+				best = patternMatch{
+					kind:  "mentionAt",
+					start: start,
+					end:   end,
+					value: candidate.name,
+					extra: candidate.id,
+				}
+				found = true
+			}
+
+			break
 		}
 	}
 

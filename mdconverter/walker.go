@@ -82,16 +82,18 @@ func (s *state) convertBlockSlice(children []ast.Node, parent ast.Node) ([]conve
 	mergeNextParagraph := false
 
 	for index := 0; index < len(children); {
-		if opening, ok := children[index].(*ast.HTMLBlock); ok {
-			if title, isOpen := parseDetailsOpenTagFromHTMLBlock(opening, s.source); isOpen {
-				expandNode, consumed, consumedOK, err := s.consumeDetailsBlock(children, index, parent, title)
-				if err != nil {
-					return nil, err
-				}
-				if consumedOK {
-					content = s.appendConvertedBlock(content, expandNode, &mergeNextParagraph)
-					index += consumed
-					continue
+		if s.shouldDetectExpandHTML() {
+			if opening, ok := children[index].(*ast.HTMLBlock); ok {
+				if title, isOpen := parseDetailsOpenTagFromHTMLBlock(opening, s.source); isOpen {
+					expandNode, consumed, consumedOK, err := s.consumeDetailsBlock(children, index, parent, title)
+					if err != nil {
+						return nil, err
+					}
+					if consumedOK {
+						content = s.appendConvertedBlock(content, expandNode, &mergeNextParagraph)
+						index += consumed
+						continue
+					}
 				}
 			}
 		}
@@ -113,17 +115,34 @@ func (s *state) convertBlockSlice(children []ast.Node, parent ast.Node) ([]conve
 
 func (s *state) consumeDetailsBlock(children []ast.Node, start int, parent ast.Node, title string) (converter.Node, int, bool, error) {
 	end := -1
+	depth := 1
 	for idx := start + 1; idx < len(children); idx++ {
-		if closing, ok := children[idx].(*ast.HTMLBlock); ok && isDetailsCloseHTMLBlock(closing, s.source) {
-			end = idx
-			break
+		htmlNode, ok := children[idx].(*ast.HTMLBlock)
+		if !ok {
+			continue
+		}
+		if _, isOpen := parseDetailsOpenTagFromHTMLBlock(htmlNode, s.source); isOpen {
+			depth++
+			continue
+		}
+		if isDetailsCloseHTMLBlock(htmlNode, s.source) {
+			depth--
+			if depth == 0 {
+				end = idx
+				break
+			}
 		}
 	}
 	if end == -1 {
 		return converter.Node{}, 0, false, nil
 	}
 
-	innerContent, err := s.convertBlockSlice(children[start+1:end], parent)
+	innerParent := parent
+	if opening, ok := children[start].(*ast.HTMLBlock); ok {
+		innerParent = opening
+	}
+
+	innerContent, err := s.convertBlockSlice(children[start+1:end], innerParent)
 	if err != nil {
 		return converter.Node{}, 0, false, err
 	}
@@ -148,11 +167,15 @@ func (s *state) consumeDetailsBlock(children []ast.Node, start int, parent ast.N
 
 func isNestedExpandContext(parent ast.Node) bool {
 	switch parent.(type) {
-	case *ast.ListItem, *ast.Blockquote:
+	case *ast.ListItem, *ast.Blockquote, *ast.HTMLBlock:
 		return true
 	default:
 		return false
 	}
+}
+
+func (s *state) shouldDetectExpandHTML() bool {
+	return s.config.ExpandDetection == ExpandDetectHTML || s.config.ExpandDetection == ExpandDetectAll
 }
 
 func (s *state) appendConvertedBlock(content []converter.Node, next converter.Node, mergeNextParagraph *bool) []converter.Node {

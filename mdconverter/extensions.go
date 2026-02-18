@@ -2,7 +2,6 @@ package mdconverter
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/rgonek/jira-adf-converter/converter"
@@ -14,17 +13,32 @@ func (s *state) parseExtensionFence(language, body string) (converter.Node, bool
 	case "adf:extension":
 		var payload converter.Node
 		if err := json.Unmarshal([]byte(body), &payload); err != nil {
-			return converter.Node{}, false, fmt.Errorf("failed to parse adf:extension payload: %w", err)
+			s.addWarning(
+				converter.WarningExtensionFallback,
+				"adf:extension",
+				"invalid extension payload, preserving as code block",
+			)
+			return converter.Node{}, false, nil
 		}
 		if strings.TrimSpace(payload.Type) == "" {
-			return converter.Node{}, false, fmt.Errorf("adf:extension payload missing type")
+			s.addWarning(
+				converter.WarningExtensionFallback,
+				"adf:extension",
+				"extension payload missing type, preserving as code block",
+			)
+			return converter.Node{}, false, nil
 		}
 		return payload, true, nil
 
 	case "adf:inlinecard":
 		var payload map[string]interface{}
 		if err := json.Unmarshal([]byte(body), &payload); err != nil {
-			return converter.Node{}, false, fmt.Errorf("failed to parse adf:inlineCard payload: %w", err)
+			s.addWarning(
+				converter.WarningExtensionFallback,
+				"adf:inlineCard",
+				"invalid inline card payload, preserving as code block",
+			)
+			return converter.Node{}, false, nil
 		}
 		return converter.Node{
 			Type:  "inlineCard",

@@ -132,14 +132,26 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 			"type": "image",
 		}
 		if href != "" {
-			if strings.HasPrefix(href, "http://") || strings.HasPrefix(href, "https://") {
+			mediaID := href
+			strippedToID := false
+			if s.config.MediaBaseURL != "" && strings.HasPrefix(href, s.config.MediaBaseURL) {
+				candidateID := strings.TrimPrefix(href, s.config.MediaBaseURL)
+				if candidateID != "" {
+					mediaID = candidateID
+					strippedToID = true
+				}
+			}
+
+			lowerHref := strings.ToLower(href)
+			if strippedToID {
+				mediaAttrs["id"] = mediaID
+				if alt != "" {
+					mediaAttrs["alt"] = alt
+				}
+			} else if strings.HasPrefix(lowerHref, "http://") || strings.HasPrefix(lowerHref, "https://") {
 				mediaAttrs["url"] = href
 				mediaAttrs["alt"] = alt
 			} else {
-				mediaID := href
-				if s.config.MediaBaseURL != "" && strings.HasPrefix(href, s.config.MediaBaseURL) {
-					mediaID = strings.TrimPrefix(href, s.config.MediaBaseURL)
-				}
 				mediaAttrs["id"] = mediaID
 				if alt != "" {
 					mediaAttrs["alt"] = alt
