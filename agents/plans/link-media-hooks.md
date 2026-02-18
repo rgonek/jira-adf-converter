@@ -161,7 +161,7 @@ type LinkParseOutput struct {
 	Destination string
 	Title       string
 	ForceLink   bool // bypass inlineCard/blockCard auto-detection
-	ForceCard   bool // force card node when supported
+	ForceCard   bool // force card output; currently emits inlineCard
 	Handled     bool
 }
 
@@ -190,6 +190,13 @@ MediaHook      MediaParseHook `json:"-"`
 ResolutionMode ResolutionMode `json:"resolutionMode,omitempty"`
 ```
 
+### Current card support (reverse path)
+
+- Reverse conversion currently supports `inlineCard` output only.
+- `LinkParseOutput.ForceCard=true` forces `inlineCard` for non-mention links.
+- This MUST NOT error solely because block-card output is not implemented.
+- If block-card support is added later, behavior can expand while preserving backward compatibility.
+
 ---
 
 ## Hook Invocation Order and Coverage
@@ -204,7 +211,9 @@ ResolutionMode ResolutionMode `json:"resolutionMode,omitempty"`
 1. `ast.Link` in `inline.go`:
    - keep `mention:` detection first
    - run `LinkHook` for non-mention links
-   - apply inlineCard/blockCard heuristics only after hook output unless `ForceLink`/`ForceCard` overrides
+   - if `ForceLink=true`, emit a normal link mark and bypass card heuristics
+   - if `ForceCard=true`, emit `inlineCard` and bypass normal card heuristics
+   - otherwise apply existing inline-card heuristics
 2. Block card surfaces (if supported): apply `LinkHook` for those parser paths as well.
 3. `ast.Image` in `inline.go`: run `MediaHook` before `MediaBaseURL` stripping.
 
@@ -228,6 +237,7 @@ Validate hook outputs explicitly and return clear conversion errors for invalid 
    - at least one of `ID` or `URL` must be set
    - reject structurally conflicting payloads
 6. Hook returns `Handled=false` with populated output fields: ignored safely (and optionally warn in debug tests).
+7. `Handled=true` with `ForceCard=true` requires non-empty `Destination`; current output mapping is `inlineCard`.
 
 ---
 
