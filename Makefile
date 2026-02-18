@@ -1,5 +1,9 @@
 .PHONY: build test test-update lint fmt clean install
 
+# Use a repo-local Go build cache to avoid permission issues.
+GOCACHE ?= $(CURDIR)/.gocache
+export GOCACHE
+
 # Build the CLI binary
 build:
 	go build -o bin/jac cmd/jac/main.go

@@ -220,6 +220,9 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			if startsWithFence(result) {
+				ensureFenceLineStart(&sb)
+			}
 			sb.WriteString(result)
 			activeMarks = nil
 			continue
@@ -288,6 +291,22 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 	}
 
 	return sb.String(), nil
+}
+
+func startsWithFence(value string) bool {
+	trimmed := strings.TrimLeft(value, "\n")
+	return strings.HasPrefix(trimmed, "```")
+}
+
+func ensureFenceLineStart(sb *strings.Builder) {
+	if sb.Len() == 0 {
+		return
+	}
+	content := sb.String()
+	if strings.HasSuffix(content, "\n") {
+		return
+	}
+	sb.WriteString("\n")
 }
 
 // closeMarks closes the provided marks in reverse order
