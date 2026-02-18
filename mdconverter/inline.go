@@ -21,7 +21,7 @@ func (s *state) convertInlineChildren(parent ast.Node, stack *markStack) ([]conv
 		}
 	}
 
-	return content, nil
+	return s.applyInlinePatterns(content), nil
 }
 
 func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.Node, error) {
@@ -30,21 +30,19 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 		var content []converter.Node
 		textValue := string(typed.Value(s.source))
 		if textValue != "" {
-			content = append(content, newTextNode(textValue, stack.current()))
+			content = append(content, s.convertInlineText(textValue, stack)...)
 		}
 
 		if typed.HardLineBreak() {
 			content = append(content, converter.Node{Type: "hardBreak"})
 		} else if typed.SoftLineBreak() {
-			content = append(content, newTextNode(" ", stack.current()))
+			content = append(content, s.convertInlineText(" ", stack)...)
 		}
 
 		return content, nil
 
 	case *ast.String:
-		return []converter.Node{
-			newTextNode(string(typed.Value), stack.current()),
-		}, nil
+		return s.convertInlineText(string(typed.Value), stack), nil
 
 	case *ast.Emphasis:
 		markType := "em"
@@ -73,6 +71,38 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 		if href == "" {
 			return s.convertInlineChildren(typed, stack)
 		}
+		linkText := strings.TrimSpace(string(typed.Text(s.source)))
+		title := strings.TrimSpace(string(typed.Title))
+
+		if s.shouldDetectMentionLink() && strings.HasPrefix(strings.ToLower(href), "mention:") {
+			id := strings.TrimSpace(strings.TrimPrefix(href, "mention:"))
+			if id != "" {
+				mentionText := strings.TrimPrefix(linkText, "@")
+				attrs := map[string]interface{}{
+					"id": id,
+				}
+				if mentionText != "" {
+					attrs["text"] = mentionText
+				}
+				return []converter.Node{
+					{
+						Type:  "mention",
+						Attrs: attrs,
+					},
+				}, nil
+			}
+		}
+
+		if title == "" && linkText != "" && linkText == href {
+			return []converter.Node{
+				{
+					Type: "inlineCard",
+					Attrs: map[string]interface{}{
+						"url": href,
+					},
+				},
+			}, nil
+		}
 
 		mark := converter.Mark{
 			Type: "link",
@@ -80,7 +110,7 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 				"href": href,
 			},
 		}
-		if title := strings.TrimSpace(string(typed.Title)); title != "" {
+		if title != "" {
 			mark.Attrs["title"] = title
 		}
 
@@ -89,18 +119,44 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 		stack.popByType("link")
 		return content, err
 
+	case *ast.RawHTML:
+		return s.convertRawHTML(string(typed.Text(s.source)), stack), nil
+
 	case *ast.Image:
 		alt := strings.TrimSpace(string(typed.Text(s.source)))
 		if alt == "" {
 			alt = "Image"
 		}
-		s.addWarning(
-			converter.WarningDroppedFeature,
-			typed.Kind().String(),
-			"image node parsing to media is not implemented yet",
-		)
+		href := strings.TrimSpace(string(typed.Destination))
+		mediaAttrs := map[string]interface{}{
+			"type": "image",
+		}
+		if href != "" {
+			if strings.HasPrefix(href, "http://") || strings.HasPrefix(href, "https://") {
+				mediaAttrs["url"] = href
+				mediaAttrs["alt"] = alt
+			} else {
+				mediaID := href
+				if s.config.MediaBaseURL != "" && strings.HasPrefix(href, s.config.MediaBaseURL) {
+					mediaID = strings.TrimPrefix(href, s.config.MediaBaseURL)
+				}
+				mediaAttrs["id"] = mediaID
+				if alt != "" {
+					mediaAttrs["alt"] = alt
+				}
+			}
+		}
+
 		return []converter.Node{
-			newTextNode(alt, stack.current()),
+			{
+				Type: "mediaSingle",
+				Content: []converter.Node{
+					{
+						Type:  "media",
+						Attrs: mediaAttrs,
+					},
+				},
+			},
 		}, nil
 
 	default:
@@ -109,4 +165,45 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 		}
 		return s.warnUnknownInline(node, stack), nil
 	}
+}
+
+func (s *state) convertInlineText(textValue string, stack *markStack) []converter.Node {
+	if textValue == "" {
+		return nil
+	}
+
+	if mentionID, ok := s.currentHTMLMentionID(); ok {
+		if strings.TrimSpace(textValue) == "" {
+			return []converter.Node{newTextNode(textValue, stack.current())}
+		}
+		mentionText := strings.TrimPrefix(strings.TrimSpace(textValue), "@")
+		return []converter.Node{
+			{
+				Type: "mention",
+				Attrs: map[string]interface{}{
+					"id":   mentionID,
+					"text": mentionText,
+				},
+			},
+		}
+	}
+
+	return []converter.Node{newTextNode(textValue, stack.current())}
+}
+
+func (s *state) applyInlinePatterns(content []converter.Node) []converter.Node {
+	var expanded []converter.Node
+
+	for _, node := range content {
+		if node.Type == "text" && len(node.Marks) == 0 {
+			patternNodes := s.expandTextPatterns(node.Text, nil)
+			for _, patternNode := range patternNodes {
+				expanded = appendInlineNode(expanded, patternNode)
+			}
+			continue
+		}
+		expanded = appendInlineNode(expanded, node)
+	}
+
+	return expanded
 }

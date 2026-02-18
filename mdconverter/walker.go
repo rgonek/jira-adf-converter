@@ -47,12 +47,7 @@ func (s *state) convertBlockNode(node ast.Node) (converter.Node, bool, error) {
 	case *ast.List:
 		return s.convertListNode(typed)
 	case *extast.Table:
-		s.addWarning(
-			converter.WarningDroppedFeature,
-			typed.Kind().String(),
-			"table parsing is not implemented yet",
-		)
-		return converter.Node{}, false, nil
+		return s.convertTableNode(typed)
 	default:
 		nodeKind := typed.Kind().String()
 		textValue := strings.TrimSpace(string(node.Text(s.source)))

@@ -17,9 +17,10 @@ type Converter struct {
 }
 
 type state struct {
-	config   ReverseConfig
-	source   []byte
-	warnings []converter.Warning
+	config           ReverseConfig
+	source           []byte
+	warnings         []converter.Warning
+	htmlMentionStack []string
 }
 
 // New creates a new reverse Converter with the given config.

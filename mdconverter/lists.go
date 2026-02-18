@@ -192,6 +192,14 @@ func (s *state) convertTaskInlineContent(container ast.Node) ([]converter.Node, 
 			return nil, "", err
 		}
 		for _, node := range converted {
+			if node.Type == "mediaSingle" || node.Type == "table" {
+				s.addWarning(
+					converter.WarningDroppedFeature,
+					node.Type,
+					"task item only supports inline content; embedded block converted to placeholder text",
+				)
+				node = newTextNode("[Embedded content]", nil)
+			}
 			content = appendInlineNode(content, node)
 		}
 	}

@@ -183,8 +183,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 5: Tables
+### Phase 5: Tables ✅
 **File**: `tables.go`
+
+**Status**: Implemented (GFM table parsing with row/header/cell mapping and alignment attributes).
 
 **Deliverables**:
 - GFM pipe table → ADF `table`/`tableRow`/`tableHeader`/`tableCell`
@@ -195,8 +197,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 6: Inline HTML Parsing
+### Phase 6: Inline HTML Parsing ✅
 **File**: `html_parser.go`
+
+**Status**: Implemented (`<u>`, `<sub>`, `<sup>`, `<span style=...>`, mention spans, and `<br>` handling during inline traversal).
 
 **Deliverables**:
 - `<u>` → underline mark
@@ -210,8 +214,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 7: Inline Pattern Detection
+### Phase 7: Inline Pattern Detection ✅
 **Files**: `patterns.go`, `inline.go`
+
+**Status**: Implemented (`:shortcode:`, `[Status: ...]`, ISO dates, `@Name` registry mentions, media placeholders, markdown images, and `mention:` links).
 
 **Deliverables**:
 - `:shortcode:` → emoji node (EmojiDetection)

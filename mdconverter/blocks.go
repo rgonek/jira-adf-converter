@@ -12,6 +12,11 @@ func (s *state) convertParagraphNode(node *ast.Paragraph) (converter.Node, bool,
 	if err != nil {
 		return converter.Node{}, false, err
 	}
+	content = s.normalizeParagraphInline(content)
+
+	if len(content) == 1 && isParagraphBlockReplacement(content[0].Type) {
+		return content[0], true, nil
+	}
 
 	paragraph := converter.Node{
 		Type:    "paragraph",
@@ -25,6 +30,11 @@ func (s *state) convertTextBlockNode(node *ast.TextBlock) (converter.Node, bool,
 	content, err := s.convertInlineChildren(node, newMarkStack())
 	if err != nil {
 		return converter.Node{}, false, err
+	}
+	content = s.normalizeParagraphInline(content)
+
+	if len(content) == 1 && isParagraphBlockReplacement(content[0].Type) {
+		return content[0], true, nil
 	}
 
 	paragraph := converter.Node{
@@ -120,4 +130,35 @@ func (s *state) convertCodeBlockNode(node *ast.CodeBlock) (converter.Node, bool,
 	}
 
 	return codeBlock, true, nil
+}
+
+func (s *state) normalizeParagraphInline(content []converter.Node) []converter.Node {
+	if len(content) <= 1 {
+		return content
+	}
+
+	normalized := make([]converter.Node, 0, len(content))
+	for _, node := range content {
+		if isParagraphBlockReplacement(node.Type) {
+			s.addWarning(
+				converter.WarningDroppedFeature,
+				node.Type,
+				"inline block-style node mixed with text; converted to placeholder text",
+			)
+			normalized = appendInlineNode(normalized, newTextNode("[Embedded content]", nil))
+			continue
+		}
+		normalized = appendInlineNode(normalized, node)
+	}
+
+	return normalized
+}
+
+func isParagraphBlockReplacement(nodeType string) bool {
+	switch nodeType {
+	case "mediaSingle", "table":
+		return true
+	default:
+		return false
+	}
 }
