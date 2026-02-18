@@ -1,183 +1,225 @@
-# Jira ADF to GFM Converter
+# Jira ADF <-> GFM Converter
 
-A robust Go library and CLI tool for converting Jira [Atlassian Document Format (ADF)](https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/) to GitHub Flavored Markdown (GFM).
+A Go library and CLI for bidirectional conversion between Jira [Atlassian Document Format (ADF)](https://developer.atlassian.com/cloud/jira/platform/apis/document/structure/) and GitHub Flavored Markdown (GFM).
 
-The primary goal is to generate markdown that is **semantic**, **clean**, and **AI-friendly**, preserving structural hierarchy and text content while gracefully handling unsupported formatting.
+The project focuses on semantic, AI-friendly output while preserving round-trip metadata where possible.
 
-## 🚀 Features
+## Features
 
-*   **30+ ADF Nodes Supported**: Complete coverage from basic text to complex tables, panels, decision lists, and rich media.
-*   **Comprehensive Node Support**: Handles paragraphs, headings, blockquotes, code blocks, rules, and hard breaks.
-*   **Complex Layouts**: Full support for **Tables** (including nested content), **Lists** (bullet, ordered, task), **Panels**, and **Decision Lists**.
-*   **Rich Formatting**: Supports bold, italic, strikethrough, inline code, and links.
-*   **Rich Media & Interactive Elements**: Expandable sections, emojis, user mentions, status badges, dates, and media embeds (images, files).
-*   **Smart Links**: Atlassian inline cards with URL/JSON-LD extraction.
-*   **Runtime Link/Media Hooks**: Rewrite links/media in both directions (ADF -> Markdown and Markdown -> ADF) with context-aware callbacks.
-*   **Configurable Output**:
-    *   **Pure Markdown**: (Default) Strictly adheres to GFM.
-    *   **HTML Fallback**: Optional flag to use HTML tags for features GFM lacks (underline, subscript/superscript).
-*   **Intelligent Text Processing**:
-    *   Handles nested marks naturally.
-    *   Preserves nested content in table cells and lists.
-    *   Maps semantic elements (like "Info" panels) to readable markdown equivalents.
+- Bidirectional conversion APIs:
+  - `converter` package: ADF JSON -> Markdown
+  - `mdconverter` package: Markdown -> ADF JSON
+- Granular, JSON-serializable configuration for formatting, detection, unknown handling, and extensions.
+- Structured conversion results with warnings (`Result{Markdown|ADF, Warnings}`).
+- Runtime link/media hooks in both directions with context, source-path support, and strict/best-effort unresolved behavior.
+- CLI presets (`balanced`, `strict`, `readable`, `lossy`) with directional mapping.
 
-👉 **[View Detailed Feature Support & Documentation](docs/features.md)**
+See `docs/features.md` for detailed node/mark coverage and parsing rules.
 
-## 📦 Installation
+## Installation
 
 ### Library
+
 ```bash
 go get github.com/rgonek/jira-adf-converter
 ```
 
-### CLI Tool (`jac`)
+### CLI (`jac`)
+
 ```bash
 go install github.com/rgonek/jira-adf-converter/cmd/jac@latest
 ```
 
-## 🛠️ Usage
+## CLI Usage
 
-### Command Line Interface
-
-Convert a file and print to stdout:
-```bash
-jac input.json
-```
-
-Save to a file:
-```bash
-jac input.json > output.md
-```
-
-**Options:**
-*   `--allow-html`: Enable HTML-oriented rendering for underline/subsup/line breaks/expand blocks.
-*   `--strict`: Return an error for unknown nodes and unknown marks.
+Forward conversion (ADF JSON -> Markdown):
 
 ```bash
-jac --allow-html --strict input.json
+jac input.adf.json
 ```
 
-### Go Library
+Reverse conversion (Markdown -> ADF JSON):
+
+```bash
+jac --reverse input.md
+```
+
+Reverse mode prints pretty-formatted ADF JSON.
+
+Common options:
+
+- `--preset=balanced|strict|readable|lossy`
+- `--allow-html` (compatibility override; in forward mode it forces HTML-oriented rendering for underline/subsup/hard breaks/expand, and in reverse mode it enables broad HTML mention/expand detection)
+- `--strict` (compatibility override; in forward mode it enforces unknown-node/mark errors, and in reverse mode it applies strict detection defaults)
+
+Example:
+
+```bash
+jac --preset=readable input.adf.json > output.md
+jac --reverse --preset=strict input.md > output.adf.json
+```
+
+Preset precedence in CLI is deterministic: preset first, then compatibility overrides (`--allow-html`, `--strict`).
+
+## Library Usage
+
+### ADF -> Markdown (`converter`)
 
 ```go
 package main
 
 import (
     "fmt"
+    "os"
+
     "github.com/rgonek/jira-adf-converter/converter"
 )
 
 func main() {
-    jsonData := []byte(`{
-      "version": 1,
-      "type": "doc",
-      "content": [
-        {
-          "type": "paragraph",
-          "content": [
-            {"type": "text", "text": "Hello, "},
-            {"type": "text", "text": "World!", "marks": [{"type": "strong"}]}
-          ]
-        }
-      ]
-    }`)
+    input, err := os.ReadFile("input.adf.json")
+    if err != nil {
+        panic(err)
+    }
 
-    // Configure the converter
-    cfg := converter.Config{
-        UnderlineStyle: converter.UnderlineIgnore,
-        UnknownNodes:   converter.UnknownPlaceholder,
-        UnknownMarks:   converter.UnknownSkip,
-    }
-    conv, err := converter.New(cfg)
+    conv, err := converter.New(converter.Config{
+        MentionStyle: converter.MentionLink,
+        PanelStyle:   converter.PanelGitHub,
+    })
     if err != nil {
         panic(err)
     }
-    
-    result, err := conv.Convert(jsonData)
+
+    result, err := conv.Convert(input)
     if err != nil {
         panic(err)
     }
-    fmt.Println(result.Markdown)
-    // Output: Hello, **World!**
+
+    fmt.Print(result.Markdown)
+    for _, w := range result.Warnings {
+        fmt.Printf("warning: %s (%s): %s\n", w.Type, w.NodeType, w.Message)
+    }
 }
 ```
 
-### Context-Aware Conversion and Runtime Hooks
+### Markdown -> ADF (`mdconverter`)
 
-Use `ConvertWithContext` when you need source-path-aware rewriting, cancellation/timeouts, or custom link/media mapping.
+```go
+package main
+
+import (
+    "fmt"
+
+    "github.com/rgonek/jira-adf-converter/mdconverter"
+)
+
+func main() {
+    conv, err := mdconverter.New(mdconverter.ReverseConfig{
+        MentionDetection: mdconverter.MentionDetectLink,
+        PanelDetection:   mdconverter.PanelDetectGitHub,
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    result, err := conv.Convert("[Page](https://example.com)")
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(string(result.ADF))
+}
+```
+
+## Context-Aware Conversion and Hooks
+
+Use `ConvertWithContext` when you need cancellation/timeouts, deterministic relative-path resolution, or custom link/media mapping.
 
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 defer cancel()
 
+adfJSON := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Page","marks":[{"type":"link","attrs":{"href":"https://confluence.example/wiki/pages/123"}}]}]}]}`)
+
 cfg := converter.Config{
     ResolutionMode: converter.ResolutionBestEffort,
     LinkHook: func(ctx context.Context, in converter.LinkRenderInput) (converter.LinkRenderOutput, error) {
         if strings.HasPrefix(in.Href, "https://confluence.example/wiki/pages/") {
-            return converter.LinkRenderOutput{
-                Href:    "../pages/123.md",
-                Handled: true,
-            }, nil
+            return converter.LinkRenderOutput{Href: "../pages/123.md", Handled: true}, nil
         }
         return converter.LinkRenderOutput{Handled: false}, nil
-    },
-    MediaHook: func(ctx context.Context, in converter.MediaRenderInput) (converter.MediaRenderOutput, error) {
-        if in.MediaType == "image" && in.ID != "" {
-            return converter.MediaRenderOutput{
-                Markdown: "![Image](./assets/" + in.ID + ".png)",
-                Handled:  true,
-            }, nil
-        }
-        return converter.MediaRenderOutput{Handled: false}, nil
     },
 }
 
 conv, _ := converter.New(cfg)
-result, err := conv.ConvertWithContext(ctx, jsonData, converter.ConvertOptions{SourcePath: "docs/spec.adf.json"})
+result, err := conv.ConvertWithContext(ctx, adfJSON, converter.ConvertOptions{
+    SourcePath: "docs/spec.adf.json",
+})
 _ = result
 _ = err
 ```
 
-Reverse conversion supports the same model:
+Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHook`) and receive `ConvertOptions{SourcePath: ...}` for consistent relative reference mapping.
 
-```go
-reverseCfg := mdconverter.ReverseConfig{
-    ResolutionMode: mdconverter.ResolutionStrict,
-    LinkHook: func(ctx context.Context, in mdconverter.LinkParseInput) (mdconverter.LinkParseOutput, error) {
-        if strings.HasPrefix(in.Destination, "../") {
-            return mdconverter.LinkParseOutput{
-                Destination: "https://confluence.example/wiki/pages/123",
-                ForceLink:   true,
-                Handled:     true,
-            }, nil
-        }
-        return mdconverter.LinkParseOutput{Handled: false}, nil
-    },
-}
+### Resolution Modes
 
-reverseConv, _ := mdconverter.New(reverseCfg)
-reverseResult, err := reverseConv.ConvertWithContext(ctx, "[Page](../page.md)", mdconverter.ConvertOptions{SourcePath: "docs/page.md"})
-_ = reverseResult
-_ = err
-```
+- `best_effort` (default): if a hook returns `ErrUnresolved`, conversion continues with fallback behavior and adds a warning.
+- `strict`: `ErrUnresolved` fails conversion.
 
-Resolution modes:
+### Hook Validation Rules
 
-*   `best_effort` (default): unresolved hook references (`ErrUnresolved`) produce warnings and fall back to built-in behavior.
-*   `strict`: unresolved references fail conversion immediately.
+- Forward link hook (`LinkRenderOutput`): handled output needs `Href` unless `TextOnly=true`.
+- Forward media hook (`MediaRenderOutput`): handled output needs non-empty `Markdown`.
+- Reverse link hook (`LinkParseOutput`): handled output needs non-empty `Destination`; `ForceLink` and `ForceCard` cannot both be true.
+- Reverse media hook (`MediaParseOutput`): handled output requires supported `MediaType` (`image` or `file`) and exactly one of `ID` or `URL`.
 
-Concurrency note:
+## Configuration Highlights
 
-*   Converter instances are safe for concurrent `Convert`/`ConvertWithContext` calls.
-*   Hook closures are caller-provided and must be thread-safe when shared across goroutines.
+### Forward (`converter.Config`) defaults
 
-## ⚙️ Configuration
+| Field | Default |
+|---|---|
+| `UnderlineStyle` | `bold` |
+| `SubSupStyle` | `html` |
+| `MentionStyle` | `link` |
+| `PanelStyle` | `github` |
+| `ExpandStyle` | `html` |
+| `InlineCardStyle` | `link` |
+| `TableMode` | `auto` |
+| `Extensions.Default` | `json` |
+| `UnknownNodes` | `placeholder` |
+| `UnknownMarks` | `skip` |
+| `ResolutionMode` | `best_effort` |
 
-| Option | Description |
-|--------|-------------|
-| **`UnderlineStyle`** | Controls underline rendering (`ignore`, `bold`, `html`). |
-| **`UnknownNodes`** | Controls unknown node handling (`placeholder`, `skip`, `error`). |
-| **`UnknownMarks`** | Controls unknown mark handling (`skip`, `placeholder`, `error`). |
-| **`ResolutionMode`** | Hook unresolved handling (`best_effort`, `strict`). |
+### Reverse (`mdconverter.ReverseConfig`) defaults
+
+| Field | Default |
+|---|---|
+| `MentionDetection` | `link` |
+| `EmojiDetection` | `shortcode` |
+| `StatusDetection` | `bracket` |
+| `DateDetection` | `iso` |
+| `PanelDetection` | `github` |
+| `ExpandDetection` | `html` |
+| `DecisionDetection` | `emoji` |
+| `ResolutionMode` | `best_effort` |
+
+## CLI Presets
+
+`jac` supports `balanced`, `strict`, `readable`, and `lossy` presets in both directions.
+
+- `balanced`: library defaults (recommended for most workflows).
+- `strict`: stronger fidelity/parsing constraints.
+- `readable`: favors cleaner human-facing markdown and lenient reverse patterns.
+- `lossy`: favors compact output over metadata preservation.
+
+## Concurrency
+
+- Converter instances are safe for concurrent `Convert`/`ConvertWithContext` calls.
+- Hook closures are caller-owned and must protect shared mutable state.
+
+## Documentation
+
+- Detailed feature matrix and syntax mapping: `docs/features.md`
+- Development roadmap plans: `agents/plans/`
 
 

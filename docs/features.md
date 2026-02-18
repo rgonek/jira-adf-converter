@@ -1,139 +1,195 @@
 # Supported Features
 
-This document details the mapping between Jira Atlassian Document Format (ADF) nodes and GitHub Flavored Markdown (GFM).
+This document describes supported behavior for both conversion directions:
 
-## Node Support Matrix
+- ADF JSON -> Markdown (`converter` package)
+- Markdown -> ADF JSON (`mdconverter` package)
 
-| ADF Node | GFM Representation | Notes |
-|----------|-------------------|-------|
-| `doc` | Root Document | - |
-| `paragraph` | Text Block | Separated by blank lines. |
-| `text` | Text | Preserves content. |
-| `heading` | `h1` - `h6` (`#` - `######`) | Supports nested marks. |
-| `blockquote` | Blockquote (`>`) | Supports nesting (`>>`) and multiline content. |
-| `rule` | Horizontal Rule (`---`) | - |
-| `hardBreak` | Line Break (`\` + `\n`) | Follows GFM spec for hard breaks. |
-| `codeBlock` | Fenced Code Block (```) | Supports language syntax highlighting. |
-| `bulletList` | Bullet List (`-`) | Supports nesting. |
-| `orderedList` | Ordered List (`1.`) | Supports nesting. |
-| `listItem` | List Item | Supports complex content (paragraphs, code blocks, etc.). |
-| `taskList` | Task List | - |
-| `taskItem` | Checkbox (`- [ ]` / `- [x]`) | Based on `state` attribute (`TODO`/`DONE`). |
-| `table` | Table | - |
-| `tableRow` | Table Row | - |
-| `tableHeader`| Header Cell | - |
-| `tableCell` | Data Cell | Supports multiline content (joined by `<br>` or space). |
-| `panel` | Semantic Blockquote | Prefixed with type (e.g., `> **Info**: ...`). |
-| `decisionList`| Decision List | Continuous blockquote. |
-| `decisionItem`| Decision Item | Prefixed with state (e.g., `> **✓ Decision**: ...`). |
-| `expand` | Expander | `<details>` (HTML) or Blockquote (Text). |
-| `nestedExpand`| Nested Expander | Same as `expand`. |
-| `emoji` | Emoji | Shortcode (e.g., `:smile:`) or fallback text. |
-| `mention` | User Mention | `Name (accountId:...)`. |
-| `status` | Status Badge | `[Status: TEXT]`. |
-| `date` | Date | ISO 8601 (`YYYY-MM-DD`). |
-| `inlineCard` | Smart Link | Link or JSONLD extraction. |
-| `media` | Media Item | Image `![alt](url)` or Placeholder `[Type: id]`. |
-| `mediaSingle` | Media Container | Wrapper for single media. |
-| `mediaGroup` | Media Gallery | List of media items. |
+## Conversion APIs
 
-### Complex Layouts
+| Direction | Constructor | Convert API | Result |
+|---|---|---|---|
+| ADF -> Markdown | `converter.New(config)` | `Convert([]byte)` / `ConvertWithContext(ctx, []byte, opts)` | `converter.Result{Markdown, Warnings}` |
+| Markdown -> ADF | `mdconverter.New(config)` | `Convert(string)` / `ConvertWithContext(ctx, string, opts)` | `mdconverter.Result{ADF, Warnings}` |
 
-#### Tables
-*   **Headers**: Automatically detected. If the first row contains only data cells, an empty header row is generated (`| | |...`).
-*   **Multiline Content**: Paragraphs within cells are joined with `<br>` tags to preserve line breaks while staying within a single table cell.
-*   **Complex Content**: Lists, code blocks, and panels inside cells are preserved (though rendering may vary by markdown viewer).
+Both packages validate config at `New(...)` time and keep config immutable afterward.
 
-#### Panels
-Panels are converted to blockquotes with a bold label indicating their type:
-*   `info` → `> **Info**: ...`
-*   `note` → `> **Note**: ...`
-*   `success` → `> **Success**: ...`
-*   `warning` → `> **Warning**: ...`
-*   `error` → `> **Error**: ...`
+## ADF -> Markdown (`converter`)
 
-#### Decision Lists
-Decisions are rendered as a continuous blockquote with status icons:
-*   `DECIDED` → `> **✓ Decision**: ...`
-*   `UNDECIDED` → `> **? Decision**: ...`
+### Node Support Matrix
 
-### Rich Media & Interactive Elements
+| ADF Node | Default Markdown Output | Notes / Config |
+|---|---|---|
+| `doc` | Root container | Ensures trailing newline for non-empty output. |
+| `paragraph` | Text block separated by blank lines | Supports inline marks and inline nodes. |
+| `text` | Plain text | Marks applied via mark stack continuity. |
+| `heading` | `#` through `######` | `HeadingOffset` with clamping; optional HTML alignment. |
+| `blockquote` | `>` blockquote | Nested content supported. |
+| `rule` | `---` | Standard thematic break. |
+| `hardBreak` | `\\` + newline | `HardBreakStyle`: `backslash` or `html` (`<br>`). |
+| `codeBlock` | Fenced code block | Language aliasing via `LanguageMap`. |
+| `bulletList` | `- item` | Marker configurable via `BulletMarker` (`-`, `*`, `+`). |
+| `orderedList` | `1.`, `2.`, ... | `OrderedListStyle`: `incremental` or `lazy` (`1.` for every item). |
+| `taskList` / `taskItem` | `- [ ]` / `- [x]` | Nested task structures supported. |
+| `table` | Pipe or HTML table | `TableMode`: `auto`, `pipe`, `html`; auto-detects complex cells/spans. |
+| `panel` | GitHub-style callout blockquote | `PanelStyle`: `none`, `bold`, `github`, `title`. |
+| `decisionList` / `decisionItem` | Blockquote with decision prefix | `DecisionStyle`: `emoji` (`✓/? Decision`) or `text` (`DECIDED/UNDECIDED`). |
+| `expand` / `nestedExpand` | `<details><summary>...</summary>` | `ExpandStyle`: `html` (default) or `blockquote`. |
+| `emoji` | `:shortcode:` | `EmojiStyle`: `shortcode` or `unicode` fallback. |
+| `mention` | `[@Name](mention:id)` | `MentionStyle`: `text`, `link`, `html`. |
+| `status` | `[Status: TEXT]` | `StatusStyle`: `bracket` or `text`. |
+| `date` | Formatted timestamp | Uses configurable `DateFormat`. |
+| `inlineCard` | `[title](url)` | `InlineCardStyle`: `link`, `url`, `embed` (`adf:inlineCard` fenced JSON). |
+| `media` (+ `mediaSingle`/`mediaGroup`) | Image markdown or placeholders | External: `![alt](url)`; internal: `[Image: id]` / `[File: id]`; optional `MediaBaseURL` expansion. |
+| `extension` / `inlineExtension` / `bodiedExtension` | Fenced JSON by default | `Extensions.Default`: `json`, `text`, `strip`; per-type override via `Extensions.ByType`. |
 
-#### Expanders
-Expandable sections (`expand`, `nestedExpand`) adapt to the configuration:
-*   **Default**: Rendered as a blockquote with a bold title (`> **Title**`).
-*   **AllowHTML**: Rendered as `<details><summary>Title</summary>...`.
+Unknown handling is policy driven:
 
-#### Inline Metadata
-*   **Emoji**: Converted to shortcodes (e.g., `:smile:`) if available, otherwise uses the fallback text.
-*   **Mentions**: Displayed as `User Name (accountId:12345)` to preserve identity without accidentally triggering GitHub user notifications or relying on internal Jira IDs.
-*   **Status**: Rendered as `[Status: IN PROGRESS]`. Color attributes are ignored to maintain clean markdown.
-*   **Date**: Converted to standard `YYYY-MM-DD` format.
+- `UnknownNodes`: `placeholder`, `skip`, or `error`
+- `UnknownMarks`: `skip`, `placeholder`, or `error`
 
-#### Media
-*   **Images**: Rendered as standard markdown images `![Alt](url)`.
-*   **Files/Placeholders**: If no URL is available (e.g., internal Jira attachments), rendered as a placeholder `[Image: id]` or `[File: id]`.
+### Mark Support
 
-#### Smart Links
-*   **Inline Cards**: Converted to standard links `[Title](url)`. If JSON-LD data is present, the title is extracted from it.
+| Mark | Default Output | Alternatives |
+|---|---|---|
+| `strong` | `**text**` | - |
+| `em` | `*text*` (or `_text_` in mixed emphasis scenarios) | - |
+| `strike` | `~~text~~` | - |
+| `code` | `` `text` `` | - |
+| `link` | `[text](href "title")` | Can be rewritten by runtime `LinkHook`. |
+| `underline` | `**text**` | `ignore`, `bold`, `html` (`<u>`). |
+| `subsup` | HTML by default (`<sub>`, `<sup>`) | `ignore`, `html`, `latex`. |
+| `textColor` | dropped by default | `ignore` or `html` (`<span style="color: ...">`). |
+| `backgroundColor` | dropped by default | `ignore` or `html` (`<span style="background-color: ...">`). |
 
-## Mark Support (Formatting)
+## Markdown -> ADF (`mdconverter`)
 
-Marks apply formatting to text nodes. Some marks behave differently based on the `AllowHTML` configuration.
+### Syntax Support Matrix
 
-| ADF Mark | Default (Pure Markdown) | With `AllowHTML: true` |
-|----------|-------------------------|------------------------|
-| `strong` | `**text**` | `**text**` |
-| `em` | `*text*` (or `_text_` if mixed) | `*text*` |
-| `strike` | `~~text~~` | `~~text~~` |
-| `code` | `` `text` `` | `` `text` `` |
-| `link` | `[text](url "title")` | `[text](url "title")` |
-| `underline`| `text` (Formatting dropped) | `<u>text</u>` |
-| `subsup` (sub) | `text` (Formatting dropped) | `<sub>text</sub>` |
-| `subsup` (sup) | `^text` | `<sup>text</sup>` |
+| Markdown / HTML Input | ADF Output | Notes / Config |
+|---|---|---|
+| Paragraph text | `paragraph` + `text` | Supports mark stack traversal. |
+| `#`..`######` | `heading` | Applies reverse `HeadingOffset` with clamping. |
+| `>` blockquote | `blockquote` or specialized node | Disambiguates to panel/decision/expand based on configured detection modes. |
+| `---` | `rule` | - |
+| Hard line break | `hardBreak` | Supports markdown hard breaks and `<br>`. |
+| Fenced/indented code | `codeBlock` | Reverse language mapping via `LanguageMap`. |
+| Bullet/ordered lists | `bulletList` / `orderedList` | Preserves ordered `start` when present. |
+| Task lists (`- [ ]`, `- [x]`) | `taskList` / `taskItem` | State mapped to `TODO`/`DONE`. |
+| GFM pipe tables | `table` nodes | Header/data cells reconstructed. |
+| HTML tables (`<table>`) | `table` nodes | Supports `colspan` / `rowspan` and nested markdown parsing in cells. |
+| `[text](mention:id)` | `mention` | Controlled by `MentionDetection` (`link` / `all`). |
+| `![alt](dest)` | `mediaSingle` + `media` | Hook runs first; fallback strips `MediaBaseURL` to `id` when configured. |
+| `[Image: id]`, `[File: id]` | `mediaSingle` + `media` | Parsed from text patterns. |
+| `:shortcode:` | `emoji` | Controlled by `EmojiDetection`. |
+| `[Status: TEXT]` | `status` | Controlled by `StatusDetection`. |
+| `YYYY-MM-DD` | `date` | Controlled by `DateDetection` + `DateFormat`. |
+| `@Name` | `mention` | Requires `MentionRegistry`; controlled by `MentionDetection` (`at` / `all`). |
+| `<u>`, `<sub>`, `<sup>` | `underline` / `subsup` marks | Parsed from inline HTML tags. |
+| `<span style="color:...">` | `textColor` mark | Inline HTML parsing. |
+| `<span style="background-color:...">` | `backgroundColor` mark | Inline HTML parsing. |
+| `<span data-mention-id="...">` | `mention` node | Controlled by `MentionDetection` (`html` / `all`). |
+| `<details><summary>...</summary>...</details>` | `expand` / `nestedExpand` | Controlled by `ExpandDetection` (`html` / `all`). |
+| `<div align="...">` | aligned `paragraph` | Alignment attr restored in ADF attrs. |
+| `<h1 align="...">...` | aligned `heading` | Alignment attr + heading level restoration. |
+| ```` ```adf:extension ```` | extension node | Reconstructs extension payload from JSON body. |
+| ```` ```adf:inlineCard ```` | `inlineCard` | Reconstructs inline card attrs from JSON body. |
 
-### Link Handling
-*   Titles are supported: `[Text](url "Title")`.
-*   Empty text links are handled: `[](url)`.
-*   Missing URLs fallback to plain text.
+Unsupported markdown constructs are downgraded to text with warnings when possible instead of failing by default.
 
-### Runtime Link and Media Hooks
+### Blockquote Disambiguation Order
 
-Both conversion directions support optional runtime hooks:
+When panel/decision/expand detection is enabled, blockquotes are checked in this order:
 
-*   **ADF -> Markdown (`converter`)**
-    *   `LinkHook(ctx, LinkRenderInput) -> LinkRenderOutput`
-    *   `MediaHook(ctx, MediaRenderInput) -> MediaRenderOutput`
-*   **Markdown -> ADF (`mdconverter`)**
-    *   `LinkHook(ctx, LinkParseInput) -> LinkParseOutput`
-    *   `MediaHook(ctx, MediaParseInput) -> MediaParseOutput`
+1. GitHub/title panel callouts (for example `> [!NOTE]`, `> [!INFO: Title]`)
+2. Bold-prefix panels (for example `> **Info**: ...`)
+3. Decision prefixes (for example `> **✓ Decision**: ...`, `> **DECIDED**: ...`)
+4. Expand patterns (blockquote title style)
+5. Fallback to plain `blockquote`
 
-Hook behavior:
+### Reverse Detection Defaults
 
-*   Return `Handled: false` to preserve built-in behavior.
-*   Return `converter.ErrUnresolved` / `mdconverter.ErrUnresolved` to trigger resolution-mode handling.
-*   Hooks receive typed metadata (`PageID`, `SpaceKey`, `AttachmentID`, `Filename`, `Anchor`) and raw attrs payloads.
+| Field | Default |
+|---|---|
+| `MentionDetection` | `link` |
+| `EmojiDetection` | `shortcode` |
+| `StatusDetection` | `bracket` |
+| `DateDetection` | `iso` |
+| `PanelDetection` | `github` |
+| `ExpandDetection` | `html` |
+| `DecisionDetection` | `emoji` |
 
-Reverse-path note:
+## Runtime Link and Media Hooks
 
-*   Prefer `ConvertWithContext(..., ConvertOptions{SourcePath: ...})` so hooks can resolve relative markdown links (`../page.md`) and local media paths consistently.
+Both directions support optional runtime hooks. Hook fields are runtime-only (`json:"-"`) and are not serialized in config JSON.
 
-## Configuration Options
+### Hook Surfaces
 
-### `AllowHTML`
-*   **False (Default)**: Produces strict GFM. Unsupported formatting (underline, subscript) is dropped or approximated to ensure the output works everywhere.
-*   **True**: Uses raw HTML tags (`<u>`, `<sub>`, `<sup>`, `<br>`, `<details>`) for features GFM doesn't support natively.
+| Direction | Link Hook | Media Hook |
+|---|---|---|
+| ADF -> Markdown | `LinkHook(ctx, LinkRenderInput) (LinkRenderOutput, error)` | `MediaHook(ctx, MediaRenderInput) (MediaRenderOutput, error)` |
+| Markdown -> ADF | `LinkHook(ctx, LinkParseInput) (LinkParseOutput, error)` | `MediaHook(ctx, MediaParseInput) (MediaParseOutput, error)` |
 
-### `Strict`
-*   **False (Default)**: Gracefully handles unknown nodes by outputting a placeholder `[Unknown node: type]` or ignoring unknown marks. Recommended for general use.
-*   **True**: Returns an error immediately upon encountering an unknown node or mark. Useful for validation or ensuring 100% conversion fidelity.
+Typed metadata is available in both directions (`PageID`, `SpaceKey`, `AttachmentID`, `Filename`, `Anchor`) plus raw attrs payloads.
 
-### `ResolutionMode` (Hook unresolved behavior)
+### Invocation Ordering
 
-*   **`best_effort` (Default)**: unresolved hook lookups add warnings and fall back to existing conversion logic.
-*   **`strict`**: unresolved hook lookups fail conversion.
+- ADF -> Markdown:
+  1. Link marks
+  2. `inlineCard`
+  3. Media nodes
+- Markdown -> ADF:
+  1. Mention-link detection (`mention:`) first
+  2. Link hook for non-mention links
+  3. Card heuristics (`inlineCard`) unless forced by hook output
+  4. Media hook before `MediaBaseURL` stripping
 
-### Concurrency Contract
+### Unresolved and Validation Behavior
 
-*   Converters keep per-conversion state and can be called concurrently.
-*   Hook closures are caller-owned code and must synchronize shared mutable state.
+- `ErrUnresolved` + `ResolutionBestEffort`: warn and fallback.
+- `ErrUnresolved` + `ResolutionStrict`: fail conversion.
+
+Handled hook outputs are validated:
+
+1. Forward link output requires non-empty `Href` unless `TextOnly=true`.
+2. Forward media output requires non-empty `Markdown`.
+3. Reverse link output requires non-empty `Destination`.
+4. Reverse link output cannot set both `ForceLink` and `ForceCard`.
+5. Reverse media output requires `MediaType` of `image` or `file`.
+6. Reverse media output must set exactly one of `ID` or `URL`.
+
+`ForceCard` currently maps to `inlineCard` output (block-card output is not currently emitted by reverse conversion).
+
+### SourcePath and Context
+
+Use context-aware entrypoints to pass deterministic source location and cancellation/timeouts:
+
+- `converter.ConvertWithContext(ctx, input, converter.ConvertOptions{SourcePath: ...})`
+- `mdconverter.ConvertWithContext(ctx, markdown, mdconverter.ConvertOptions{SourcePath: ...})`
+
+## CLI Presets
+
+`jac --preset=...` supports `balanced`, `strict`, `readable`, and `lossy` in both directions.
+
+| Preset | Forward Intent | Reverse Intent |
+|---|---|---|
+| `balanced` | library defaults | library defaults |
+| `strict` | error on unknown nodes/marks; preserve IDs/extensions | conservative detection set matching round-trip formats |
+| `readable` | human-focused markdown (text mentions, text extensions, blockquote expands) | readable pattern set (`@Name`, text status, bold panels, blockquote expands) |
+| `lossy` | minimize metadata (`inlineCard` URLs, stripped extensions, text mentions) | disable most semantic detectors (`none`) |
+
+CLI compatibility flags are layered on top of preset output:
+
+- `--allow-html` adjusts HTML-oriented style/detection overrides.
+- `--strict` applies strict forward unknown policy and strict reverse detection overrides.
+
+## Result and Warning Model
+
+- Forward returns `converter.Result{Markdown, Warnings}`.
+- Reverse returns `mdconverter.Result{ADF, Warnings}`.
+- Warnings include categories such as unknown nodes/marks, dropped features, extension fallback, missing attributes, and unresolved references.
+
+## Concurrency Contract
+
+- Converter internals are safe for concurrent calls when using the same converter instance.
+- Hook closures are caller-owned and must synchronize shared mutable state when reused across goroutines.

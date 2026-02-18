@@ -1,12 +1,14 @@
 # AI Agents Documentation
 
-This repository contains a Go library for converting Jira ADF to Markdown.
+This repository contains a Go library and CLI for bidirectional conversion between Jira ADF and GitHub Flavored Markdown.
 
 ## Plans & Roadmap
 
 The current development plan is stored in:
-*   [agents/plans/jira-to-gfm.md](agents/plans/jira-to-gfm.md) (general)
-*   [agents/plans/phase1-detailed.md](agents/plans/phase1-detailed.md) (phase 1)
+*   [agents/plans/jira-to-gfm.md](agents/plans/jira-to-gfm.md) (forward direction overview)
+*   [agents/plans/phase6-detailed.md](agents/plans/phase6-detailed.md) (granular config + presets)
+*   [agents/plans/gfm-to-adf.md](agents/plans/gfm-to-adf.md) (reverse converter architecture)
+*   [agents/plans/link-media-hooks.md](agents/plans/link-media-hooks.md) (runtime link/media hooks)
 
 ## Quick Commands
 
@@ -19,6 +21,9 @@ make build
 # Run all tests
 make test
 
+# Run all checks (fmt, lint, test)
+make check
+
 # Update golden files after intentional changes
 make test-update
 
@@ -28,18 +33,25 @@ make lint
 # Format code
 make fmt
 
-# Run all checks (fmt, lint, test)
-make check
-
 # Clean build artifacts
 make clean
+
+# Forward conversion (ADF -> Markdown)
+go run ./cmd/jac --preset=balanced testdata/simple/basic_text.json
+
+# Reverse conversion (Markdown -> ADF JSON)
+go run ./cmd/jac --reverse --preset=balanced testdata/simple/basic_text.md
 ```
 
 ## Context
 
-*   **Goal**: Create a high-fidelity converter that preserves semantics for AI consumption.
-*   **Architecture**:
-    *   Input: JSON (ADF)
-    *   Output: String (GFM)
-    *   Testing: Golden file approach (`testdata/**/*.json` vs `testdata/**/*.md`).
-*   **Test Organization**: Tests can be organized in subdirectories under `testdata/`. The harness recursively finds all `*.json` files and matches them with corresponding `.md` files.
+*   **Goal**: Preserve ADF semantics with AI-friendly Markdown while supporting deterministic reverse parsing back to ADF.
+*   **Core packages**:
+    *   `converter`: ADF JSON input (`[]byte`) -> `converter.Result{Markdown, Warnings}`
+    *   `mdconverter`: Markdown input (`string`) -> `mdconverter.Result{ADF, Warnings}`
+*   **Runtime hooks**: Both directions support context-aware link/media hooks and `ResolutionMode` (`best_effort` or `strict`).
+*   **Testing model**:
+    *   Shared golden fixtures in `testdata/**` (`.json` <-> `.md` pairs)
+    *   Reverse-only fixtures in `mdconverter/testdata/reverse/**`
+    *   Unit tests for config, hooks, and edge cases
+    *   Reverse fuzz/benchmark coverage in `mdconverter/`
