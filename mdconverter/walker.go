@@ -15,15 +15,11 @@ func (s *state) convertDocument(root ast.Node) (converter.Doc, error) {
 		Type:    "doc",
 	}
 
-	for child := root.FirstChild(); child != nil; child = child.NextSibling() {
-		block, ok, err := s.convertBlockNode(child)
-		if err != nil {
-			return converter.Doc{}, err
-		}
-		if ok {
-			doc.Content = append(doc.Content, block)
-		}
+	content, err := s.convertNodeSequence(root)
+	if err != nil {
+		return converter.Doc{}, err
 	}
+	doc.Content = content
 
 	return doc, nil
 }
@@ -46,6 +42,8 @@ func (s *state) convertBlockNode(node ast.Node) (converter.Node, bool, error) {
 		return s.convertCodeBlockNode(typed)
 	case *ast.List:
 		return s.convertListNode(typed)
+	case *ast.HTMLBlock:
+		return s.convertHTMLBlockNode(typed)
 	case *extast.Table:
 		return s.convertTableNode(typed)
 	default:
@@ -71,18 +69,135 @@ func (s *state) convertBlockNode(node ast.Node) (converter.Node, bool, error) {
 	}
 }
 
-func (s *state) convertBlockChildren(parent ast.Node) ([]converter.Node, error) {
-	var content []converter.Node
+func (s *state) convertNodeSequence(parent ast.Node) ([]converter.Node, error) {
+	children := make([]ast.Node, 0, parent.ChildCount())
 	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
-		converted, ok, err := s.convertBlockNode(child)
+		children = append(children, child)
+	}
+	return s.convertBlockSlice(children, parent)
+}
+
+func (s *state) convertBlockSlice(children []ast.Node, parent ast.Node) ([]converter.Node, error) {
+	var content []converter.Node
+	mergeNextParagraph := false
+
+	for index := 0; index < len(children); {
+		if opening, ok := children[index].(*ast.HTMLBlock); ok {
+			if title, isOpen := parseDetailsOpenTagFromHTMLBlock(opening, s.source); isOpen {
+				expandNode, consumed, consumedOK, err := s.consumeDetailsBlock(children, index, parent, title)
+				if err != nil {
+					return nil, err
+				}
+				if consumedOK {
+					content = s.appendConvertedBlock(content, expandNode, &mergeNextParagraph)
+					index += consumed
+					continue
+				}
+			}
+		}
+
+		converted, ok, err := s.convertBlockNode(children[index])
 		if err != nil {
 			return nil, err
 		}
 		if ok {
-			content = append(content, converted)
+			content = s.appendConvertedBlock(content, converted, &mergeNextParagraph)
+		} else {
+			mergeNextParagraph = false
+		}
+		index++
+	}
+
+	return content, nil
+}
+
+func (s *state) consumeDetailsBlock(children []ast.Node, start int, parent ast.Node, title string) (converter.Node, int, bool, error) {
+	end := -1
+	for idx := start + 1; idx < len(children); idx++ {
+		if closing, ok := children[idx].(*ast.HTMLBlock); ok && isDetailsCloseHTMLBlock(closing, s.source) {
+			end = idx
+			break
 		}
 	}
-	return content, nil
+	if end == -1 {
+		return converter.Node{}, 0, false, nil
+	}
+
+	innerContent, err := s.convertBlockSlice(children[start+1:end], parent)
+	if err != nil {
+		return converter.Node{}, 0, false, err
+	}
+
+	expandType := "expand"
+	if isNestedExpandContext(parent) {
+		expandType = "nestedExpand"
+	}
+
+	expandNode := converter.Node{
+		Type:    expandType,
+		Content: innerContent,
+	}
+	if title != "" {
+		expandNode.Attrs = map[string]interface{}{
+			"title": title,
+		}
+	}
+
+	return expandNode, end - start + 1, true, nil
+}
+
+func isNestedExpandContext(parent ast.Node) bool {
+	switch parent.(type) {
+	case *ast.ListItem, *ast.Blockquote:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *state) appendConvertedBlock(content []converter.Node, next converter.Node, mergeNextParagraph *bool) []converter.Node {
+	if isInlineBlockNodeType(next.Type) {
+		if len(content) == 0 || content[len(content)-1].Type != "paragraph" {
+			content = append(content, converter.Node{
+				Type:    "paragraph",
+				Content: []converter.Node{next},
+			})
+		} else {
+			lastParagraph := &content[len(content)-1]
+			lastParagraph.Content = append(lastParagraph.Content, next)
+		}
+		*mergeNextParagraph = true
+		return content
+	}
+
+	if *mergeNextParagraph && next.Type == "paragraph" && len(content) > 0 && content[len(content)-1].Type == "paragraph" {
+		lastParagraph := &content[len(content)-1]
+		for _, inlineNode := range next.Content {
+			lastParagraph.Content = appendInlineNode(lastParagraph.Content, inlineNode)
+		}
+		*mergeNextParagraph = false
+		return content
+	}
+
+	*mergeNextParagraph = false
+	return append(content, next)
+}
+
+func isInlineBlockNodeType(nodeType string) bool {
+	switch nodeType {
+	case "inlineCard", "inlineExtension", "mention", "emoji", "status", "date":
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *state) convertBlockChildren(parent ast.Node) ([]converter.Node, error) {
+	children := make([]ast.Node, 0, parent.ChildCount())
+	for child := parent.FirstChild(); child != nil; child = child.NextSibling() {
+		children = append(children, child)
+	}
+	return s.convertBlockSlice(children, parent)
 }
 
 func (s *state) warnUnknownInline(node ast.Node, stack *markStack) []converter.Node {

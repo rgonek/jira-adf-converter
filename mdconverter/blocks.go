@@ -76,6 +76,16 @@ func (s *state) convertBlockquoteNode(node *ast.Blockquote) (converter.Node, boo
 		return converter.Node{}, false, err
 	}
 
+	if panelNode, ok := s.tryConvertPanelBlockquote(content); ok {
+		return panelNode, true, nil
+	}
+	if decisionNode, ok := s.tryConvertDecisionBlockquote(content); ok {
+		return decisionNode, true, nil
+	}
+	if expandNode, ok := s.tryConvertExpandBlockquote(node, content); ok {
+		return expandNode, true, nil
+	}
+
 	blockquote := converter.Node{
 		Type:    "blockquote",
 		Content: content,
@@ -86,6 +96,13 @@ func (s *state) convertBlockquoteNode(node *ast.Blockquote) (converter.Node, boo
 
 func (s *state) convertFencedCodeBlockNode(node *ast.FencedCodeBlock) (converter.Node, bool, error) {
 	language := strings.TrimSpace(string(node.Language(s.source)))
+	textValue := string(node.Text(s.source))
+	textValue = strings.TrimRight(textValue, "\n")
+
+	if extensionNode, ok, err := s.parseExtensionFence(language, textValue); ok || err != nil {
+		return extensionNode, ok, err
+	}
+
 	if mapped, ok := s.config.LanguageMap[language]; ok {
 		language = mapped
 	}
@@ -99,8 +116,6 @@ func (s *state) convertFencedCodeBlockNode(node *ast.FencedCodeBlock) (converter
 		}
 	}
 
-	textValue := string(node.Text(s.source))
-	textValue = strings.TrimRight(textValue, "\n")
 	if textValue != "" {
 		codeBlock.Content = []converter.Node{
 			{

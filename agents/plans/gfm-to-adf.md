@@ -232,8 +232,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 8: Blockquote Disambiguation
+### Phase 8: Blockquote Disambiguation ✅
 **In**: `blocks.go`
+
+**Status**: Implemented (panel, decision list, and blockquote-style expand disambiguation with config-gated detection and nested expand context handling).
 
 **Deliverables**:
 - Panel detection: github (`> [!NOTE]`), bold (`> **Info**: ...`), title (`> [!NOTE: title]`) styles
@@ -244,8 +246,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 9: Block-Level HTML
+### Phase 9: Block-Level HTML ✅
 **In**: `html_parser.go`
+
+**Status**: Implemented (`<details>` block sequences, `<div align>`, `<h1-6 align>`, and HTML table parsing including colspan/rowspan and cell markdown parsing).
 
 **Deliverables**:
 - `<details><summary>Title</summary>content</details>` → expand node
@@ -257,8 +261,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 10: Extensions
+### Phase 10: Extensions ✅
 **File**: `extensions.go` (in mdconverter)
+
+**Status**: Implemented (`adf:extension` fenced JSON reconstruction plus `adf:inlineCard` fence parsing with inline merge into surrounding paragraph flow).
 
 **Deliverables**:
 - Code fences with `adf:extension` info string → reconstruct extension node from JSON body

@@ -19,6 +19,7 @@ type Converter struct {
 type state struct {
 	config           ReverseConfig
 	source           []byte
+	parser           goldmark.Markdown
 	warnings         []converter.Warning
 	htmlMentionStack []string
 }
@@ -43,6 +44,7 @@ func (c *Converter) Convert(markdown string) (Result, error) {
 	s := &state{
 		config: c.config,
 		source: []byte(markdown),
+		parser: c.parser,
 	}
 
 	root := c.parser.Parser().Parse(text.NewReader(s.source))
