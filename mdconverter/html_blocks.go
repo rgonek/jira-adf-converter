@@ -48,13 +48,6 @@ func (s *state) convertHTMLBlockNode(node *ast.HTMLBlock) (converter.Node, bool,
 		return converter.Node{}, false, nil
 	}
 
-	if _, isDetailsOpen := parseDetailsOpenTag(raw); isDetailsOpen {
-		return converter.Node{}, false, nil
-	}
-	if isDetailsCloseHTML(raw) {
-		return converter.Node{}, false, nil
-	}
-
 	if headingNode, ok, err := s.parseAlignedHeading(raw); ok || err != nil {
 		return headingNode, ok, err
 	}

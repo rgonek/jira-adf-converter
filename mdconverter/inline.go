@@ -73,9 +73,10 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 		}
 		linkText := strings.TrimSpace(string(typed.Text(s.source)))
 		title := strings.TrimSpace(string(typed.Title))
+		const mentionScheme = "mention:"
 
-		if s.shouldDetectMentionLink() && strings.HasPrefix(strings.ToLower(href), "mention:") {
-			id := strings.TrimSpace(strings.TrimPrefix(href, "mention:"))
+		if s.shouldDetectMentionLink() && strings.HasPrefix(strings.ToLower(href), mentionScheme) {
+			id := strings.TrimSpace(href[len(mentionScheme):])
 			if id != "" {
 				mentionText := strings.TrimPrefix(linkText, "@")
 				attrs := map[string]interface{}{
