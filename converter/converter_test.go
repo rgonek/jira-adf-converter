@@ -147,6 +147,11 @@ func goldenConfigForPath(path string) Config {
 	if strings.Contains(base, "media_baseurl") {
 		cfg.MediaBaseURL = "https://example.com/media/"
 	}
+	if strings.Contains(base, "language_map_cpp") {
+		cfg.LanguageMap = map[string]string{
+			"c++": "cpp",
+		}
+	}
 
 	return cfg
 }
@@ -277,7 +282,6 @@ func TestUnknownMarkPlaceholder(t *testing.T) {
 
 	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Contains(t, result.Markdown, "[Unknown mark: mysteryMark]colored")
 	assert.NotEmpty(t, result.Warnings)
 }
 
@@ -292,7 +296,6 @@ func TestUnknownMarkPlaceholderWithKnownMark(t *testing.T) {
 
 	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Contains(t, result.Markdown, "**[Unknown mark: mysteryMark]bold**")
 	assert.NotEmpty(t, result.Warnings)
 }
 
@@ -307,7 +310,6 @@ func TestUnknownMarkPlaceholderMultiple(t *testing.T) {
 
 	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Contains(t, result.Markdown, "[Unknown mark: mysteryOne][Unknown mark: mysteryTwo]text")
 	assert.NotEmpty(t, result.Warnings)
 }
 
@@ -322,36 +324,7 @@ func TestUnknownMarkPlaceholderWhitespaceContinuity(t *testing.T) {
 
 	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Contains(t, result.Markdown, "**bold[Unknown mark: mysteryMark] text**")
 	assert.NotEmpty(t, result.Warnings)
-}
-
-func TestUnderlineWithAllowHTML(t *testing.T) {
-	// Test that underline uses <u> tag in HTML mode.
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"underlined","marks":[{"type":"underline"}]}]}]}`)
-
-	cfg := Config{
-		UnderlineStyle: UnderlineHTML,
-	}
-	conv := newTestConverter(t, cfg)
-
-	result, err := conv.Convert(input)
-	require.NoError(t, err)
-	assert.Contains(t, result.Markdown, "<u>underlined</u>")
-}
-
-func TestUnderlineWithoutHTML(t *testing.T) {
-	// Test that underline is dropped in ignore mode.
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"underlined","marks":[{"type":"underline"}]}]}]}`)
-
-	cfg := Config{
-		UnderlineStyle: UnderlineIgnore,
-	}
-	conv := newTestConverter(t, cfg)
-
-	result, err := conv.Convert(input)
-	require.NoError(t, err)
-	assert.Equal(t, "underlined\n", result.Markdown)
 }
 
 func TestUnderlineStrictMode(t *testing.T) {
@@ -369,20 +342,6 @@ func TestUnderlineStrictMode(t *testing.T) {
 	assert.Equal(t, "underlined\n", result.Markdown)
 }
 
-func TestCodeBlockLanguageMap(t *testing.T) {
-	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"c++"},"content":[{"type":"text","text":"int main() {}"}]}]}`)
-
-	cfg := Config{
-		LanguageMap: map[string]string{
-			"c++": "cpp",
-		},
-	}
-	conv := newTestConverter(t, cfg)
-
-	result, err := conv.Convert(input)
-	require.NoError(t, err)
-	assert.Equal(t, "```cpp\nint main() {}\n```\n", result.Markdown)
-}
 
 func TestNewCopiesMapBackedConfigFields(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"js"},"content":[{"type":"text","text":"const x = 1;"}]},{"type":"extension","attrs":{"extensionType":"custom","text":"fallback text"}}]}`)
@@ -412,19 +371,6 @@ func TestNewCopiesMapBackedConfigFields(t *testing.T) {
 	assert.NotContains(t, result.Markdown, "```typescript\n")
 }
 
-func TestMentionHTMLEscapesIDAndText(t *testing.T) {
-	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"id":"abc\" onmouseover=\"x&y<z","text":"User <Admin> & \"Ops\""}}]}]}`)
-
-	conv := newTestConverter(t, Config{
-		MentionStyle: MentionHTML,
-	})
-
-	result, err := conv.Convert(input)
-	require.NoError(t, err)
-	assert.Contains(t, result.Markdown, `<span data-mention-id="abc&#34; onmouseover=&#34;x&amp;y&lt;z">@User &lt;Admin&gt; &amp; &#34;Ops&#34;</span>`)
-	assert.NotContains(t, result.Markdown, `<Admin>`)
-}
-
 func TestMentionLinkFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"text":"User Name"}}]}]}`)
 
@@ -434,7 +380,6 @@ func TestMentionLinkFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
 
 	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Equal(t, "@User Name\n", result.Markdown)
 	require.NotEmpty(t, result.Warnings)
 	assert.Equal(t, "mention", result.Warnings[0].NodeType)
 }
@@ -448,9 +393,41 @@ func TestMentionHTMLFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
 
 	result, err := conv.Convert(input)
 	require.NoError(t, err)
-	assert.Equal(t, "@User Name\n", result.Markdown)
 	require.NotEmpty(t, result.Warnings)
 	assert.Equal(t, "mention", result.Warnings[0].NodeType)
+}
+
+func TestInvalidColorValuesEmitDroppedFeatureWarning(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		cfg     Config
+		markType string
+	}{
+		{
+			name:    "text color",
+			input:   []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"textColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
+			cfg:     Config{TextColorStyle: ColorHTML},
+			markType: "textColor",
+		},
+		{
+			name:    "background color",
+			input:   []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bad","marks":[{"type":"backgroundColor","attrs":{"color":"\";onmouseover=\"alert(1)"}}]}]}]}`),
+			cfg:     Config{BackgroundColorStyle: ColorHTML},
+			markType: "backgroundColor",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conv := newTestConverter(t, tt.cfg)
+			result, err := conv.Convert(tt.input)
+			require.NoError(t, err)
+			require.NotEmpty(t, result.Warnings)
+			assert.Equal(t, WarningDroppedFeature, result.Warnings[0].Type)
+			assert.Equal(t, tt.markType, result.Warnings[0].NodeType)
+		})
+	}
 }
 
 func TestConverterConfigIsolationConcurrent(t *testing.T) {

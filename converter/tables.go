@@ -2,6 +2,7 @@ package converter
 
 import (
 	"fmt"
+	"html"
 	"strings"
 )
 
@@ -316,7 +317,7 @@ func (s *state) renderHTMLCell(cell Node, tag string) (string, error) {
 				continue
 			}
 			sb.WriteString("        ")
-			sb.WriteString(line)
+			sb.WriteString(html.EscapeString(line))
 			sb.WriteString("\n")
 		}
 	}

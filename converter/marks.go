@@ -2,7 +2,18 @@ package converter
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
+)
+
+var (
+	cssHexColorRe       = regexp.MustCompile(`(?i)^#[0-9a-f]{3,8}$`)
+	cssNamedColorRe     = regexp.MustCompile(`^[a-zA-Z]+$`)
+	cssRGBColorRe       = regexp.MustCompile(`(?i)^rgb\(\s*(?:\d{1,3}%?\s*,\s*){2}\d{1,3}%?\s*\)$`)
+	cssRGBAColorRe      = regexp.MustCompile(`(?i)^rgba\(\s*(?:\d{1,3}%?\s*,\s*){3}(?:0|1|0?\.\d+)\s*\)$`)
+	cssHSLColorRe       = regexp.MustCompile(`(?i)^hsl\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*\)$`)
+	cssHSLAColorRe      = regexp.MustCompile(`(?i)^hsla\(\s*\d{1,3}(?:deg|rad|turn)?\s*,\s*\d{1,3}%\s*,\s*\d{1,3}%\s*,\s*(?:0|1|0?\.\d+)\s*\)$`)
+	cssVarColorRe       = regexp.MustCompile(`(?i)^var\(\s*--[a-z0-9_-]+\s*\)$`)
 )
 
 // getMarksToCloseFull returns marks that need to be closed
@@ -185,8 +196,11 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		case ColorIgnore:
 			return "", "", nil
 		case ColorHTML:
-			color := mark.GetStringAttr("color", "")
-			if color == "" {
+			color, ok := sanitizeCSSColor(mark.GetStringAttr("color", ""))
+			if !ok {
+				if raw := mark.GetStringAttr("color", ""); raw != "" {
+					s.addWarning(WarningDroppedFeature, mark.Type, fmt.Sprintf("invalid color value dropped: %q", raw))
+				}
 				return "", "", nil
 			}
 			return `<span style="color: ` + color + `">`, "</span>", nil
@@ -198,8 +212,11 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		case ColorIgnore:
 			return "", "", nil
 		case ColorHTML:
-			color := mark.GetStringAttr("color", "")
-			if color == "" {
+			color, ok := sanitizeCSSColor(mark.GetStringAttr("color", ""))
+			if !ok {
+				if raw := mark.GetStringAttr("color", ""); raw != "" {
+					s.addWarning(WarningDroppedFeature, mark.Type, fmt.Sprintf("invalid color value dropped: %q", raw))
+				}
 				return "", "", nil
 			}
 			return `<span style="background-color: ` + color + `">`, "</span>", nil
@@ -217,6 +234,29 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark skipped: %s", mark.Type))
 		return "", "", nil
 	}
+}
+
+func sanitizeCSSColor(raw string) (string, bool) {
+	color := strings.TrimSpace(raw)
+	if color == "" {
+		return "", false
+	}
+
+	if strings.EqualFold(color, "transparent") || strings.EqualFold(color, "currentColor") {
+		return color, true
+	}
+
+	if cssHexColorRe.MatchString(color) ||
+		cssNamedColorRe.MatchString(color) ||
+		cssRGBColorRe.MatchString(color) ||
+		cssRGBAColorRe.MatchString(color) ||
+		cssHSLColorRe.MatchString(color) ||
+		cssHSLAColorRe.MatchString(color) ||
+		cssVarColorRe.MatchString(color) {
+		return color, true
+	}
+
+	return "", false
 }
 
 // intersectMarks returns the intersection of two mark slices, preserving the order of the first slice.
