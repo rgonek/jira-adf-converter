@@ -261,6 +261,66 @@ func TestNonStrictModeWithUnknownMark(t *testing.T) {
 	assert.NotEmpty(t, result.Warnings)
 }
 
+func TestUnknownMarkPlaceholder(t *testing.T) {
+	// Test that placeholder mode renders a placeholder for unknown marks.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"colored","marks":[{"type":"mysteryMark"}]}]}]}`)
+
+	cfg := Config{
+		UnknownMarks: UnknownPlaceholder,
+	}
+	conv := newTestConverter(t, cfg)
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Contains(t, result.Markdown, "[Unknown mark: mysteryMark]colored")
+	assert.NotEmpty(t, result.Warnings)
+}
+
+func TestUnknownMarkPlaceholderWithKnownMark(t *testing.T) {
+	// Test that placeholder mode preserves known formatting while rendering placeholders.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bold","marks":[{"type":"strong"},{"type":"mysteryMark"}]}]}]}`)
+
+	cfg := Config{
+		UnknownMarks: UnknownPlaceholder,
+	}
+	conv := newTestConverter(t, cfg)
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Contains(t, result.Markdown, "**[Unknown mark: mysteryMark]bold**")
+	assert.NotEmpty(t, result.Warnings)
+}
+
+func TestUnknownMarkPlaceholderMultiple(t *testing.T) {
+	// Test that placeholder mode renders all unknown marks in order.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"text","marks":[{"type":"mysteryOne"},{"type":"mysteryTwo"}]}]}]}`)
+
+	cfg := Config{
+		UnknownMarks: UnknownPlaceholder,
+	}
+	conv := newTestConverter(t, cfg)
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Contains(t, result.Markdown, "[Unknown mark: mysteryOne][Unknown mark: mysteryTwo]text")
+	assert.NotEmpty(t, result.Warnings)
+}
+
+func TestUnknownMarkPlaceholderWhitespaceContinuity(t *testing.T) {
+	// Test that placeholder mode does not break mark continuity across whitespace nodes.
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"bold","marks":[{"type":"strong"}]},{"type":"text","text":" ","marks":[{"type":"strong"},{"type":"mysteryMark"}]},{"type":"text","text":"text","marks":[{"type":"strong"}]}]}]}`)
+
+	cfg := Config{
+		UnknownMarks: UnknownPlaceholder,
+	}
+	conv := newTestConverter(t, cfg)
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Contains(t, result.Markdown, "**bold[Unknown mark: mysteryMark] text**")
+	assert.NotEmpty(t, result.Warnings)
+}
+
 func TestUnderlineWithAllowHTML(t *testing.T) {
 	// Test that underline uses <u> tag in HTML mode.
 	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"underlined","marks":[{"type":"underline"}]}]}]}`)

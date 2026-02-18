@@ -227,6 +227,7 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 
 		// Filter marks according to unknown-mark policy.
 		currentMarks := make([]Mark, 0, len(node.Marks))
+		var unknownPlaceholder strings.Builder
 		for _, mark := range node.Marks {
 			if s.isKnownMark(mark.Type) {
 				currentMarks = append(currentMarks, mark)
@@ -236,8 +237,11 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 			switch s.config.UnknownMarks {
 			case UnknownError:
 				return "", fmt.Errorf("unknown mark type: %s", mark.Type)
-			case UnknownSkip, UnknownPlaceholder:
+			case UnknownSkip:
 				s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark skipped: %s", mark.Type))
+			case UnknownPlaceholder:
+				s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark rendered as placeholder: %s", mark.Type))
+				unknownPlaceholder.WriteString(fmt.Sprintf("[Unknown mark: %s]", mark.Type))
 			}
 		}
 
@@ -268,7 +272,10 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 			sb.WriteString(opening)
 		}
 
-		// Write text content
+		// Write text content (including placeholders for unknown marks).
+		if unknownPlaceholder.Len() > 0 {
+			sb.WriteString(unknownPlaceholder.String())
+		}
 		sb.WriteString(node.Text)
 
 		// Update active marks

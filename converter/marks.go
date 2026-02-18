@@ -210,6 +210,10 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		if s.config.UnknownMarks == UnknownError {
 			return "", "", fmt.Errorf("unknown mark type: %s", mark.Type)
 		}
+		if s.config.UnknownMarks == UnknownPlaceholder {
+			s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark rendered as placeholder: %s", mark.Type))
+			return fmt.Sprintf("[Unknown mark: %s]", mark.Type), "", nil
+		}
 		s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark skipped: %s", mark.Type))
 		return "", "", nil
 	}

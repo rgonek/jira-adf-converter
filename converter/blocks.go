@@ -89,7 +89,7 @@ func (s *state) convertHeading(node Node) (string, error) {
 
 	if s.config.AlignmentStyle == AlignHTML {
 		if alignment := s.getNodeAlignment(node); alignment != "" {
-			return fmt.Sprintf(`<div align="%s">%s</div>`+"\n\n", alignment, heading), nil
+			return fmt.Sprintf(`<h%d align="%s">%s</h%d>`+"\n\n", level, alignment, content, level), nil
 		}
 	}
 
