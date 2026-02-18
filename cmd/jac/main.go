@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/rgonek/jira-adf-converter/converter"
+	"github.com/rgonek/jira-adf-converter/mdconverter"
 )
 
 const (
@@ -75,7 +77,70 @@ func resolveConfig(preset string, allowHTML, strict bool) (converter.Config, err
 	return cfg, nil
 }
 
+func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
+	switch strings.ToLower(strings.TrimSpace(preset)) {
+	case "", presetBalanced:
+		return mdconverter.ReverseConfig{}, nil
+	case presetStrict:
+		return mdconverter.ReverseConfig{
+			MentionDetection:  mdconverter.MentionDetectLink,
+			EmojiDetection:    mdconverter.EmojiDetectShortcode,
+			StatusDetection:   mdconverter.StatusDetectBracket,
+			DateDetection:     mdconverter.DateDetectISO,
+			PanelDetection:    mdconverter.PanelDetectGitHub,
+			ExpandDetection:   mdconverter.ExpandDetectHTML,
+			DecisionDetection: mdconverter.DecisionDetectEmoji,
+		}, nil
+	case presetReadable:
+		return mdconverter.ReverseConfig{
+			MentionDetection:  mdconverter.MentionDetectAt,
+			EmojiDetection:    mdconverter.EmojiDetectShortcode,
+			StatusDetection:   mdconverter.StatusDetectText,
+			DateDetection:     mdconverter.DateDetectISO,
+			PanelDetection:    mdconverter.PanelDetectBold,
+			ExpandDetection:   mdconverter.ExpandDetectBlockquote,
+			DecisionDetection: mdconverter.DecisionDetectText,
+		}, nil
+	case presetLossy:
+		return mdconverter.ReverseConfig{
+			MentionDetection:  mdconverter.MentionDetectNone,
+			EmojiDetection:    mdconverter.EmojiDetectNone,
+			StatusDetection:   mdconverter.StatusDetectNone,
+			DateDetection:     mdconverter.DateDetectNone,
+			PanelDetection:    mdconverter.PanelDetectNone,
+			ExpandDetection:   mdconverter.ExpandDetectNone,
+			DecisionDetection: mdconverter.DecisionDetectNone,
+		}, nil
+	default:
+		return mdconverter.ReverseConfig{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy)", preset)
+	}
+}
+
+func resolveReverseConfig(preset string, allowHTML, strict bool) (mdconverter.ReverseConfig, error) {
+	cfg, err := reversePresetConfig(preset)
+	if err != nil {
+		return mdconverter.ReverseConfig{}, err
+	}
+
+	if allowHTML {
+		cfg.MentionDetection = mdconverter.MentionDetectAll
+		cfg.ExpandDetection = mdconverter.ExpandDetectAll
+	}
+	if strict {
+		cfg.MentionDetection = mdconverter.MentionDetectLink
+		cfg.EmojiDetection = mdconverter.EmojiDetectShortcode
+		cfg.StatusDetection = mdconverter.StatusDetectBracket
+		cfg.DateDetection = mdconverter.DateDetectISO
+		cfg.PanelDetection = mdconverter.PanelDetectGitHub
+		cfg.ExpandDetection = mdconverter.ExpandDetectHTML
+		cfg.DecisionDetection = mdconverter.DecisionDetectEmoji
+	}
+
+	return cfg, nil
+}
+
 func main() {
+	reverse := flag.Bool("reverse", false, "Convert Markdown to ADF JSON")
 	allowHTML := flag.Bool("allow-html", false, "Enable HTML output")
 	strict := flag.Bool("strict", false, "Return error on unknown nodes")
 	preset := flag.String("preset", presetBalanced, "Preset: balanced|strict|readable|lossy")
@@ -96,6 +161,39 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
 		os.Exit(1)
+	}
+
+	if *reverse {
+		cfg, err := resolveReverseConfig(*preset, *allowHTML, *strict)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid preset: %v\n", err)
+			os.Exit(1)
+		}
+
+		conv, err := mdconverter.New(cfg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Invalid config: %v\n", err)
+			os.Exit(1)
+		}
+
+		result, err := conv.Convert(string(data))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error converting file: %v\n", err)
+			os.Exit(1)
+		}
+
+		var parsed any
+		if err := json.Unmarshal(result.ADF, &parsed); err != nil {
+			fmt.Fprintf(os.Stderr, "Error parsing converted ADF JSON: %v\n", err)
+			os.Exit(1)
+		}
+		pretty, err := json.MarshalIndent(parsed, "", "  ")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error formatting ADF JSON: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println(string(pretty))
+		return
 	}
 
 	cfg, err := resolveConfig(*preset, *allowHTML, *strict)

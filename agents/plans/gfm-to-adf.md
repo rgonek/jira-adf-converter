@@ -274,8 +274,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 11: CLI Integration
+### Phase 11: CLI Integration ✅
 **File**: `cmd/jac/main.go`
+
+**Status**: Implemented (`--reverse` mode, reverse preset resolution with override precedence, and pretty-printed ADF JSON output).
 
 **Deliverables**:
 - `--reverse` flag to select MD→ADF direction

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/rgonek/jira-adf-converter/converter"
+	"github.com/rgonek/jira-adf-converter/mdconverter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,4 +71,65 @@ func TestResolveConfigPresetPrecedence(t *testing.T) {
 	assert.Equal(t, converter.HardBreakHTML, cfg.HardBreakStyle)
 	assert.Equal(t, converter.UnknownError, cfg.UnknownNodes)
 	assert.Equal(t, converter.UnknownError, cfg.UnknownMarks)
+}
+
+func TestReversePresetConfig(t *testing.T) {
+	t.Run("balanced", func(t *testing.T) {
+		cfg, err := reversePresetConfig(presetBalanced)
+		require.NoError(t, err)
+		assert.Equal(t, mdconverter.ReverseConfig{}, cfg)
+	})
+
+	t.Run("strict", func(t *testing.T) {
+		cfg, err := reversePresetConfig(presetStrict)
+		require.NoError(t, err)
+		assert.Equal(t, mdconverter.MentionDetectLink, cfg.MentionDetection)
+		assert.Equal(t, mdconverter.EmojiDetectShortcode, cfg.EmojiDetection)
+		assert.Equal(t, mdconverter.StatusDetectBracket, cfg.StatusDetection)
+		assert.Equal(t, mdconverter.DateDetectISO, cfg.DateDetection)
+		assert.Equal(t, mdconverter.PanelDetectGitHub, cfg.PanelDetection)
+		assert.Equal(t, mdconverter.ExpandDetectHTML, cfg.ExpandDetection)
+		assert.Equal(t, mdconverter.DecisionDetectEmoji, cfg.DecisionDetection)
+	})
+
+	t.Run("readable", func(t *testing.T) {
+		cfg, err := reversePresetConfig(presetReadable)
+		require.NoError(t, err)
+		assert.Equal(t, mdconverter.MentionDetectAt, cfg.MentionDetection)
+		assert.Equal(t, mdconverter.StatusDetectText, cfg.StatusDetection)
+		assert.Equal(t, mdconverter.PanelDetectBold, cfg.PanelDetection)
+		assert.Equal(t, mdconverter.ExpandDetectBlockquote, cfg.ExpandDetection)
+		assert.Equal(t, mdconverter.DecisionDetectText, cfg.DecisionDetection)
+	})
+
+	t.Run("lossy", func(t *testing.T) {
+		cfg, err := reversePresetConfig(presetLossy)
+		require.NoError(t, err)
+		assert.Equal(t, mdconverter.MentionDetectNone, cfg.MentionDetection)
+		assert.Equal(t, mdconverter.EmojiDetectNone, cfg.EmojiDetection)
+		assert.Equal(t, mdconverter.StatusDetectNone, cfg.StatusDetection)
+		assert.Equal(t, mdconverter.DateDetectNone, cfg.DateDetection)
+		assert.Equal(t, mdconverter.PanelDetectNone, cfg.PanelDetection)
+		assert.Equal(t, mdconverter.ExpandDetectNone, cfg.ExpandDetection)
+		assert.Equal(t, mdconverter.DecisionDetectNone, cfg.DecisionDetection)
+	})
+}
+
+func TestReversePresetConfigInvalid(t *testing.T) {
+	_, err := reversePresetConfig("unknown")
+	require.Error(t, err)
+	assert.Equal(t, `unknown preset "unknown" (allowed: balanced, strict, readable, lossy)`, err.Error())
+}
+
+func TestResolveReverseConfigPresetPrecedence(t *testing.T) {
+	cfg, err := resolveReverseConfig(presetReadable, true, true)
+	require.NoError(t, err)
+
+	assert.Equal(t, mdconverter.MentionDetectLink, cfg.MentionDetection)
+	assert.Equal(t, mdconverter.EmojiDetectShortcode, cfg.EmojiDetection)
+	assert.Equal(t, mdconverter.StatusDetectBracket, cfg.StatusDetection)
+	assert.Equal(t, mdconverter.DateDetectISO, cfg.DateDetection)
+	assert.Equal(t, mdconverter.PanelDetectGitHub, cfg.PanelDetection)
+	assert.Equal(t, mdconverter.ExpandDetectHTML, cfg.ExpandDetection)
+	assert.Equal(t, mdconverter.DecisionDetectEmoji, cfg.DecisionDetection)
 }
