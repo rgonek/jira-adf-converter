@@ -125,8 +125,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ## Implementation Phases
 
-### Phase 1: Foundation
+### Phase 1: Foundation ✅
 **Files**: `mdconverter.go`, `config.go`, `walker.go`, `result.go`
+
+**Status**: Implemented (package scaffold, config defaults/validation/clone, parser wiring, document/paragraph/text walker, and initial tests).
 
 **Deliverables**:
 - Package structure with public `New()` and `Convert()` API
