@@ -142,8 +142,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 2: Block Nodes
+### Phase 2: Block Nodes ✅
 **File**: `blocks.go`
+
+**Status**: Implemented (heading with offset, blockquote, rule, hardBreak, fenced/indented code blocks with reverse language mapping).
 
 **Deliverables**:
 - Paragraph, heading (with level + reverse HeadingOffset), plain blockquote, rule, hardBreak
@@ -153,8 +155,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 3: Text Marks
+### Phase 3: Text Marks ✅
 **File**: `marks.go`
+
+**Status**: Implemented (mark stack with push/pop/current/popByType and support for strong/em/strike/code/link marks).
 
 **Deliverables**:
 - Mark stack with `push`, `pop`, `current`, `popByType`
@@ -165,8 +169,10 @@ The most complex ambiguity: the forward converter renders panels, decisions, and
 
 ---
 
-### Phase 4: Lists
+### Phase 4: Lists ✅
 **File**: `lists.go`
+
+**Status**: Implemented (bullet and ordered lists, task list detection via `TaskCheckBox`, nested list handling including nested task lists).
 
 **Deliverables**:
 - Bullet lists, ordered lists (with `start` attribute)
