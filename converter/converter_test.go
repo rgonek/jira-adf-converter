@@ -81,6 +81,9 @@ func goldenConfigForPath(path string) Config {
 	if strings.Contains(base, "expand_html") {
 		cfg.ExpandStyle = ExpandHTML
 	}
+	if strings.Contains(base, "unknown_placeholder") {
+		cfg.UnknownMarks = UnknownPlaceholder
+	}
 	if strings.Contains(base, "heading_offset1") {
 		cfg.HeadingOffset = 1
 	}
