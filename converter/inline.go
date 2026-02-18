@@ -47,7 +47,7 @@ func (s *state) convertMention(node Node) (string, error) {
 		text = "Unknown User"
 	}
 	mentionText := text
-	if rawText != "" && id != "" && !strings.HasPrefix(mentionText, "@") {
+	if rawText != "" && !strings.HasPrefix(mentionText, "@") {
 		mentionText = "@" + mentionText
 	}
 

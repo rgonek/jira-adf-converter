@@ -154,3 +154,19 @@ func TestValidateExtensionsByTypeEmptyKey(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty key")
 }
+
+func TestValidateDateFormatRejectsLiteralWithoutLayoutTokens(t *testing.T) {
+	cfg := (Config{}).applyDefaults()
+	cfg.DateFormat = "build-1"
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid dateFormat")
+}
+
+func TestValidateDateFormatAcceptsSingleDigitLayoutTokens(t *testing.T) {
+	cfg := (Config{}).applyDefaults()
+	cfg.DateFormat = "1/2/06 3:4:5 PM"
+
+	require.NoError(t, cfg.Validate())
+}

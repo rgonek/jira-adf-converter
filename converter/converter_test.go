@@ -425,6 +425,34 @@ func TestMentionHTMLEscapesIDAndText(t *testing.T) {
 	assert.NotContains(t, result.Markdown, `<Admin>`)
 }
 
+func TestMentionLinkFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"text":"User Name"}}]}]}`)
+
+	conv := newTestConverter(t, Config{
+		MentionStyle: MentionLink,
+	})
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Equal(t, "@User Name\n", result.Markdown)
+	require.NotEmpty(t, result.Warnings)
+	assert.Equal(t, "mention", result.Warnings[0].NodeType)
+}
+
+func TestMentionHTMLFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"text":"User Name"}}]}]}`)
+
+	conv := newTestConverter(t, Config{
+		MentionStyle: MentionHTML,
+	})
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Equal(t, "@User Name\n", result.Markdown)
+	require.NotEmpty(t, result.Warnings)
+	assert.Equal(t, "mention", result.Warnings[0].NodeType)
+}
+
 func TestConverterConfigIsolationConcurrent(t *testing.T) {
 	input := []byte(`{"type":"doc","content":[{"type":"codeBlock","attrs":{"language":"js"},"content":[{"type":"text","text":"const x = 1;"}]},{"type":"extension","attrs":{"extensionType":"custom","text":"fallback text"}}]}`)
 

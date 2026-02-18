@@ -342,12 +342,17 @@ func (c Config) Validate() error {
 }
 
 func hasDateReferenceTokens(format string) bool {
+	format = strings.TrimSpace(format)
+	if format == "" {
+		return false
+	}
+
 	_ = time.Now().Format(format)
 
 	referenceTokens := []string{
-		"2006", "06", "Jan", "January", "01", "1",
-		"02", "2", "15", "03", "3", "04", "4",
-		"05", "5", "PM", "pm", "MST", "-0700", "Z07",
+		"2006", "06", "Jan", "January", "01",
+		"02", "_2", "Mon", "Monday", "15", "03", "04",
+		"05", "PM", "pm", "MST", "-0700", "-07:00", "Z0700", "Z07:00", "Z07",
 	}
 	for _, token := range referenceTokens {
 		if strings.Contains(format, token) {
