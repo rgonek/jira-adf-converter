@@ -157,7 +157,7 @@ func TestValidateExtensionsByTypeEmptyKey(t *testing.T) {
 
 func TestValidateDateFormatRejectsLiteralWithoutLayoutTokens(t *testing.T) {
 	cfg := (Config{}).applyDefaults()
-	cfg.DateFormat = "build-1"
+	cfg.DateFormat = "build-release"
 
 	err := cfg.Validate()
 	require.Error(t, err)

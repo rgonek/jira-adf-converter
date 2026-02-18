@@ -350,9 +350,9 @@ func hasDateReferenceTokens(format string) bool {
 	_ = time.Now().Format(format)
 
 	referenceTokens := []string{
-		"2006", "06", "Jan", "January", "01",
-		"02", "_2", "Mon", "Monday", "15", "03", "04",
-		"05", "PM", "pm", "MST", "-0700", "-07:00", "Z0700", "Z07:00", "Z07",
+		"2006", "06", "Jan", "January", "1", "01",
+		"2", "02", "_2", "Mon", "Monday", "15", "3", "03", "4", "04",
+		"5", "05", "PM", "pm", "MST", "-0700", "-07:00", "Z0700", "Z07:00", "Z07",
 	}
 	for _, token := range referenceTokens {
 		if strings.Contains(format, token) {
