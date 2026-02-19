@@ -2,15 +2,27 @@
 
 ## Context
 
-ADF extension nodes (e.g., PlantUML macros) currently render as raw JSON inside ` ```adf:extension ` code blocks. Users want to render specific extensions as clean, human-readable Markdown (e.g., PlantUML code blocks with metadata in HTML comments) and reconstruct the original ADF nodes on the way back. This requires a hook system where library consumers register custom handlers per extension type. No built-in handlers are shipped — only the framework/interface.
+ADF extension nodes (e.g., PlantUML macros) currently render as raw JSON inside ` ```adf:extension ` code blocks. Users want to render specific extensions as clean, human-readable Markdown and reconstruct the original ADF nodes on the way back. This requires a hook system where library consumers register custom handlers per extension type. No built-in handlers are shipped — only the framework/interface.
 
-## Approach
+## Design
 
-Add an `ExtensionHandler` interface following the existing `LinkRenderHook`/`MediaRenderHook` pattern (typed Input/Output structs, `context.Context`). Register handlers on both `Config` and `ReverseConfig`. Forward direction checks handlers before the existing `ExtensionMode` strategy. Reverse direction checks handlers in two places: the `convertBlockSlice` walker (for HTML comment + code block pairs) and `parseExtensionFence` (for standalone code blocks without metadata).
+Handlers are keyed by **`extensionKey`** in both directions (e.g., `"plantumlcloud"`).
 
-## Files to Create/Modify
+**Forward (ADF → Markdown):** The handler produces the inner content (`Markdown`) plus optional string metadata (`Metadata`). The framework wraps them in a pandoc fenced div:
 
-### 1. NEW: `converter/extension_handler.go` — Interface & Types
+```
+:::{ .adf-extension key="plantumlcloud" <handler metadata as attrs> }
+<handler Markdown>
+:::
+```
+
+**Reverse (Markdown → ADF):** The existing pandoc div parser detects `.adf-extension` divs. The walker routes them to the registered handler, passing the div body (`Body`) and parsed attributes (`Metadata`). The handler reconstructs the ADF node.
+
+Handlers are responsible for serializing/deserializing all metadata values to/from strings. The framework round-trips strings verbatim as div attributes.
+
+## Interface & Types
+
+### NEW: `converter/extension_handler.go`
 
 ```go
 type ExtensionRenderInput struct {
@@ -20,14 +32,15 @@ type ExtensionRenderInput struct {
 
 type ExtensionRenderOutput struct {
     Markdown string
+    Metadata map[string]string // handler serializes values; framework stores as div attrs
     Handled  bool
 }
 
 type ExtensionParseInput struct {
-    SourcePath string
-    Language   string
-    Body       string
-    Metadata   map[string]any  // from HTML comment, nil if absent
+    SourcePath   string
+    ExtensionKey string
+    Body         string            // raw markdown content inside the .adf-extension div
+    Metadata     map[string]string // div attrs (minus key and .adf-extension class)
 }
 
 type ExtensionParseOutput struct {
@@ -41,12 +54,18 @@ type ExtensionHandler interface {
 }
 ```
 
-Follows the typed Input/Output struct pattern from `converter/hooks.go`. Uses interface (not function type) because the handler binds both directions together. `Handled bool` allows handlers to decline and fall back to default behavior.
+Uses interface (not function type) because each handler binds both directions. `Handled bool` lets handlers decline and fall through to default behavior.
+
+## Files to Create/Modify
+
+### 1. NEW: `converter/extension_handler.go` — Interface & Types
+
+Define the types and interface above.
 
 ### 2. MODIFY: `converter/config.go`
 
-- Add `ExtensionHandlers map[string]ExtensionHandler` field to `Config` (json:"-"), keyed by `extensionKey`
-- Add `cloneExtensionHandlerMap` helper (shallow copy of map, interfaces are reference-semantic)
+- Add `ExtensionHandlers map[string]ExtensionHandler` field to `Config` (json:`"-"`), keyed by `extensionKey`
+- Add `cloneExtensionHandlerMap` helper (shallow copy; interfaces are reference-semantic)
 - Update `clone()` to copy the map
 
 ### 3. MODIFY: `converter/extensions.go`
@@ -54,64 +73,73 @@ Follows the typed Input/Output struct pattern from `converter/hooks.go`. Uses in
 In `convertExtension()`, before the strategy switch:
 1. Look up handler by `extensionKey` from `s.config.ExtensionHandlers`
 2. If found, call `handler.ToMarkdown(s.ctx, input)`
-3. If `Handled: true`, return the markdown; if `Handled: false`, fall through to existing strategy logic
+3. If `Handled: true`:
+   - Build `:::{ .adf-extension key="<extensionKey>" <metadata attrs> }\n<Markdown>\n:::`
+   - Return the wrapped markdown
+4. If `Handled: false`, fall through to existing strategy logic
 
 ### 4. MODIFY: `mdconverter/config.go`
 
-- Add `ExtensionHandlers map[string]converter.ExtensionHandler` field to `ReverseConfig` (json:"-"), keyed by code block language
+- Add `ExtensionHandlers map[string]converter.ExtensionHandler` field to `ReverseConfig` (json:`"-"`), keyed by `extensionKey`
 - Add `cloneExtensionHandlerMap` helper
 - Update `clone()` to copy the map
+- Update `needsPandocBlockExtension()` to also return `true` when `len(cfg.ExtensionHandlers) > 0`
+  (ensures the pandoc div parser is registered even if no other pandoc block options are set)
 
-### 5. MODIFY: `mdconverter/extensions.go`
+### 5. MODIFY: `mdconverter/pandoc_div_convert.go`
 
-- In `parseExtensionFence()`, before the `switch` on language: check `s.config.ExtensionHandlers[language]`, call `handler.FromMarkdown()` with `metadata: nil`
-- Add `parseExtensionComment(node, source)` — regex-based parser for `<!-- adf:extension <key> <json> -->`
-- Add `applyExtensionParseHandler()` helper
+Add handling for `.adf-extension` class divs before (or alongside) the existing `.details` / `align` cases:
 
-### 6. MODIFY: `mdconverter/walker.go`
+1. If div has class `.adf-extension`:
+   a. Extract `key` attr → look up handler in `s.config.ExtensionHandlers`
+   b. If handler found: call `handler.FromMarkdown(s.ctx, input)` with `Body` = div body text, `Metadata` = remaining attrs
+   c. If `Handled: true`: append the returned `Node`; return
+   d. If `Handled: false` or no handler: fall through to unknown-class / blockquote warning behavior
 
-In `convertBlockSlice()`, add a peek-ahead block (following the `consumeDetailsBlock` pattern):
-1. If current child is `*ast.HTMLBlock` matching `<!-- adf:extension <key> <json> -->`
-2. AND next child is `*ast.FencedCodeBlock`
-3. AND a handler is registered for the code block's language
-4. Call `handler.FromMarkdown()` with the parsed metadata
-5. If handled: consume both nodes (index += 2)
-6. If not handled: fall through to normal processing
+No changes needed to `mdconverter/extensions.go` (`parseExtensionFence`) or `mdconverter/walker.go` — the existing pandoc div path handles everything.
 
-### HTML Comment Format
+## Wrapper Format
 
 ```
-<!-- adf:extension <extensionKey> <optional JSON> -->
+:::{ .adf-extension key="<extensionKey>" [<attr>="<value>" ...] }
+<handler-produced markdown content>
+:::
 ```
 
 Examples:
 ```
-<!-- adf:extension plantumlcloud {"extensionType":"com.atlassian.confluence.macro.core","layout":"default","localId":"abc"} -->
+:::{ .adf-extension key="plantumlcloud" extension-type="com.atlassian.confluence.macro.core" local-id="abc" layout="default" }
+@startuml
+Alice -> Bob
+@enduml
+:::
 ```
 ```
-<!-- adf:extension drawio -->
+:::{ .adf-extension key="drawio" }
+<diagram content>
+:::
 ```
 
-The framework only **parses** these comments — handlers are responsible for **producing** them in their `ToMarkdown` output.
+The framework emits and parses the wrapper. Handlers only produce/consume inner content and string metadata.
 
 ## Tests
 
 ### NEW: `converter/extension_handler_test.go`
-- Handler called and output used
-- Handler returns `Handled: false` → falls back to ExtensionMode strategy
+- Handler called and output used; wrapper div emitted with correct attrs
+- Handler returns `Handled: false` → falls back to `ExtensionMode` strategy (no wrapper emitted)
 - Handler returns error → propagates
 - No handler registered → existing behavior unchanged
 
 ### NEW: `mdconverter/extension_handler_test.go`
-- Handler called for matching code block language
-- HTML comment metadata passed to handler
-- No preceding comment → `metadata` is nil
-- Handler returns `Handled: false` → normal code block processing
+- Handler called for matching `extensionKey` in `.adf-extension` div
+- Metadata attrs passed correctly to handler
+- Div with no matching handler → blockquote warning (existing fallback)
+- Handler returns `Handled: false` → blockquote warning fallback
 - Handler returns error → propagates
 
 ### Existing test files (additions)
-- `converter/config_test.go`: clone preserves ExtensionHandlers
-- `mdconverter/config_test.go`: clone preserves ExtensionHandlers
+- `converter/config_test.go`: clone preserves `ExtensionHandlers`
+- `mdconverter/config_test.go`: clone preserves `ExtensionHandlers`; `needsPandocBlockExtension()` returns true when handlers registered
 
 ## Verification
 
