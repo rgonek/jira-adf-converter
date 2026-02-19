@@ -170,32 +170,33 @@ const (
 
 // Config holds all converter configuration options.
 type Config struct {
-	UnderlineStyle       UnderlineStyle    `json:"underlineStyle,omitempty"`
-	SubSupStyle          SubSupStyle       `json:"subSupStyle,omitempty"`
-	TextColorStyle       ColorStyle        `json:"textColorStyle,omitempty"`
-	BackgroundColorStyle ColorStyle        `json:"backgroundColorStyle,omitempty"`
-	MentionStyle         MentionStyle      `json:"mentionStyle,omitempty"`
-	EmojiStyle           EmojiStyle        `json:"emojiStyle,omitempty"`
-	PanelStyle           PanelStyle        `json:"panelStyle,omitempty"`
-	HeadingOffset        int               `json:"headingOffset,omitempty"`
-	HardBreakStyle       HardBreakStyle    `json:"hardBreakStyle,omitempty"`
-	AlignmentStyle       AlignmentStyle    `json:"alignmentStyle,omitempty"`
-	ExpandStyle          ExpandStyle       `json:"expandStyle,omitempty"`
-	StatusStyle          StatusStyle       `json:"statusStyle,omitempty"`
-	InlineCardStyle      InlineCardStyle   `json:"inlineCardStyle,omitempty"`
-	DecisionStyle        DecisionStyle     `json:"decisionStyle,omitempty"`
-	DateFormat           string            `json:"dateFormat,omitempty"`
-	TableMode            TableMode         `json:"tableMode,omitempty"`
-	BulletMarker         rune              `json:"bulletMarker,omitempty"`
-	OrderedListStyle     OrderedListStyle  `json:"orderedListStyle,omitempty"`
-	Extensions           ExtensionRules    `json:"extensions,omitempty"`
-	MediaBaseURL         string            `json:"mediaBaseURL,omitempty"`
-	ResolutionMode       ResolutionMode    `json:"resolutionMode,omitempty"`
-	LanguageMap          map[string]string `json:"languageMap,omitempty"`
-	UnknownNodes         UnknownPolicy     `json:"unknownNodes,omitempty"`
-	UnknownMarks         UnknownPolicy     `json:"unknownMarks,omitempty"`
-	LinkHook             LinkRenderHook    `json:"-"`
-	MediaHook            MediaRenderHook   `json:"-"`
+	UnderlineStyle       UnderlineStyle              `json:"underlineStyle,omitempty"`
+	SubSupStyle          SubSupStyle                 `json:"subSupStyle,omitempty"`
+	TextColorStyle       ColorStyle                  `json:"textColorStyle,omitempty"`
+	BackgroundColorStyle ColorStyle                  `json:"backgroundColorStyle,omitempty"`
+	MentionStyle         MentionStyle                `json:"mentionStyle,omitempty"`
+	EmojiStyle           EmojiStyle                  `json:"emojiStyle,omitempty"`
+	PanelStyle           PanelStyle                  `json:"panelStyle,omitempty"`
+	HeadingOffset        int                         `json:"headingOffset,omitempty"`
+	HardBreakStyle       HardBreakStyle              `json:"hardBreakStyle,omitempty"`
+	AlignmentStyle       AlignmentStyle              `json:"alignmentStyle,omitempty"`
+	ExpandStyle          ExpandStyle                 `json:"expandStyle,omitempty"`
+	StatusStyle          StatusStyle                 `json:"statusStyle,omitempty"`
+	InlineCardStyle      InlineCardStyle             `json:"inlineCardStyle,omitempty"`
+	DecisionStyle        DecisionStyle               `json:"decisionStyle,omitempty"`
+	DateFormat           string                      `json:"dateFormat,omitempty"`
+	TableMode            TableMode                   `json:"tableMode,omitempty"`
+	BulletMarker         rune                        `json:"bulletMarker,omitempty"`
+	OrderedListStyle     OrderedListStyle            `json:"orderedListStyle,omitempty"`
+	Extensions           ExtensionRules              `json:"extensions,omitempty"`
+	MediaBaseURL         string                      `json:"mediaBaseURL,omitempty"`
+	ResolutionMode       ResolutionMode              `json:"resolutionMode,omitempty"`
+	LanguageMap          map[string]string           `json:"languageMap,omitempty"`
+	UnknownNodes         UnknownPolicy               `json:"unknownNodes,omitempty"`
+	UnknownMarks         UnknownPolicy               `json:"unknownMarks,omitempty"`
+	LinkHook             LinkRenderHook              `json:"-"`
+	MediaHook            MediaRenderHook             `json:"-"`
+	ExtensionHandlers    map[string]ExtensionHandler `json:"-"`
 }
 
 func (c Config) applyDefaults() Config {
@@ -273,6 +274,7 @@ func (c Config) clone() Config {
 	cloned.LanguageMap = cloneStringMap(c.LanguageMap)
 	cloned.LinkHook = c.LinkHook
 	cloned.MediaHook = c.MediaHook
+	cloned.ExtensionHandlers = cloneExtensionHandlerMap(c.ExtensionHandlers)
 	return cloned
 }
 
@@ -401,6 +403,19 @@ func cloneStringMap(src map[string]string) map[string]string {
 	}
 
 	dst := make(map[string]string, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+
+	return dst
+}
+
+func cloneExtensionHandlerMap(src map[string]ExtensionHandler) map[string]ExtensionHandler {
+	if src == nil {
+		return nil
+	}
+
+	dst := make(map[string]ExtensionHandler, len(src))
 	for key, value := range src {
 		dst[key] = value
 	}
