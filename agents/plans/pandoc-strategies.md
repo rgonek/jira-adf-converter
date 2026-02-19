@@ -13,15 +13,25 @@ The implementation is fully bidirectional: new forward strategies emit Pandoc sy
 | Underline | `[text]{.underline}` |
 | Subscript | `~text~` |
 | Superscript | `^text^` |
-| Text color | `[text]{color="#rrggbb"}` |
-| Background color | `[text]{background-color="#rrggbb"}` |
+| Text color | `[text]{style="color: #rrggbb;"}` |
+| Background color | `[text]{style="background-color: #rrggbb;"}` |
 | Mention | `[Display Name]{.mention mention-id="accountId"}` |
-| Alignment | `:::{ align="center" }\n\ncontent\n\n:::` |
+| Alignment (Block) | `:::{ style="text-align: center;" }\n\ncontent\n\n:::` |
+| Alignment (Heading) | `## Heading {style="text-align: center;"}` |
 | Expand | `:::{ .details summary="Title" }\n\ncontent\n\n:::` |
 | InlineCard | `[title]{.inline-card url="https://..."}` |
 | Simple grid table | `+---+---+` with `+===+===+` header separator |
 
 Note: `HardBreakBackslash` already produces valid Pandoc output — no new strategy is needed.
+
+## Documentation References
+
+- **Underline**: [Pandoc Manual - Bracketed Spans](https://pandoc.org/MANUAL.html#extension-bracketed_spans) (standard approach via classes)
+- **Subscript/Superscript**: [Pandoc Manual - Superscripts and Subscripts](https://pandoc.org/MANUAL.html#superscripts-and-subscripts)
+- **Attributes (Color, Alignment, etc.)**: [Pandoc Manual - Extension: attributes](https://pandoc.org/MANUAL.html#extension-attributes)
+- **Fenced Divs**: [Pandoc Manual - Extension: fenced_divs](https://pandoc.org/MANUAL.html#extension-fenced_divs)
+- **Bracketed Spans**: [Pandoc Manual - Extension: bracketed_spans](https://pandoc.org/MANUAL.html#extension-bracketed_spans)
+- **Grid Tables**: [Pandoc Manual - Extension: grid_tables](https://pandoc.org/MANUAL.html#extension-grid_tables)
 
 ## Deliverables
 
@@ -98,8 +108,8 @@ TableAutoPandoc  TableMode       = "autopandoc"// pipe for simple, grid for comp
 
 - **`UnderlinePandoc`**: return prefix `"["`, suffix `"]{.underline}"`, nil. This fits the existing `(prefix, suffix, error)` return signature.
 - **`SubSupPandoc`**: return `"~"`, `"~"` for sub; `"^"`, `"^"` for sup.
-- **`ColorPandoc` (textColor)**: return `"["`, `"]{color=\"" + color + "\"}"`, nil.
-- **`ColorPandoc` (backgroundColor)**: return `"["`, `"]{background-color=\"" + color + "\"}"`, nil.
+- **`ColorPandoc` (textColor)**: return `"["`, `"]{style=\"color: " + color + ";\"}"`, nil.
+- **`ColorPandoc` (backgroundColor)**: return `"["`, `"]{style=\"background-color: " + color + ";\"}"`, nil.
 
 **Acceptance Criteria**:
 - All Pandoc mark cases produce correct output
@@ -194,9 +204,13 @@ TableAutoPandoc  TableMode       = "autopandoc"// pipe for simple, grid for comp
 
 **Implementation Details**:
 
-- **`AlignPandoc`** in `convertParagraph()` and `convertHeading()`:
+- **`AlignPandoc`** in `convertParagraph()`:
   ```go
-  return fmt.Sprintf(":::{ align=\"%s\" }\n\n%s\n\n:::\n\n", alignment, trimmedContent), nil
+  return fmt.Sprintf(":::{ style=\"text-align: %s;\" }\n\n%s\n\n:::\n\n", alignment, trimmedContent), nil
+  ```
+- **`AlignPandoc`** in `convertHeading()`:
+  ```go
+  return fmt.Sprintf("%s {style=\"text-align: %s;\"}\n\n", heading, alignment), nil
   ```
   Only emitted when an alignment attribute is present; falls through to plain rendering when no alignment is set.
 

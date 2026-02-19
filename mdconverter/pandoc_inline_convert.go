@@ -96,7 +96,7 @@ func (s *state) convertPandocSpanNode(node *PandocSpanNode, stack *markStack) ([
 	if hasPandocClass(node.Classes, "underline") && !s.shouldDetectUnderlinePandoc() {
 		return []converter.Node{newTextNode(literal, stack.current())}, nil
 	}
-	if (strings.TrimSpace(node.Attrs["color"]) != "" || strings.TrimSpace(node.Attrs["background-color"]) != "") && !s.shouldDetectColorPandoc() {
+	if (strings.TrimSpace(node.Attrs["color"]) != "" || strings.TrimSpace(node.Attrs["background-color"]) != "" || strings.TrimSpace(node.Attrs["style"]) != "") && !s.shouldDetectColorPandoc() {
 		return []converter.Node{newTextNode(literal, stack.current())}, nil
 	}
 
@@ -110,7 +110,14 @@ func (s *state) convertPandocSpanNode(node *PandocSpanNode, stack *markStack) ([
 		inlineContent = applyMarkToInlineNodes(inlineContent, converter.Mark{Type: "underline"})
 		applied = true
 	}
-	if color := strings.TrimSpace(node.Attrs["color"]); color != "" {
+
+	style := node.Attrs["style"]
+
+	color := strings.TrimSpace(node.Attrs["color"])
+	if color == "" && style != "" {
+		color = extractStyleColor(style, "color")
+	}
+	if color != "" {
 		inlineContent = applyMarkToInlineNodes(inlineContent, converter.Mark{
 			Type: "textColor",
 			Attrs: map[string]interface{}{
@@ -119,11 +126,16 @@ func (s *state) convertPandocSpanNode(node *PandocSpanNode, stack *markStack) ([
 		})
 		applied = true
 	}
-	if color := strings.TrimSpace(node.Attrs["background-color"]); color != "" {
+
+	bgColor := strings.TrimSpace(node.Attrs["background-color"])
+	if bgColor == "" && style != "" {
+		bgColor = extractStyleColor(style, "background-color")
+	}
+	if bgColor != "" {
 		inlineContent = applyMarkToInlineNodes(inlineContent, converter.Mark{
 			Type: "backgroundColor",
 			Attrs: map[string]interface{}{
-				"color": color,
+				"color": bgColor,
 			},
 		})
 		applied = true
@@ -226,7 +238,7 @@ func hasUnknownPandocSpanClass(classes []string) bool {
 func hasUnknownPandocSpanAttr(attrs map[string]string) bool {
 	for key := range attrs {
 		switch key {
-		case "mention-id", "url", "color", "background-color":
+		case "mention-id", "url", "color", "background-color", "style":
 			continue
 		default:
 			return true

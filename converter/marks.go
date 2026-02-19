@@ -258,7 +258,7 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 				}
 				return "", "", nil
 			}
-			return "[", `]{color="` + color + `"}`, nil
+			return "[", `]{style="color: ` + color + `;"}`, nil
 		default:
 			return "", "", nil
 		}
@@ -283,7 +283,7 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 				}
 				return "", "", nil
 			}
-			return "[", `]{background-color="` + color + `"}`, nil
+			return "[", `]{style="background-color: ` + color + `;"}`, nil
 		default:
 			return "", "", nil
 		}

@@ -1,1 +1,1 @@
-[red text]{color="#ff0000"}
+[red text]{style="color: #ff0000;"}

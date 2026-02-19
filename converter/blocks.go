@@ -23,7 +23,7 @@ func (s *state) convertParagraph(node Node) (string, error) {
 		case AlignHTML:
 			return fmt.Sprintf(`<div align="%s">%s</div>`+"\n\n", alignment, trimmed), nil
 		case AlignPandoc:
-			return fmt.Sprintf(":::{ align=\"%s\" }\n\n%s\n\n:::\n\n", alignment, trimmed), nil
+			return fmt.Sprintf(":::{ style=\"text-align: %s;\" }\n\n%s\n\n:::\n\n", alignment, trimmed), nil
 		}
 	}
 
@@ -95,7 +95,7 @@ func (s *state) convertHeading(node Node) (string, error) {
 		case AlignHTML:
 			return fmt.Sprintf(`<h%d align="%s">%s</h%d>`+"\n\n", level, alignment, content, level), nil
 		case AlignPandoc:
-			return fmt.Sprintf(":::{ align=\"%s\" }\n\n%s\n\n:::\n\n", alignment, heading), nil
+			return fmt.Sprintf("%s {style=\"text-align: %s;\"}\n\n", heading, alignment), nil
 		}
 	}
 

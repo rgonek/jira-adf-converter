@@ -1,4 +1,5 @@
-:::{ align="right" }
+:::{ style="text-align: right;" }
+
 
 ## Heading
 

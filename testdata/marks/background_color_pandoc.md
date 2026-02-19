@@ -1,1 +1,1 @@
-[highlighted]{background-color="#ffff00"}
+[highlighted]{style="background-color: #ffff00;"}

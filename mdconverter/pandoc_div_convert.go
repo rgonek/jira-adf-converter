@@ -66,6 +66,30 @@ func (s *state) convertPandocDivNode(node *PandocDivNode) (converter.Node, bool,
 		}, true, nil
 	}
 
+	if styleValue, hasStyle := node.Attrs["style"]; hasStyle {
+		if !s.shouldDetectAlignPandoc() {
+			return literalFallback, true, nil
+		}
+
+		if alignment := extractTextAlign(styleValue); alignment != "" {
+			content, err := s.convertBlockFragment(node.Body())
+			if err != nil {
+				return converter.Node{}, false, err
+			}
+			aligned := s.applyPandocAlignment(content, alignment)
+			if len(aligned) == 0 {
+				return converter.Node{}, false, nil
+			}
+			if len(aligned) == 1 {
+				return aligned[0], true, nil
+			}
+			return converter.Node{
+				Type:    "layoutSection",
+				Content: aligned,
+			}, true, nil
+		}
+	}
+
 	if hasUnknownPandocDivClass(node.Classes) {
 		s.addWarning(converter.WarningDroppedFeature, "pandocDiv", "unknown pandoc div class converted to blockquote")
 		content, err := s.convertBlockFragment(node.Body())

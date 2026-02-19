@@ -1,1 +1,2 @@
-[red]{color="#ff0000"}
+[red]{style="color: #ff0000;"}
+

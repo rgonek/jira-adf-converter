@@ -132,3 +132,29 @@ func parsePandocAttributes(raw string) ([]string, map[string]string) {
 func isPandocAttrSpace(ch byte) bool {
 	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'
 }
+
+func extractTextAlign(style string) string {
+	parts := strings.Split(style, ";")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(strings.ToLower(part), "text-align:") {
+			val := strings.TrimSpace(part[len("text-align:"):])
+			switch strings.ToLower(val) {
+			case "left", "center", "right":
+				return strings.ToLower(val)
+			}
+		}
+	}
+	return ""
+}
+
+func extractStyleColor(style, property string) string {
+	parts := strings.Split(style, ";")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if strings.HasPrefix(strings.ToLower(part), strings.ToLower(property)+":") {
+			return strings.TrimSpace(part[len(property)+1:])
+		}
+	}
+	return ""
+}

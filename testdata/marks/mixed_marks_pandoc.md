@@ -1,1 +1,1 @@
-[[colored underline]{.underline}]{color="#0000ff"}
+[[colored underline]{.underline}]{style="color: #0000ff;"}

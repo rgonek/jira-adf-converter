@@ -1,4 +1,4 @@
-:::{ align="center" }
+:::{ style="text-align: center;" }
 
 Centered text
 

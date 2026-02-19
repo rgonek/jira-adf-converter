@@ -1,5 +1,1 @@
-:::{ align="right" }
-
-## Heading
-
-:::
+## Heading {style="text-align: right;"}
