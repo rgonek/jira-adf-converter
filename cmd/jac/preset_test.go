@@ -51,12 +51,26 @@ func TestPresetConfig(t *testing.T) {
 		assert.Equal(t, converter.InlineCardURL, cfg.InlineCardStyle)
 		assert.Equal(t, converter.ExtensionStrip, cfg.Extensions.Default)
 	})
+
+	t.Run("pandoc", func(t *testing.T) {
+		cfg, err := presetConfig(presetPandoc)
+		require.NoError(t, err)
+		assert.Equal(t, converter.UnderlinePandoc, cfg.UnderlineStyle)
+		assert.Equal(t, converter.SubSupPandoc, cfg.SubSupStyle)
+		assert.Equal(t, converter.ColorPandoc, cfg.TextColorStyle)
+		assert.Equal(t, converter.ColorPandoc, cfg.BackgroundColorStyle)
+		assert.Equal(t, converter.MentionPandoc, cfg.MentionStyle)
+		assert.Equal(t, converter.AlignPandoc, cfg.AlignmentStyle)
+		assert.Equal(t, converter.ExpandPandoc, cfg.ExpandStyle)
+		assert.Equal(t, converter.InlineCardPandoc, cfg.InlineCardStyle)
+		assert.Equal(t, converter.TableAutoPandoc, cfg.TableMode)
+	})
 }
 
 func TestPresetConfigInvalid(t *testing.T) {
 	_, err := presetConfig("unknown")
 	require.Error(t, err)
-	assert.Equal(t, `unknown preset "unknown" (allowed: balanced, strict, readable, lossy)`, err.Error())
+	assert.Equal(t, `unknown preset "unknown" (allowed: balanced, strict, readable, lossy, pandoc)`, err.Error())
 }
 
 func TestResolveConfigPresetPrecedence(t *testing.T) {
@@ -113,12 +127,25 @@ func TestReversePresetConfig(t *testing.T) {
 		assert.Equal(t, mdconverter.ExpandDetectNone, cfg.ExpandDetection)
 		assert.Equal(t, mdconverter.DecisionDetectNone, cfg.DecisionDetection)
 	})
+
+	t.Run("pandoc", func(t *testing.T) {
+		cfg, err := reversePresetConfig(presetPandoc)
+		require.NoError(t, err)
+		assert.Equal(t, mdconverter.UnderlineDetectPandoc, cfg.UnderlineDetection)
+		assert.Equal(t, mdconverter.SubSupDetectPandoc, cfg.SubSupDetection)
+		assert.Equal(t, mdconverter.ColorDetectPandoc, cfg.ColorDetection)
+		assert.Equal(t, mdconverter.AlignDetectPandoc, cfg.AlignmentDetection)
+		assert.Equal(t, mdconverter.MentionDetectPandoc, cfg.MentionDetection)
+		assert.Equal(t, mdconverter.ExpandDetectPandoc, cfg.ExpandDetection)
+		assert.Equal(t, mdconverter.InlineCardDetectPandoc, cfg.InlineCardDetection)
+		assert.True(t, cfg.TableGridDetection)
+	})
 }
 
 func TestReversePresetConfigInvalid(t *testing.T) {
 	_, err := reversePresetConfig("unknown")
 	require.Error(t, err)
-	assert.Equal(t, `unknown preset "unknown" (allowed: balanced, strict, readable, lossy)`, err.Error())
+	assert.Equal(t, `unknown preset "unknown" (allowed: balanced, strict, readable, lossy, pandoc)`, err.Error())
 }
 
 func TestResolveReverseConfigPresetPrecedence(t *testing.T) {
@@ -131,5 +158,10 @@ func TestResolveReverseConfigPresetPrecedence(t *testing.T) {
 	assert.Equal(t, mdconverter.DateDetectISO, cfg.DateDetection)
 	assert.Equal(t, mdconverter.PanelDetectGitHub, cfg.PanelDetection)
 	assert.Equal(t, mdconverter.ExpandDetectHTML, cfg.ExpandDetection)
+	assert.Equal(t, mdconverter.AlignDetectHTML, cfg.AlignmentDetection)
+	assert.Equal(t, mdconverter.UnderlineDetectHTML, cfg.UnderlineDetection)
+	assert.Equal(t, mdconverter.SubSupDetectHTML, cfg.SubSupDetection)
+	assert.Equal(t, mdconverter.ColorDetectHTML, cfg.ColorDetection)
+	assert.Equal(t, mdconverter.InlineCardDetectLink, cfg.InlineCardDetection)
 	assert.Equal(t, mdconverter.DecisionDetectEmoji, cfg.DecisionDetection)
 }

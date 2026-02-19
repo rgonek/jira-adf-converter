@@ -16,6 +16,7 @@ const (
 	presetStrict   = "strict"
 	presetReadable = "readable"
 	presetLossy    = "lossy"
+	presetPandoc   = "pandoc"
 )
 
 func presetConfig(preset string) (converter.Config, error) {
@@ -52,8 +53,20 @@ func presetConfig(preset string) (converter.Config, error) {
 				Default: converter.ExtensionStrip,
 			},
 		}, nil
+	case presetPandoc:
+		return converter.Config{
+			UnderlineStyle:       converter.UnderlinePandoc,
+			SubSupStyle:          converter.SubSupPandoc,
+			TextColorStyle:       converter.ColorPandoc,
+			BackgroundColorStyle: converter.ColorPandoc,
+			MentionStyle:         converter.MentionPandoc,
+			AlignmentStyle:       converter.AlignPandoc,
+			ExpandStyle:          converter.ExpandPandoc,
+			InlineCardStyle:      converter.InlineCardPandoc,
+			TableMode:            converter.TableAutoPandoc,
+		}, nil
 	default:
-		return converter.Config{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy)", preset)
+		return converter.Config{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy, pandoc)", preset)
 	}
 }
 
@@ -111,8 +124,19 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 			ExpandDetection:   mdconverter.ExpandDetectNone,
 			DecisionDetection: mdconverter.DecisionDetectNone,
 		}, nil
+	case presetPandoc:
+		return mdconverter.ReverseConfig{
+			UnderlineDetection:  mdconverter.UnderlineDetectPandoc,
+			SubSupDetection:     mdconverter.SubSupDetectPandoc,
+			ColorDetection:      mdconverter.ColorDetectPandoc,
+			AlignmentDetection:  mdconverter.AlignDetectPandoc,
+			MentionDetection:    mdconverter.MentionDetectPandoc,
+			ExpandDetection:     mdconverter.ExpandDetectPandoc,
+			InlineCardDetection: mdconverter.InlineCardDetectPandoc,
+			TableGridDetection:  true,
+		}, nil
 	default:
-		return mdconverter.ReverseConfig{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy)", preset)
+		return mdconverter.ReverseConfig{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy, pandoc)", preset)
 	}
 }
 
@@ -123,8 +147,13 @@ func resolveReverseConfig(preset string, allowHTML, strict bool) (mdconverter.Re
 	}
 
 	if allowHTML {
+		cfg.UnderlineDetection = mdconverter.UnderlineDetectAll
+		cfg.SubSupDetection = mdconverter.SubSupDetectAll
+		cfg.ColorDetection = mdconverter.ColorDetectAll
+		cfg.AlignmentDetection = mdconverter.AlignDetectAll
 		cfg.MentionDetection = mdconverter.MentionDetectAll
 		cfg.ExpandDetection = mdconverter.ExpandDetectAll
+		cfg.InlineCardDetection = mdconverter.InlineCardDetectAll
 	}
 	if strict {
 		cfg.MentionDetection = mdconverter.MentionDetectLink
@@ -133,6 +162,11 @@ func resolveReverseConfig(preset string, allowHTML, strict bool) (mdconverter.Re
 		cfg.DateDetection = mdconverter.DateDetectISO
 		cfg.PanelDetection = mdconverter.PanelDetectGitHub
 		cfg.ExpandDetection = mdconverter.ExpandDetectHTML
+		cfg.AlignmentDetection = mdconverter.AlignDetectHTML
+		cfg.UnderlineDetection = mdconverter.UnderlineDetectHTML
+		cfg.SubSupDetection = mdconverter.SubSupDetectHTML
+		cfg.ColorDetection = mdconverter.ColorDetectHTML
+		cfg.InlineCardDetection = mdconverter.InlineCardDetectLink
 		cfg.DecisionDetection = mdconverter.DecisionDetectEmoji
 	}
 
@@ -143,7 +177,7 @@ func main() {
 	reverse := flag.Bool("reverse", false, "Convert Markdown to ADF JSON")
 	allowHTML := flag.Bool("allow-html", false, "Enable HTML output")
 	strict := flag.Bool("strict", false, "Return error on unknown nodes")
-	preset := flag.String("preset", presetBalanced, "Preset: balanced|strict|readable|lossy")
+	preset := flag.String("preset", presetBalanced, "Preset: balanced|strict|readable|lossy|pandoc")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: jac [options] <input-file>\n")
 		flag.PrintDefaults()

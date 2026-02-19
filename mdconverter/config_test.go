@@ -117,3 +117,19 @@ func TestReverseConfigValidateRejectsInvalidDetectionValues(t *testing.T) {
 		})
 	}
 }
+
+func TestReverseConfigNeedsPandocInlineExtension(t *testing.T) {
+	cfg := (ReverseConfig{}).applyDefaults()
+	assert.False(t, cfg.needsPandocInlineExtension())
+
+	cfg.SubSupDetection = SubSupDetectPandoc
+	assert.True(t, cfg.needsPandocInlineExtension())
+}
+
+func TestReverseConfigNeedsPandocBlockExtension(t *testing.T) {
+	cfg := (ReverseConfig{}).applyDefaults()
+	assert.False(t, cfg.needsPandocBlockExtension())
+
+	cfg.ExpandDetection = ExpandDetectPandoc
+	assert.True(t, cfg.needsPandocBlockExtension())
+}
