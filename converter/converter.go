@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode"
 )
 
 // Converter converts ADF to GFM
@@ -315,6 +316,16 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 		}
 
 		// Open new marks (in priority order)
+		textValue := node.Text
+		if shouldShiftWhitespaceForMarks(marksToOpen) && strings.TrimSpace(textValue) != "" {
+			trimmedLeft := strings.TrimLeftFunc(textValue, isMovableInlineWhitespace)
+			if len(trimmedLeft) < len(textValue) {
+				leadingWhitespace := textValue[:len(textValue)-len(trimmedLeft)]
+				sb.WriteString(leadingWhitespace)
+				textValue = trimmedLeft
+			}
+		}
+
 		for _, mark := range marksToOpen {
 			opening, err := s.getOpeningDelimiterForMark(mark, useUnderscoreForEm)
 			if err != nil {
@@ -327,7 +338,7 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 		if unknownPlaceholder.Len() > 0 {
 			sb.WriteString(unknownPlaceholder.String())
 		}
-		sb.WriteString(node.Text)
+		sb.WriteString(textValue)
 
 		// Update active marks
 		activeMarks = effectiveMarks
@@ -359,14 +370,63 @@ func ensureFenceLineStart(sb *strings.Builder) {
 
 // closeMarks closes the provided marks in reverse order
 func (s *state) closeMarks(marks []Mark, useUnderscoreForEm bool, sb *strings.Builder) error {
+	if len(marks) == 0 {
+		return nil
+	}
+
+	var closings strings.Builder
 	for i := len(marks) - 1; i >= 0; i-- {
 		closing, err := s.getClosingDelimiterForMark(marks[i], useUnderscoreForEm)
 		if err != nil {
 			return err
 		}
-		sb.WriteString(closing)
+		closings.WriteString(closing)
 	}
+
+	if shouldShiftWhitespaceForMarks(marks) {
+		appendOutsideTrailingWhitespace(sb, closings.String())
+		return nil
+	}
+
+	sb.WriteString(closings.String())
 	return nil
+}
+
+func appendOutsideTrailingWhitespace(sb *strings.Builder, value string) {
+	if value == "" {
+		return
+	}
+
+	content := sb.String()
+	trimmed := strings.TrimRightFunc(content, isMovableInlineWhitespace)
+	if len(trimmed) == len(content) {
+		sb.WriteString(value)
+		return
+	}
+
+	trailingWhitespace := content[len(trimmed):]
+	sb.Reset()
+	sb.WriteString(trimmed)
+	sb.WriteString(value)
+	sb.WriteString(trailingWhitespace)
+}
+
+func isMovableInlineWhitespace(r rune) bool {
+	return unicode.IsSpace(r) && r != '\n' && r != '\r'
+}
+
+func shouldShiftWhitespaceForMarks(marks []Mark) bool {
+	hasStrong := false
+	for _, mark := range marks {
+		switch mark.Type {
+		case "strong":
+			hasStrong = true
+		case "code":
+			return false
+		}
+	}
+
+	return hasStrong
 }
 
 // hasStrongAndEm checks if any text node in content has both strong and em marks
