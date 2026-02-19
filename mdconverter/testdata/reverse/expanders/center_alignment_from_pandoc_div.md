@@ -1,0 +1,5 @@
+:::{ align="center" }
+
+Centered text
+
+:::

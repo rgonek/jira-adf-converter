@@ -50,6 +50,10 @@ func (s *state) convertBlockNode(node ast.Node) (converter.Node, bool, error) {
 		return s.convertHTMLBlockNode(typed)
 	case *extast.Table:
 		return s.convertTableNode(typed)
+	case *PandocDivNode:
+		return s.convertPandocDivNode(typed)
+	case *PandocGridTableNode:
+		return s.convertPandocGridTableNode(typed)
 	default:
 		nodeKind := typed.Kind().String()
 		textValue := strings.TrimSpace(string(node.Text(s.source)))
@@ -187,6 +191,14 @@ func (s *state) shouldDetectExpandHTML() bool {
 }
 
 func (s *state) appendConvertedBlock(content []converter.Node, next converter.Node, mergeNextParagraph *bool) []converter.Node {
+	if next.Type == "layoutSection" {
+		*mergeNextParagraph = false
+		for _, child := range next.Content {
+			content = s.appendConvertedBlock(content, child, mergeNextParagraph)
+		}
+		return content
+	}
+
 	if isInlineBlockNodeType(next.Type) {
 		if len(content) == 0 || content[len(content)-1].Type != "paragraph" {
 			content = append(content, converter.Node{

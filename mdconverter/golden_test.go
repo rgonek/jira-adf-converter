@@ -45,6 +45,7 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 		cfg.AlignmentDetection = AlignDetectPandoc
 		cfg.ExpandDetection = ExpandDetectPandoc
 		cfg.InlineCardDetection = InlineCardDetectPandoc
+		cfg.TableGridDetection = true
 	}
 	if strings.Contains(path, string(filepath.Separator)+"panels"+string(filepath.Separator)) {
 		cfg.PanelDetection = PanelDetectBold
@@ -67,7 +68,9 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 	if strings.Contains(base, "status_text") {
 		cfg.StatusDetection = StatusDetectText
 	}
-	if strings.Contains(path, string(filepath.Separator)+"expanders"+string(filepath.Separator)) {
+	if strings.Contains(path, string(filepath.Separator)+"expanders"+string(filepath.Separator)) &&
+		!strings.Contains(base, "_pandoc") &&
+		!strings.HasPrefix(base, "pandoc_") {
 		cfg.ExpandDetection = ExpandDetectBlockquote
 	}
 	if strings.Contains(base, "expand_html") {
@@ -98,6 +101,17 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 	}
 	if strings.Contains(base, "pandoc_span_detection_disabled") {
 		cfg.UnderlineDetection = UnderlineDetectNone
+	}
+	if strings.Contains(base, "pandoc_div_detection_disabled") {
+		cfg.ExpandDetection = ExpandDetectNone
+		cfg.AlignmentDetection = AlignDetectNone
+	}
+	if strings.Contains(base, "unknown_div_class_fallback") {
+		cfg.ExpandDetection = ExpandDetectPandoc
+		cfg.AlignmentDetection = AlignDetectPandoc
+	}
+	if strings.Contains(base, "grid_table_") {
+		cfg.TableGridDetection = true
 	}
 
 	return cfg
@@ -181,6 +195,16 @@ func TestReverseGoldenFiles(t *testing.T) {
 		"reverse/inline/background_color_from_pandoc_span",
 		"reverse/inline/pandoc_span_adjacent_to_link",
 		"reverse/inline/pandoc_span_detection_disabled",
+		"reverse/expanders/expand_from_pandoc_div",
+		"reverse/expanders/expand_no_title_from_pandoc_div",
+		"reverse/expanders/nested_expand_from_pandoc_divs",
+		"reverse/expanders/center_alignment_from_pandoc_div",
+		"reverse/expanders/right_alignment_from_pandoc_div",
+		"reverse/expanders/unknown_div_class_fallback",
+		"reverse/expanders/pandoc_div_detection_disabled",
+		"reverse/tables/grid_table_with_header",
+		"reverse/tables/grid_table_no_header_separator",
+		"reverse/tables/grid_table_multiline_cell",
 		"reverse/blocks/heading_offset1_align_html",
 		"reverse/media/media_baseurl_strip_absolute",
 		"reverse/inline/mention_boundary_retry",
