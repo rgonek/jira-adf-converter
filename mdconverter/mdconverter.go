@@ -20,14 +20,15 @@ type Converter struct {
 }
 
 type state struct {
-	config           ReverseConfig
-	ctx              context.Context
-	options          ConvertOptions
-	source           []byte
-	parser           goldmark.Markdown
-	warnings         []converter.Warning
-	htmlMentionStack []string
-	htmlSpanStack    []htmlSpanContext
+	config            ReverseConfig
+	ctx               context.Context
+	options           ConvertOptions
+	source            []byte
+	parser            goldmark.Markdown
+	warnings          []converter.Warning
+	htmlMentionStack  []string
+	htmlSpanStack     []htmlSpanContext
+	pandocExpandDepth int
 }
 
 // New creates a new reverse Converter with the given config.
@@ -46,6 +47,20 @@ func New(config ReverseConfig) (*Converter, error) {
 				util.Prioritized(NewSubscriptParser(), 79),
 				util.Prioritized(NewSuperscriptParser(), 79),
 				util.Prioritized(NewPandocSpanParser(), 79),
+			),
+		))
+	}
+	if cfg.needsPandocBlockExtension() {
+		options = append(options, goldmark.WithParserOptions(
+			parser.WithBlockParsers(
+				util.Prioritized(NewPandocDivParser(), 500),
+			),
+		))
+	}
+	if cfg.TableGridDetection {
+		options = append(options, goldmark.WithParserOptions(
+			parser.WithBlockParsers(
+				util.Prioritized(NewPandocGridTableParser(), 501),
 			),
 		))
 	}

@@ -142,6 +142,7 @@ type ReverseConfig struct {
 	PanelDetection      PanelDetection      `json:"panelDetection,omitempty"`
 	ExpandDetection     ExpandDetection     `json:"expandDetection,omitempty"`
 	InlineCardDetection InlineCardDetection `json:"inlineCardDetection,omitempty"`
+	TableGridDetection  bool                `json:"tableGridDetection,omitempty"`
 	DecisionDetection   DecisionDetection   `json:"decisionDetection,omitempty"`
 
 	DateFormat      string            `json:"dateFormat,omitempty"`

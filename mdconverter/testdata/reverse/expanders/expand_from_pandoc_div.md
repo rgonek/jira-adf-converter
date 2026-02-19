@@ -1,0 +1,5 @@
+:::{ .details summary="Title" }
+
+Body
+
+:::
