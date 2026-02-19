@@ -37,6 +37,50 @@ func (s *state) shouldDetectMentionHTML() bool {
 	return s.config.MentionDetection == MentionDetectHTML || s.config.MentionDetection == MentionDetectAll
 }
 
+func (s *state) shouldDetectMentionPandoc() bool {
+	return s.config.MentionDetection == MentionDetectPandoc || s.config.MentionDetection == MentionDetectAll
+}
+
+func (s *state) shouldDetectUnderlineHTML() bool {
+	return s.config.UnderlineDetection == UnderlineDetectHTML || s.config.UnderlineDetection == UnderlineDetectAll
+}
+
+func (s *state) shouldDetectUnderlinePandoc() bool {
+	return s.config.UnderlineDetection == UnderlineDetectPandoc || s.config.UnderlineDetection == UnderlineDetectAll
+}
+
+func (s *state) shouldDetectSubSupHTML() bool {
+	return s.config.SubSupDetection == SubSupDetectHTML || s.config.SubSupDetection == SubSupDetectAll
+}
+
+func (s *state) shouldDetectSubSupPandoc() bool {
+	return s.config.SubSupDetection == SubSupDetectPandoc || s.config.SubSupDetection == SubSupDetectAll
+}
+
+func (s *state) shouldDetectColorHTML() bool {
+	return s.config.ColorDetection == ColorDetectHTML || s.config.ColorDetection == ColorDetectAll
+}
+
+func (s *state) shouldDetectColorPandoc() bool {
+	return s.config.ColorDetection == ColorDetectPandoc || s.config.ColorDetection == ColorDetectAll
+}
+
+func (s *state) shouldDetectAlignHTML() bool {
+	return s.config.AlignmentDetection == AlignDetectHTML || s.config.AlignmentDetection == AlignDetectAll
+}
+
+func (s *state) shouldDetectAlignPandoc() bool {
+	return s.config.AlignmentDetection == AlignDetectPandoc || s.config.AlignmentDetection == AlignDetectAll
+}
+
+func (s *state) shouldDetectExpandPandoc() bool {
+	return s.config.ExpandDetection == ExpandDetectPandoc || s.config.ExpandDetection == ExpandDetectAll
+}
+
+func (s *state) shouldDetectInlineCardPandoc() bool {
+	return s.config.InlineCardDetection == InlineCardDetectPandoc || s.config.InlineCardDetection == InlineCardDetectAll
+}
+
 func (s *state) shouldDetectEmoji() bool {
 	return s.config.EmojiDetection == EmojiDetectShortcode || s.config.EmojiDetection == EmojiDetectAll
 }

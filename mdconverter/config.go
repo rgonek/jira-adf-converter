@@ -10,11 +10,52 @@ import (
 type MentionDetection string
 
 const (
-	MentionDetectNone MentionDetection = "none"
-	MentionDetectLink MentionDetection = "link"
-	MentionDetectAt   MentionDetection = "at"
-	MentionDetectHTML MentionDetection = "html"
-	MentionDetectAll  MentionDetection = "all"
+	MentionDetectNone   MentionDetection = "none"
+	MentionDetectLink   MentionDetection = "link"
+	MentionDetectAt     MentionDetection = "at"
+	MentionDetectHTML   MentionDetection = "html"
+	MentionDetectPandoc MentionDetection = "pandoc"
+	MentionDetectAll    MentionDetection = "all"
+)
+
+// UnderlineDetection controls how underline marks are reconstructed.
+type UnderlineDetection string
+
+const (
+	UnderlineDetectNone   UnderlineDetection = "none"
+	UnderlineDetectHTML   UnderlineDetection = "html"
+	UnderlineDetectPandoc UnderlineDetection = "pandoc"
+	UnderlineDetectAll    UnderlineDetection = "all"
+)
+
+// SubSupDetection controls how subscript/superscript marks are reconstructed.
+type SubSupDetection string
+
+const (
+	SubSupDetectNone   SubSupDetection = "none"
+	SubSupDetectHTML   SubSupDetection = "html"
+	SubSupDetectPandoc SubSupDetection = "pandoc"
+	SubSupDetectAll    SubSupDetection = "all"
+)
+
+// ColorDetection controls how color marks are reconstructed.
+type ColorDetection string
+
+const (
+	ColorDetectNone   ColorDetection = "none"
+	ColorDetectHTML   ColorDetection = "html"
+	ColorDetectPandoc ColorDetection = "pandoc"
+	ColorDetectAll    ColorDetection = "all"
+)
+
+// AlignmentDetection controls how alignment is reconstructed.
+type AlignmentDetection string
+
+const (
+	AlignDetectNone   AlignmentDetection = "none"
+	AlignDetectHTML   AlignmentDetection = "html"
+	AlignDetectPandoc AlignmentDetection = "pandoc"
+	AlignDetectAll    AlignmentDetection = "all"
 )
 
 // EmojiDetection controls how emoji nodes are reconstructed.
@@ -64,7 +105,18 @@ const (
 	ExpandDetectNone       ExpandDetection = "none"
 	ExpandDetectBlockquote ExpandDetection = "blockquote"
 	ExpandDetectHTML       ExpandDetection = "html"
+	ExpandDetectPandoc     ExpandDetection = "pandoc"
 	ExpandDetectAll        ExpandDetection = "all"
+)
+
+// InlineCardDetection controls how inline cards are reconstructed.
+type InlineCardDetection string
+
+const (
+	InlineCardDetectNone   InlineCardDetection = "none"
+	InlineCardDetectLink   InlineCardDetection = "link"
+	InlineCardDetectPandoc InlineCardDetection = "pandoc"
+	InlineCardDetectAll    InlineCardDetection = "all"
 )
 
 // DecisionDetection controls how decision blocks are reconstructed.
@@ -79,13 +131,18 @@ const (
 
 // ReverseConfig configures Markdown to ADF conversion behavior.
 type ReverseConfig struct {
-	MentionDetection  MentionDetection  `json:"mentionDetection,omitempty"`
-	EmojiDetection    EmojiDetection    `json:"emojiDetection,omitempty"`
-	StatusDetection   StatusDetection   `json:"statusDetection,omitempty"`
-	DateDetection     DateDetection     `json:"dateDetection,omitempty"`
-	PanelDetection    PanelDetection    `json:"panelDetection,omitempty"`
-	ExpandDetection   ExpandDetection   `json:"expandDetection,omitempty"`
-	DecisionDetection DecisionDetection `json:"decisionDetection,omitempty"`
+	MentionDetection    MentionDetection    `json:"mentionDetection,omitempty"`
+	UnderlineDetection  UnderlineDetection  `json:"underlineDetection,omitempty"`
+	SubSupDetection     SubSupDetection     `json:"subSupDetection,omitempty"`
+	ColorDetection      ColorDetection      `json:"colorDetection,omitempty"`
+	AlignmentDetection  AlignmentDetection  `json:"alignmentDetection,omitempty"`
+	EmojiDetection      EmojiDetection      `json:"emojiDetection,omitempty"`
+	StatusDetection     StatusDetection     `json:"statusDetection,omitempty"`
+	DateDetection       DateDetection       `json:"dateDetection,omitempty"`
+	PanelDetection      PanelDetection      `json:"panelDetection,omitempty"`
+	ExpandDetection     ExpandDetection     `json:"expandDetection,omitempty"`
+	InlineCardDetection InlineCardDetection `json:"inlineCardDetection,omitempty"`
+	DecisionDetection   DecisionDetection   `json:"decisionDetection,omitempty"`
 
 	DateFormat      string            `json:"dateFormat,omitempty"`
 	HeadingOffset   int               `json:"headingOffset,omitempty"`
@@ -102,6 +159,18 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 	if c.MentionDetection == "" {
 		c.MentionDetection = MentionDetectLink
 	}
+	if c.UnderlineDetection == "" {
+		c.UnderlineDetection = UnderlineDetectHTML
+	}
+	if c.SubSupDetection == "" {
+		c.SubSupDetection = SubSupDetectHTML
+	}
+	if c.ColorDetection == "" {
+		c.ColorDetection = ColorDetectHTML
+	}
+	if c.AlignmentDetection == "" {
+		c.AlignmentDetection = AlignDetectHTML
+	}
 	if c.EmojiDetection == "" {
 		c.EmojiDetection = EmojiDetectShortcode
 	}
@@ -116,6 +185,9 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 	}
 	if c.ExpandDetection == "" {
 		c.ExpandDetection = ExpandDetectHTML
+	}
+	if c.InlineCardDetection == "" {
+		c.InlineCardDetection = InlineCardDetectNone
 	}
 	if c.DecisionDetection == "" {
 		c.DecisionDetection = DecisionDetectEmoji
@@ -146,8 +218,37 @@ func (c ReverseConfig) Validate() error {
 		c.MentionDetection != MentionDetectLink &&
 		c.MentionDetection != MentionDetectAt &&
 		c.MentionDetection != MentionDetectHTML &&
+		c.MentionDetection != MentionDetectPandoc &&
 		c.MentionDetection != MentionDetectAll {
 		return fmt.Errorf("invalid mentionDetection %q", c.MentionDetection)
+	}
+
+	if c.UnderlineDetection != UnderlineDetectNone &&
+		c.UnderlineDetection != UnderlineDetectHTML &&
+		c.UnderlineDetection != UnderlineDetectPandoc &&
+		c.UnderlineDetection != UnderlineDetectAll {
+		return fmt.Errorf("invalid underlineDetection %q", c.UnderlineDetection)
+	}
+
+	if c.SubSupDetection != SubSupDetectNone &&
+		c.SubSupDetection != SubSupDetectHTML &&
+		c.SubSupDetection != SubSupDetectPandoc &&
+		c.SubSupDetection != SubSupDetectAll {
+		return fmt.Errorf("invalid subSupDetection %q", c.SubSupDetection)
+	}
+
+	if c.ColorDetection != ColorDetectNone &&
+		c.ColorDetection != ColorDetectHTML &&
+		c.ColorDetection != ColorDetectPandoc &&
+		c.ColorDetection != ColorDetectAll {
+		return fmt.Errorf("invalid colorDetection %q", c.ColorDetection)
+	}
+
+	if c.AlignmentDetection != AlignDetectNone &&
+		c.AlignmentDetection != AlignDetectHTML &&
+		c.AlignmentDetection != AlignDetectPandoc &&
+		c.AlignmentDetection != AlignDetectAll {
+		return fmt.Errorf("invalid alignmentDetection %q", c.AlignmentDetection)
 	}
 
 	if c.EmojiDetection != EmojiDetectNone &&
@@ -181,8 +282,16 @@ func (c ReverseConfig) Validate() error {
 	if c.ExpandDetection != ExpandDetectNone &&
 		c.ExpandDetection != ExpandDetectBlockquote &&
 		c.ExpandDetection != ExpandDetectHTML &&
+		c.ExpandDetection != ExpandDetectPandoc &&
 		c.ExpandDetection != ExpandDetectAll {
 		return fmt.Errorf("invalid expandDetection %q", c.ExpandDetection)
+	}
+
+	if c.InlineCardDetection != InlineCardDetectNone &&
+		c.InlineCardDetection != InlineCardDetectLink &&
+		c.InlineCardDetection != InlineCardDetectPandoc &&
+		c.InlineCardDetection != InlineCardDetectAll {
+		return fmt.Errorf("invalid inlineCardDetection %q", c.InlineCardDetection)
 	}
 
 	if c.DecisionDetection != DecisionDetectNone &&

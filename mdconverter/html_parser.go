@@ -39,34 +39,46 @@ func (s *state) convertRawHTML(rawHTML string, stack *markStack) []converter.Nod
 
 	switch lower {
 	case openingUnderlineTag:
-		stack.push(converter.Mark{Type: "underline"})
+		if s.shouldDetectUnderlineHTML() {
+			stack.push(converter.Mark{Type: "underline"})
+		}
 		return nil
 	case closingUnderlineTag:
-		stack.popByType("underline")
+		if s.shouldDetectUnderlineHTML() {
+			stack.popByType("underline")
+		}
 		return nil
 
 	case openingSubTag:
-		stack.push(converter.Mark{
-			Type: "subsup",
-			Attrs: map[string]interface{}{
-				"type": "sub",
-			},
-		})
+		if s.shouldDetectSubSupHTML() {
+			stack.push(converter.Mark{
+				Type: "subsup",
+				Attrs: map[string]interface{}{
+					"type": "sub",
+				},
+			})
+		}
 		return nil
 	case closingSubTag:
-		stack.popByType("subsup")
+		if s.shouldDetectSubSupHTML() {
+			stack.popByType("subsup")
+		}
 		return nil
 
 	case openingSupTag:
-		stack.push(converter.Mark{
-			Type: "subsup",
-			Attrs: map[string]interface{}{
-				"type": "sup",
-			},
-		})
+		if s.shouldDetectSubSupHTML() {
+			stack.push(converter.Mark{
+				Type: "subsup",
+				Attrs: map[string]interface{}{
+					"type": "sup",
+				},
+			})
+		}
 		return nil
 	case closingSupTag:
-		stack.popByType("subsup")
+		if s.shouldDetectSubSupHTML() {
+			stack.popByType("subsup")
+		}
 		return nil
 
 	case hardBreakTag1, hardBreakTag2, hardBreakTag3:
@@ -80,7 +92,7 @@ func (s *state) convertRawHTML(rawHTML string, stack *markStack) []converter.Nod
 			return nil
 		}
 
-		if color, ok := extractSpanStyleColor(trimmed, true); ok {
+		if color, ok := extractSpanStyleColor(trimmed, true); ok && s.shouldDetectColorHTML() {
 			stack.push(converter.Mark{
 				Type: "backgroundColor",
 				Attrs: map[string]interface{}{
@@ -90,7 +102,7 @@ func (s *state) convertRawHTML(rawHTML string, stack *markStack) []converter.Nod
 			s.pushHTMLSpanContext(htmlSpanBackgroundColor)
 			return nil
 		}
-		if color, ok := extractSpanStyleColor(trimmed, false); ok {
+		if color, ok := extractSpanStyleColor(trimmed, false); ok && s.shouldDetectColorHTML() {
 			stack.push(converter.Mark{
 				Type: "textColor",
 				Attrs: map[string]interface{}{
