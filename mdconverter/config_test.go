@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/rgonek/jira-adf-converter/converter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -132,4 +133,27 @@ func TestReverseConfigNeedsPandocBlockExtension(t *testing.T) {
 
 	cfg.ExpandDetection = ExpandDetectPandoc
 	assert.True(t, cfg.needsPandocBlockExtension())
+
+	cfg = (ReverseConfig{}).applyDefaults()
+	cfg.ExtensionHandlers = map[string]converter.ExtensionHandler{
+		"test": &mockExtensionHandler{},
+	}
+	assert.True(t, cfg.needsPandocBlockExtension())
+}
+
+func TestReverseConfigClonePreservesExtensionHandlers(t *testing.T) {
+	handler := &mockExtensionHandler{}
+	cfg := ReverseConfig{
+		ExtensionHandlers: map[string]converter.ExtensionHandler{
+			"test": handler,
+		},
+	}
+
+	cloned := cfg.clone()
+	assert.NotNil(t, cloned.ExtensionHandlers)
+	assert.Equal(t, handler, cloned.ExtensionHandlers["test"])
+
+	// Verify it's a new map
+	cloned.ExtensionHandlers["new"] = handler
+	assert.NotContains(t, cfg.ExtensionHandlers, "new")
 }

@@ -216,3 +216,20 @@ func TestValidateDateFormatAcceptsSingleDigitLayoutTokens(t *testing.T) {
 
 	require.NoError(t, cfg.Validate())
 }
+
+func TestConfigClonePreservesExtensionHandlers(t *testing.T) {
+	handler := &mockExtensionHandler{}
+	cfg := Config{
+		ExtensionHandlers: map[string]ExtensionHandler{
+			"test": handler,
+		},
+	}
+
+	cloned := cfg.clone()
+	assert.NotNil(t, cloned.ExtensionHandlers)
+	assert.Equal(t, handler, cloned.ExtensionHandlers["test"])
+
+	// Verify it's a new map
+	cloned.ExtensionHandlers["new"] = handler
+	assert.NotContains(t, cfg.ExtensionHandlers, "new")
+}

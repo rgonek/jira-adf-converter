@@ -3,11 +3,48 @@ package converter
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 )
 
 func (s *state) convertExtension(node Node) (string, error) {
+	extensionKey := node.GetStringAttr("extensionKey", "")
+	if extensionKey != "" && s.config.ExtensionHandlers != nil {
+		if handler, ok := s.config.ExtensionHandlers[extensionKey]; ok {
+			input := ExtensionRenderInput{
+				SourcePath: s.options.SourcePath,
+				Node:       node,
+			}
+			output, err := handler.ToMarkdown(s.ctx, input)
+			if err != nil {
+				return "", err
+			}
+			if output.Handled {
+				var sb strings.Builder
+				sb.WriteString("::: { .adf-extension ")
+				sb.WriteString(fmt.Sprintf("key=%q", extensionKey))
+
+				keys := make([]string, 0, len(output.Metadata))
+				for k := range output.Metadata {
+					keys = append(keys, k)
+				}
+				sort.Strings(keys)
+				for _, k := range keys {
+					sb.WriteString(fmt.Sprintf(" %s=%q", k, output.Metadata[k]))
+				}
+				sb.WriteString(" }\n")
+				sb.WriteString(output.Markdown)
+				if !strings.HasSuffix(output.Markdown, "\n") {
+					sb.WriteString("\n")
+				}
+				sb.WriteString(":::\n\n")
+				return sb.String(), nil
+			}
+		}
+	}
+
 	extensionType := node.GetStringAttr("extensionType", "")
+
 	if extensionType == "" {
 		extensionType = node.GetStringAttr("extensionKey", "")
 	}

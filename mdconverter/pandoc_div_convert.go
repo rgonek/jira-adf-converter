@@ -90,7 +90,37 @@ func (s *state) convertPandocDivNode(node *PandocDivNode) (converter.Node, bool,
 		}
 	}
 
+	if hasPandocClass(node.Classes, "adf-extension") {
+		extensionKey := node.Attrs["key"]
+		if extensionKey != "" && s.config.ExtensionHandlers != nil {
+			if handler, ok := s.config.ExtensionHandlers[extensionKey]; ok {
+				metadata := make(map[string]string)
+				for k, v := range node.Attrs {
+					if k != "key" {
+						metadata[k] = v
+					}
+				}
+
+				input := converter.ExtensionParseInput{
+					SourcePath:   s.options.SourcePath,
+					ExtensionKey: extensionKey,
+					Body:         node.Body(),
+					Metadata:     metadata,
+				}
+
+				output, err := handler.FromMarkdown(s.ctx, input)
+				if err != nil {
+					return converter.Node{}, false, err
+				}
+				if output.Handled {
+					return output.Node, true, nil
+				}
+			}
+		}
+	}
+
 	if hasUnknownPandocDivClass(node.Classes) {
+
 		s.addWarning(converter.WarningDroppedFeature, "pandocDiv", "unknown pandoc div class converted to blockquote")
 		content, err := s.convertBlockFragment(node.Body())
 		if err != nil {

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/rgonek/jira-adf-converter/converter"
 )
 
 // MentionDetection controls how mention nodes are reconstructed.
@@ -145,15 +147,16 @@ type ReverseConfig struct {
 	TableGridDetection  bool                `json:"tableGridDetection,omitempty"`
 	DecisionDetection   DecisionDetection   `json:"decisionDetection,omitempty"`
 
-	DateFormat      string            `json:"dateFormat,omitempty"`
-	HeadingOffset   int               `json:"headingOffset,omitempty"`
-	LanguageMap     map[string]string `json:"languageMap,omitempty"`
-	MediaBaseURL    string            `json:"mediaBaseURL,omitempty"`
-	MentionRegistry map[string]string `json:"mentionRegistry,omitempty"`
-	EmojiRegistry   map[string]string `json:"emojiRegistry,omitempty"`
-	ResolutionMode  ResolutionMode    `json:"resolutionMode,omitempty"`
-	LinkHook        LinkParseHook     `json:"-"`
-	MediaHook       MediaParseHook    `json:"-"`
+	DateFormat        string                                `json:"dateFormat,omitempty"`
+	HeadingOffset     int                                   `json:"headingOffset,omitempty"`
+	LanguageMap       map[string]string                     `json:"languageMap,omitempty"`
+	MediaBaseURL      string                                `json:"mediaBaseURL,omitempty"`
+	MentionRegistry   map[string]string                     `json:"mentionRegistry,omitempty"`
+	EmojiRegistry     map[string]string                     `json:"emojiRegistry,omitempty"`
+	ResolutionMode    ResolutionMode                        `json:"resolutionMode,omitempty"`
+	LinkHook          LinkParseHook                         `json:"-"`
+	MediaHook         MediaParseHook                        `json:"-"`
+	ExtensionHandlers map[string]converter.ExtensionHandler `json:"-"`
 }
 
 func (c ReverseConfig) applyDefaults() ReverseConfig {
@@ -210,6 +213,7 @@ func (c ReverseConfig) clone() ReverseConfig {
 	cloned.EmojiRegistry = cloneStringMap(c.EmojiRegistry)
 	cloned.LinkHook = c.LinkHook
 	cloned.MediaHook = c.MediaHook
+	cloned.ExtensionHandlers = cloneExtensionHandlerMap(c.ExtensionHandlers)
 	return cloned
 }
 
@@ -345,7 +349,8 @@ func (c ReverseConfig) needsPandocInlineExtension() bool {
 
 func (c ReverseConfig) needsPandocBlockExtension() bool {
 	return c.ExpandDetection == ExpandDetectPandoc || c.ExpandDetection == ExpandDetectAll ||
-		c.AlignmentDetection == AlignDetectPandoc || c.AlignmentDetection == AlignDetectAll
+		c.AlignmentDetection == AlignDetectPandoc || c.AlignmentDetection == AlignDetectAll ||
+		len(c.ExtensionHandlers) > 0
 }
 
 func hasDateReferenceTokens(format string) bool {
@@ -375,6 +380,19 @@ func cloneStringMap(src map[string]string) map[string]string {
 	}
 
 	dst := make(map[string]string, len(src))
+	for key, value := range src {
+		dst[key] = value
+	}
+
+	return dst
+}
+
+func cloneExtensionHandlerMap(src map[string]converter.ExtensionHandler) map[string]converter.ExtensionHandler {
+	if src == nil {
+		return nil
+	}
+
+	dst := make(map[string]converter.ExtensionHandler, len(src))
 	for key, value := range src {
 		dst[key] = value
 	}
