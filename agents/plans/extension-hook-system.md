@@ -1,97 +1,121 @@
 # Plan: Registry-based Extension Hook System
 
-This plan outlines the implementation of a Registry-based Extension Hook system to support custom transformations of ADF extensions (macros) in both forward (ADF -> Markdown) and reverse (Markdown -> ADF) directions.
+## Context
 
-## Objectives
-- Allow users to register custom handlers for specific ADF extensions (e.g., `plantumlcloud`).
-- Support rendering extensions as clean, human-readable Markdown (e.g., code blocks with specific languages).
-- Support reconstructing original ADF extension nodes from Markdown patterns.
-- Ensure round-trip safety and support for metadata.
+ADF extension nodes (e.g., PlantUML macros) currently render as raw JSON inside ` ```adf:extension ` code blocks. Users want to render specific extensions as clean, human-readable Markdown (e.g., PlantUML code blocks with metadata in HTML comments) and reconstruct the original ADF nodes on the way back. This requires a hook system where library consumers register custom handlers per extension type. No built-in handlers are shipped — only the framework/interface.
 
-## Proposed Changes
+## Approach
 
-### 1. Define `ExtensionHandler` Interface
-Location: `converter/extensions.go` (or a new file `converter/extension_handler.go`)
+Add an `ExtensionHandler` interface following the existing `LinkRenderHook`/`MediaRenderHook` pattern (typed Input/Output structs, `context.Context`). Register handlers on both `Config` and `ReverseConfig`. Forward direction checks handlers before the existing `ExtensionMode` strategy. Reverse direction checks handlers in two places: the `convertBlockSlice` walker (for HTML comment + code block pairs) and `parseExtensionFence` (for standalone code blocks without metadata).
+
+## Files to Create/Modify
+
+### 1. NEW: `converter/extension_handler.go` — Interface & Types
 
 ```go
-package converter
+type ExtensionRenderInput struct {
+    SourcePath string
+    Node       Node
+}
 
-// ExtensionHandler defines the interface for custom ADF extension transformations.
+type ExtensionRenderOutput struct {
+    Markdown string
+    Handled  bool
+}
+
+type ExtensionParseInput struct {
+    SourcePath string
+    Language   string
+    Body       string
+    Metadata   map[string]any  // from HTML comment, nil if absent
+}
+
+type ExtensionParseOutput struct {
+    Node    Node
+    Handled bool
+}
+
 type ExtensionHandler interface {
-	// ToMarkdown converts an ADF extension node's attributes and parameters to Markdown.
-	// attrs contains the node's standard attributes (extensionKey, extensionType, etc.).
-	// parameters contains the extension-specific parameters.
-	ToMarkdown(attrs map[string]any, parameters map[string]any) (string, error)
-
-	// FromMarkdown reconstructs the ADF extension's attributes/parameters from Markdown content and metadata.
-	// markdownContent is the content of the detected pattern (e.g., code block body).
-	// metadata can contain additional information extracted from the Markdown.
-	// It returns a map of attributes to be merged into the ADF extension node.
-	// If the map contains a "type" key, it will be used as the ADF node type (extension, inlineExtension).
-	// Otherwise, it defaults to "extension".
-	// NOTE: Initial implementation focuses on extension and inlineExtension. 
-	// bodiedExtension support is deferred.
-	FromMarkdown(markdownContent string, metadata map[string]any) (map[string]any, error)
+    ToMarkdown(ctx context.Context, in ExtensionRenderInput) (ExtensionRenderOutput, error)
+    FromMarkdown(ctx context.Context, in ExtensionParseInput) (ExtensionParseOutput, error)
 }
 ```
 
-### 2. Update Configuration Structs
+Follows the typed Input/Output struct pattern from `converter/hooks.go`. Uses interface (not function type) because the handler binds both directions together. `Handled bool` allows handlers to decline and fall back to default behavior.
 
-#### `converter.Config` (Forward Direction)
-Location: `converter/config.go`
+### 2. MODIFY: `converter/config.go`
 
-- Add `ExtensionHandlers map[string]ExtensionHandler` to `Config`.
-- Key: `extensionKey` (primary) or `extensionType` (fallback).
-- Mark as `json:"-"` to exclude from serialization.
+- Add `ExtensionHandlers map[string]ExtensionHandler` field to `Config` (json:"-"), keyed by `extensionKey`
+- Add `cloneExtensionHandlerMap` helper (shallow copy of map, interfaces are reference-semantic)
+- Update `clone()` to copy the map
 
-#### `mdconverter.ReverseConfig` (Reverse Direction)
-Location: `mdconverter/config.go`
+### 3. MODIFY: `converter/extensions.go`
 
-- Add `ExtensionHandlers map[string]ExtensionHandler` to `ReverseConfig`.
-- Key: Identifier for the Markdown pattern (e.g., code block language like `puml`).
-- Mark as `json:"-"`.
+In `convertExtension()`, before the strategy switch:
+1. Look up handler by `extensionKey` from `s.config.ExtensionHandlers`
+2. If found, call `handler.ToMarkdown(s.ctx, input)`
+3. If `Handled: true`, return the markdown; if `Handled: false`, fall through to existing strategy logic
 
-### 3. Modify ADF Renderer (Forward)
-Location: `converter/extensions.go`
+### 4. MODIFY: `mdconverter/config.go`
 
-Modify `convertExtension(node Node)`:
-1. Identify `extensionKey` (defaulting to `extensionType`).
-2. Check if a handler exists in `s.config.ExtensionHandlers` for this key.
-3. If found:
-   - Extract `parameters` from `node.Attrs["parameters"]` (if they exist).
-   - Call `handler.ToMarkdown(node.Attrs, parameters)`.
-   - Return the resulting string.
-4. If not found, proceed with existing `ExtensionMode` logic (`json`, `text`, `strip`).
+- Add `ExtensionHandlers map[string]converter.ExtensionHandler` field to `ReverseConfig` (json:"-"), keyed by code block language
+- Add `cloneExtensionHandlerMap` helper
+- Update `clone()` to copy the map
 
-### 4. Modify Markdown Parser (Reverse)
-Location: `mdconverter/extensions.go`
+### 5. MODIFY: `mdconverter/extensions.go`
 
-Modify `parseExtensionFence(language, body string)`:
-1. Normalize `language`.
-2. Check if a handler exists in `s.config.ExtensionHandlers` for this language.
-3. If found:
-   - Call `handler.FromMarkdown(body, nil)` (metadata support can be added later if needed).
-   - Construct a `converter.Node` using the returned attributes.
-   - The `type` of the node should probably be part of what `FromMarkdown` returns or inferred.
-     *Recommendation*: `FromMarkdown` should return a map that includes the `type` (extension, inlineExtension, bodiedExtension) and all necessary `attrs`.
-4. If not found, proceed with existing `adf:extension` logic.
+- In `parseExtensionFence()`, before the `switch` on language: check `s.config.ExtensionHandlers[language]`, call `handler.FromMarkdown()` with `metadata: nil`
+- Add `parseExtensionComment(node, source)` — regex-based parser for `<!-- adf:extension <key> <json> -->`
+- Add `applyExtensionParseHandler()` helper
 
-### 5. Metadata Support
-To support metadata (like original filenames or layout settings) that doesn't fit in the code block body:
-- For Forward: Handlers can include metadata in the Markdown (e.g., as HTML comments or specifically formatted text).
-- For Reverse: We may need to update the `walker` or provide a way for handlers to peek at surrounding context. *Initial implementation will focus on code block body.*
+### 6. MODIFY: `mdconverter/walker.go`
 
-## Verification Plan
+In `convertBlockSlice()`, add a peek-ahead block (following the `consumeDetailsBlock` pattern):
+1. If current child is `*ast.HTMLBlock` matching `<!-- adf:extension <key> <json> -->`
+2. AND next child is `*ast.FencedCodeBlock`
+3. AND a handler is registered for the code block's language
+4. Call `handler.FromMarkdown()` with the parsed metadata
+5. If handled: consume both nodes (index += 2)
+6. If not handled: fall through to normal processing
 
-### Automated Tests
-1. **Unit Test for `plantumlcloud` handler**:
-   - Create a mock `ExtensionHandler` for `plantumlcloud`.
-   - Verify ADF -> Markdown conversion produces ` ```puml ` code block.
-   - Verify Markdown -> ADF conversion reconstructs the original extension node.
-2. **Round-trip tests**:
-   - Add a new golden file pair in `testdata/extensions/custom_handler.json` and `.md`.
-3. **Fallback tests**:
-   - Ensure unknown extensions still use the `json` strategy (producing `adf:extension` blocks).
+### HTML Comment Format
 
-### Manual Verification
-- Run `go run ./cmd/jac` with a custom registration (via a temporary test main) to verify CLI behavior.
+```
+<!-- adf:extension <extensionKey> <optional JSON> -->
+```
+
+Examples:
+```
+<!-- adf:extension plantumlcloud {"extensionType":"com.atlassian.confluence.macro.core","layout":"default","localId":"abc"} -->
+```
+```
+<!-- adf:extension drawio -->
+```
+
+The framework only **parses** these comments — handlers are responsible for **producing** them in their `ToMarkdown` output.
+
+## Tests
+
+### NEW: `converter/extension_handler_test.go`
+- Handler called and output used
+- Handler returns `Handled: false` → falls back to ExtensionMode strategy
+- Handler returns error → propagates
+- No handler registered → existing behavior unchanged
+
+### NEW: `mdconverter/extension_handler_test.go`
+- Handler called for matching code block language
+- HTML comment metadata passed to handler
+- No preceding comment → `metadata` is nil
+- Handler returns `Handled: false` → normal code block processing
+- Handler returns error → propagates
+
+### Existing test files (additions)
+- `converter/config_test.go`: clone preserves ExtensionHandlers
+- `mdconverter/config_test.go`: clone preserves ExtensionHandlers
+
+## Verification
+
+1. `go test ./...` — all existing tests pass (no regressions)
+2. `go test -race ./...` — no data races
+3. `go vet ./...` — no issues
+4. New handler tests pass in both directions

@@ -5,7 +5,10 @@
       "Bash(git -C \"D:/Dev/jira-adf-converter\" diff main..feature/params --stat)",
       "Bash(ls:*)",
       "Bash(wc:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(grep:*)",
+      "Bash(git -C C:/Dev/jira-adf-converter log --oneline -1)",
+      "Bash(git -C C:/Dev/jira-adf-converter show HEAD --stat)"
     ]
   }
 }
