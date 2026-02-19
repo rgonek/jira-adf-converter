@@ -8,7 +8,9 @@ import (
 	"github.com/rgonek/jira-adf-converter/converter"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
 
 // Converter converts GFM markdown to Jira ADF JSON.
@@ -35,11 +37,22 @@ func New(config ReverseConfig) (*Converter, error) {
 		return nil, err
 	}
 
+	options := []goldmark.Option{
+		goldmark.WithExtensions(extension.GFM),
+	}
+	if cfg.needsPandocInlineExtension() {
+		options = append(options, goldmark.WithParserOptions(
+			parser.WithInlineParsers(
+				util.Prioritized(NewSubscriptParser(), 79),
+				util.Prioritized(NewSuperscriptParser(), 79),
+				util.Prioritized(NewPandocSpanParser(), 79),
+			),
+		))
+	}
+
 	return &Converter{
 		config: cfg,
-		parser: goldmark.New(
-			goldmark.WithExtensions(extension.GFM),
-		),
+		parser: goldmark.New(options...),
 	}, nil
 }
 
