@@ -37,6 +37,15 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 	}
 
 	base := filepath.Base(path)
+	if strings.Contains(base, "_pandoc") || strings.HasPrefix(base, "pandoc_") {
+		cfg.MentionDetection = MentionDetectPandoc
+		cfg.UnderlineDetection = UnderlineDetectPandoc
+		cfg.SubSupDetection = SubSupDetectPandoc
+		cfg.ColorDetection = ColorDetectPandoc
+		cfg.AlignmentDetection = AlignDetectPandoc
+		cfg.ExpandDetection = ExpandDetectPandoc
+		cfg.InlineCardDetection = InlineCardDetectPandoc
+	}
 	if strings.Contains(path, string(filepath.Separator)+"panels"+string(filepath.Separator)) {
 		cfg.PanelDetection = PanelDetectBold
 	}
@@ -84,6 +93,12 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 	if strings.Contains(base, "mention_boundary_retry") {
 		cfg.MentionDetection = MentionDetectAt
 	}
+	if strings.Contains(base, "subsup_pandoc_disabled") {
+		cfg.SubSupDetection = SubSupDetectNone
+	}
+	if strings.Contains(base, "pandoc_span_detection_disabled") {
+		cfg.UnderlineDetection = UnderlineDetectNone
+	}
 
 	return cfg
 }
@@ -114,6 +129,8 @@ func TestReverseGoldenFiles(t *testing.T) {
 		"marks/subsup_html",
 		"marks/underline_html",
 		"marks/color_html",
+		"marks/subscript_pandoc",
+		"marks/superscript_pandoc",
 		"tables/table_with_headers",
 		"inline/emoji",
 		"inline/status",
@@ -155,6 +172,15 @@ func TestReverseGoldenFiles(t *testing.T) {
 		"reverse/lists/task_inline_patterns_mention_text",
 		"reverse/inline/span_nested_lifo_mention_html",
 		"reverse/inline/mention_link_case_insensitive",
+		"reverse/marks/subsup_not_strikethrough_pandoc",
+		"reverse/marks/subsup_pandoc_disabled",
+		"reverse/inline/underline_from_pandoc_span",
+		"reverse/inline/mention_from_pandoc_span",
+		"reverse/inline/inline_card_from_pandoc_span",
+		"reverse/inline/text_color_from_pandoc_span",
+		"reverse/inline/background_color_from_pandoc_span",
+		"reverse/inline/pandoc_span_adjacent_to_link",
+		"reverse/inline/pandoc_span_detection_disabled",
 		"reverse/blocks/heading_offset1_align_html",
 		"reverse/media/media_baseurl_strip_absolute",
 		"reverse/inline/mention_boundary_retry",

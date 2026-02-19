@@ -164,6 +164,15 @@ func (s *state) convertInlineNode(node ast.Node, stack *markStack) ([]converter.
 	case *ast.RawHTML:
 		return s.convertRawHTML(string(typed.Text(s.source)), stack), nil
 
+	case *PandocSubscriptNode:
+		return s.convertPandocSubscriptNode(typed, stack)
+
+	case *PandocSuperscriptNode:
+		return s.convertPandocSuperscriptNode(typed, stack)
+
+	case *PandocSpanNode:
+		return s.convertPandocSpanNode(typed, stack)
+
 	case *ast.Image:
 		rawAlt := strings.TrimSpace(string(typed.Text(s.source)))
 		alt := rawAlt

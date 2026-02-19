@@ -334,6 +334,19 @@ func (c ReverseConfig) Validate() error {
 	return nil
 }
 
+func (c ReverseConfig) needsPandocInlineExtension() bool {
+	return c.UnderlineDetection == UnderlineDetectPandoc || c.UnderlineDetection == UnderlineDetectAll ||
+		c.SubSupDetection == SubSupDetectPandoc || c.SubSupDetection == SubSupDetectAll ||
+		c.ColorDetection == ColorDetectPandoc || c.ColorDetection == ColorDetectAll ||
+		c.MentionDetection == MentionDetectPandoc || c.MentionDetection == MentionDetectAll ||
+		c.InlineCardDetection == InlineCardDetectPandoc || c.InlineCardDetection == InlineCardDetectAll
+}
+
+func (c ReverseConfig) needsPandocBlockExtension() bool {
+	return c.ExpandDetection == ExpandDetectPandoc || c.ExpandDetection == ExpandDetectAll ||
+		c.AlignmentDetection == AlignDetectPandoc || c.AlignmentDetection == AlignDetectAll
+}
+
 func hasDateReferenceTokens(format string) bool {
 	format = strings.TrimSpace(format)
 	if format == "" {
