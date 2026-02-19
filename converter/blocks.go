@@ -17,10 +17,13 @@ func (s *state) convertParagraph(node Node) (string, error) {
 		return "", nil
 	}
 
-	if s.config.AlignmentStyle == AlignHTML {
-		if alignment := s.getNodeAlignment(node); alignment != "" {
-			trimmed := strings.TrimSuffix(content, "\n\n")
+	if alignment := s.getNodeAlignment(node); alignment != "" {
+		trimmed := strings.TrimSuffix(content, "\n\n")
+		switch s.config.AlignmentStyle {
+		case AlignHTML:
 			return fmt.Sprintf(`<div align="%s">%s</div>`+"\n\n", alignment, trimmed), nil
+		case AlignPandoc:
+			return fmt.Sprintf(":::{ style=\"text-align: %s;\" }\n\n%s\n\n:::\n\n", alignment, trimmed), nil
 		}
 	}
 
@@ -87,9 +90,12 @@ func (s *state) convertHeading(node Node) (string, error) {
 		heading += " " + content
 	}
 
-	if s.config.AlignmentStyle == AlignHTML {
-		if alignment := s.getNodeAlignment(node); alignment != "" {
+	if alignment := s.getNodeAlignment(node); alignment != "" {
+		switch s.config.AlignmentStyle {
+		case AlignHTML:
 			return fmt.Sprintf(`<h%d align="%s">%s</h%d>`+"\n\n", level, alignment, content, level), nil
+		case AlignPandoc:
+			return fmt.Sprintf("%s {style=\"text-align: %s;\"}\n\n", heading, alignment), nil
 		}
 	}
 
@@ -441,6 +447,19 @@ func (s *state) convertExpand(node Node) (string, error) {
 		htmlBuilder.WriteString(strings.TrimRight(content, "\n"))
 		htmlBuilder.WriteString("\n\n</details>\n\n")
 		return htmlBuilder.String(), nil
+	}
+	if s.config.ExpandStyle == ExpandPandoc {
+		var pandocBuilder strings.Builder
+		pandocBuilder.WriteString(":::{ .details")
+		if title != "" {
+			escapedTitle := strings.ReplaceAll(title, "\\", "\\\\")
+			escapedTitle = strings.ReplaceAll(escapedTitle, "\"", "\\\"")
+			pandocBuilder.WriteString(fmt.Sprintf(` summary="%s"`, escapedTitle))
+		}
+		pandocBuilder.WriteString(" }\n\n")
+		pandocBuilder.WriteString(strings.TrimRight(content, "\n"))
+		pandocBuilder.WriteString("\n\n:::\n\n")
+		return pandocBuilder.String(), nil
 	}
 
 	// Text Mode: Blockquote with bold title

@@ -51,6 +51,40 @@ func (s *state) convertHeadingNode(node *ast.Heading) (converter.Node, bool, err
 		return converter.Node{}, false, err
 	}
 
+	var alignment string
+	if len(content) > 0 {
+		lastIdx := len(content) - 1
+		lastNode := content[lastIdx]
+		if lastNode.Type == "text" {
+			text := lastNode.Text
+			if strings.HasSuffix(text, "}") {
+				if startIdx := strings.LastIndex(text, "{"); startIdx >= 0 {
+					rawAttrs := text[startIdx+1 : len(text)-1]
+					_, attrs := parsePandocAttributes(rawAttrs)
+					if style, ok := attrs["style"]; ok {
+						alignment = extractTextAlign(style)
+					}
+					if alignment == "" {
+						if align, ok := attrs["align"]; ok {
+							alignment = normalizePandocAlignment(align)
+						}
+					}
+
+					// If we found valid attributes, trim them from the text
+					if alignment != "" || len(attrs) > 0 {
+						newText := strings.TrimSpace(text[:startIdx])
+						if newText == "" {
+							// If heading becomes empty after trimming, we might want to keep it or handle it
+							content = content[:lastIdx]
+						} else {
+							content[lastIdx].Text = newText
+						}
+					}
+				}
+			}
+		}
+	}
+
 	level := node.Level + s.config.HeadingOffset
 	if level < 1 {
 		level = 1
@@ -59,12 +93,17 @@ func (s *state) convertHeadingNode(node *ast.Heading) (converter.Node, bool, err
 		level = 6
 	}
 
+	attrs := map[string]interface{}{
+		"level": level,
+	}
+	if alignment != "" {
+		attrs["layout"] = alignment
+	}
+
 	heading := converter.Node{
 		Type:    "heading",
 		Content: content,
-		Attrs: map[string]interface{}{
-			"level": level,
-		},
+		Attrs:   attrs,
 	}
 
 	return heading, true, nil

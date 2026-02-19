@@ -75,6 +75,10 @@ func (s *state) convertHTMLBlockNode(node *ast.HTMLBlock) (converter.Node, bool,
 }
 
 func (s *state) parseAlignedParagraph(raw string) (converter.Node, bool, error) {
+	if !s.shouldDetectAlignHTML() {
+		return converter.Node{}, false, nil
+	}
+
 	match := alignedDivPattern.FindStringSubmatch(strings.TrimSpace(raw))
 	if len(match) != 3 {
 		return converter.Node{}, false, nil
@@ -95,6 +99,10 @@ func (s *state) parseAlignedParagraph(raw string) (converter.Node, bool, error) 
 }
 
 func (s *state) parseAlignedHeading(raw string) (converter.Node, bool, error) {
+	if !s.shouldDetectAlignHTML() {
+		return converter.Node{}, false, nil
+	}
+
 	match := alignedHeadingPattern.FindStringSubmatch(strings.TrimSpace(raw))
 	if len(match) != 4 {
 		return converter.Node{}, false, nil
