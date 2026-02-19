@@ -78,6 +78,29 @@ func TestValidateInvalidEnum(t *testing.T) {
 	require.Error(t, cfg.Validate())
 }
 
+func TestValidateAcceptsPandocStyles(t *testing.T) {
+	cfg := (Config{}).applyDefaults()
+	cfg.UnderlineStyle = UnderlinePandoc
+	cfg.SubSupStyle = SubSupPandoc
+	cfg.TextColorStyle = ColorPandoc
+	cfg.BackgroundColorStyle = ColorPandoc
+	cfg.MentionStyle = MentionPandoc
+	cfg.AlignmentStyle = AlignPandoc
+	cfg.ExpandStyle = ExpandPandoc
+	cfg.InlineCardStyle = InlineCardPandoc
+	cfg.TableMode = TablePandoc
+	require.NoError(t, cfg.Validate())
+
+	cfg.TableMode = TableAutoPandoc
+	require.NoError(t, cfg.Validate())
+}
+
+func TestValidateRejectsInvalidUnderlineStyle(t *testing.T) {
+	cfg := (Config{}).applyDefaults()
+	cfg.UnderlineStyle = UnderlineStyle("invalid")
+	require.Error(t, cfg.Validate())
+}
+
 func TestValidateInvalidRange(t *testing.T) {
 	cfg := (Config{}).applyDefaults()
 	cfg.HeadingOffset = 9

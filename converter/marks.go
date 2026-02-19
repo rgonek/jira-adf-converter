@@ -133,6 +133,8 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 			return "<u>", "</u>", nil
 		case UnderlineBold:
 			return "**", "**", nil
+		case UnderlinePandoc:
+			return "[", "]{.underline}", nil
 		default:
 			return "", "", nil
 		}
@@ -225,6 +227,13 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 			if subSupType == "sup" {
 				return "$^{", "}$", nil
 			}
+		case SubSupPandoc:
+			if subSupType == "sub" {
+				return "~", "~", nil
+			}
+			if subSupType == "sup" {
+				return "^", "^", nil
+			}
 		}
 
 		return "", "", nil
@@ -241,6 +250,15 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 				return "", "", nil
 			}
 			return `<span style="color: ` + color + `">`, "</span>", nil
+		case ColorPandoc:
+			color, ok := sanitizeCSSColor(mark.GetStringAttr("color", ""))
+			if !ok {
+				if raw := mark.GetStringAttr("color", ""); raw != "" {
+					s.addWarning(WarningDroppedFeature, mark.Type, fmt.Sprintf("invalid color value dropped: %q", raw))
+				}
+				return "", "", nil
+			}
+			return "[", `]{color="` + color + `"}`, nil
 		default:
 			return "", "", nil
 		}
@@ -257,6 +275,15 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 				return "", "", nil
 			}
 			return `<span style="background-color: ` + color + `">`, "</span>", nil
+		case ColorPandoc:
+			color, ok := sanitizeCSSColor(mark.GetStringAttr("color", ""))
+			if !ok {
+				if raw := mark.GetStringAttr("color", ""); raw != "" {
+					s.addWarning(WarningDroppedFeature, mark.Type, fmt.Sprintf("invalid color value dropped: %q", raw))
+				}
+				return "", "", nil
+			}
+			return "[", `]{background-color="` + color + `"}`, nil
 		default:
 			return "", "", nil
 		}
