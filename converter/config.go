@@ -13,6 +13,7 @@ const (
 	UnderlineIgnore UnderlineStyle = "ignore"
 	UnderlineBold   UnderlineStyle = "bold"
 	UnderlineHTML   UnderlineStyle = "html"
+	UnderlinePandoc UnderlineStyle = "pandoc"
 )
 
 // SubSupStyle controls how subscript/superscript marks are rendered.
@@ -22,6 +23,7 @@ const (
 	SubSupIgnore SubSupStyle = "ignore"
 	SubSupHTML   SubSupStyle = "html"
 	SubSupLaTeX  SubSupStyle = "latex"
+	SubSupPandoc SubSupStyle = "pandoc"
 )
 
 // ColorStyle controls how text/background colors are rendered.
@@ -30,15 +32,17 @@ type ColorStyle string
 const (
 	ColorIgnore ColorStyle = "ignore"
 	ColorHTML   ColorStyle = "html"
+	ColorPandoc ColorStyle = "pandoc"
 )
 
 // MentionStyle controls how user mentions are rendered.
 type MentionStyle string
 
 const (
-	MentionText MentionStyle = "text"
-	MentionLink MentionStyle = "link"
-	MentionHTML MentionStyle = "html"
+	MentionText   MentionStyle = "text"
+	MentionLink   MentionStyle = "link"
+	MentionHTML   MentionStyle = "html"
+	MentionPandoc MentionStyle = "pandoc"
 )
 
 // EmojiStyle controls how emoji nodes are rendered.
@@ -65,6 +69,7 @@ type AlignmentStyle string
 const (
 	AlignIgnore AlignmentStyle = "ignore"
 	AlignHTML   AlignmentStyle = "html"
+	AlignPandoc AlignmentStyle = "pandoc"
 )
 
 // HardBreakStyle controls how hard line breaks are rendered.
@@ -81,6 +86,7 @@ type ExpandStyle string
 const (
 	ExpandBlockquote ExpandStyle = "blockquote"
 	ExpandHTML       ExpandStyle = "html"
+	ExpandPandoc     ExpandStyle = "pandoc"
 )
 
 // StatusStyle controls how status badges are rendered.
@@ -95,9 +101,10 @@ const (
 type InlineCardStyle string
 
 const (
-	InlineCardLink  InlineCardStyle = "link"
-	InlineCardURL   InlineCardStyle = "url"
-	InlineCardEmbed InlineCardStyle = "embed"
+	InlineCardLink   InlineCardStyle = "link"
+	InlineCardURL    InlineCardStyle = "url"
+	InlineCardEmbed  InlineCardStyle = "embed"
+	InlineCardPandoc InlineCardStyle = "pandoc"
 )
 
 // DecisionStyle controls the prefix for decision items.
@@ -120,9 +127,11 @@ const (
 type TableMode string
 
 const (
-	TableAuto TableMode = "auto"
-	TablePipe TableMode = "pipe"
-	TableHTML TableMode = "html"
+	TableAuto       TableMode = "auto"
+	TablePipe       TableMode = "pipe"
+	TableHTML       TableMode = "html"
+	TablePandoc     TableMode = "pandoc"
+	TableAutoPandoc TableMode = "autopandoc"
 )
 
 // ExtensionMode controls how extension nodes are handled.
@@ -269,19 +278,19 @@ func (c Config) clone() Config {
 
 // Validate checks that config values are valid.
 func (c Config) Validate() error {
-	if c.UnderlineStyle != UnderlineIgnore && c.UnderlineStyle != UnderlineBold && c.UnderlineStyle != UnderlineHTML {
+	if c.UnderlineStyle != UnderlineIgnore && c.UnderlineStyle != UnderlineBold && c.UnderlineStyle != UnderlineHTML && c.UnderlineStyle != UnderlinePandoc {
 		return fmt.Errorf("invalid underlineStyle %q", c.UnderlineStyle)
 	}
-	if c.SubSupStyle != SubSupIgnore && c.SubSupStyle != SubSupHTML && c.SubSupStyle != SubSupLaTeX {
+	if c.SubSupStyle != SubSupIgnore && c.SubSupStyle != SubSupHTML && c.SubSupStyle != SubSupLaTeX && c.SubSupStyle != SubSupPandoc {
 		return fmt.Errorf("invalid subSupStyle %q", c.SubSupStyle)
 	}
-	if c.TextColorStyle != ColorIgnore && c.TextColorStyle != ColorHTML {
+	if c.TextColorStyle != ColorIgnore && c.TextColorStyle != ColorHTML && c.TextColorStyle != ColorPandoc {
 		return fmt.Errorf("invalid textColorStyle %q", c.TextColorStyle)
 	}
-	if c.BackgroundColorStyle != ColorIgnore && c.BackgroundColorStyle != ColorHTML {
+	if c.BackgroundColorStyle != ColorIgnore && c.BackgroundColorStyle != ColorHTML && c.BackgroundColorStyle != ColorPandoc {
 		return fmt.Errorf("invalid backgroundColorStyle %q", c.BackgroundColorStyle)
 	}
-	if c.MentionStyle != MentionText && c.MentionStyle != MentionLink && c.MentionStyle != MentionHTML {
+	if c.MentionStyle != MentionText && c.MentionStyle != MentionLink && c.MentionStyle != MentionHTML && c.MentionStyle != MentionPandoc {
 		return fmt.Errorf("invalid mentionStyle %q", c.MentionStyle)
 	}
 	if c.EmojiStyle != EmojiShortcode && c.EmojiStyle != EmojiUnicode {
@@ -296,16 +305,16 @@ func (c Config) Validate() error {
 	if c.HardBreakStyle != HardBreakBackslash && c.HardBreakStyle != HardBreakHTML {
 		return fmt.Errorf("invalid hardBreakStyle %q", c.HardBreakStyle)
 	}
-	if c.AlignmentStyle != AlignIgnore && c.AlignmentStyle != AlignHTML {
+	if c.AlignmentStyle != AlignIgnore && c.AlignmentStyle != AlignHTML && c.AlignmentStyle != AlignPandoc {
 		return fmt.Errorf("invalid alignmentStyle %q", c.AlignmentStyle)
 	}
-	if c.ExpandStyle != ExpandBlockquote && c.ExpandStyle != ExpandHTML {
+	if c.ExpandStyle != ExpandBlockquote && c.ExpandStyle != ExpandHTML && c.ExpandStyle != ExpandPandoc {
 		return fmt.Errorf("invalid expandStyle %q", c.ExpandStyle)
 	}
 	if c.StatusStyle != StatusBracket && c.StatusStyle != StatusText {
 		return fmt.Errorf("invalid statusStyle %q", c.StatusStyle)
 	}
-	if c.InlineCardStyle != InlineCardLink && c.InlineCardStyle != InlineCardURL && c.InlineCardStyle != InlineCardEmbed {
+	if c.InlineCardStyle != InlineCardLink && c.InlineCardStyle != InlineCardURL && c.InlineCardStyle != InlineCardEmbed && c.InlineCardStyle != InlineCardPandoc {
 		return fmt.Errorf("invalid inlineCardStyle %q", c.InlineCardStyle)
 	}
 	if c.DecisionStyle != DecisionEmoji && c.DecisionStyle != DecisionText {
@@ -314,7 +323,7 @@ func (c Config) Validate() error {
 	if c.DateFormat == "" || !hasDateReferenceTokens(c.DateFormat) {
 		return fmt.Errorf("invalid dateFormat %q: must contain Go reference date components", c.DateFormat)
 	}
-	if c.TableMode != TableAuto && c.TableMode != TablePipe && c.TableMode != TableHTML {
+	if c.TableMode != TableAuto && c.TableMode != TablePipe && c.TableMode != TableHTML && c.TableMode != TablePandoc && c.TableMode != TableAutoPandoc {
 		return fmt.Errorf("invalid tableMode %q", c.TableMode)
 	}
 	if c.BulletMarker != '-' && c.BulletMarker != '*' && c.BulletMarker != '+' {

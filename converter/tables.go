@@ -16,10 +16,30 @@ func (s *state) convertTable(node Node) (string, error) {
 			mode = TablePipe
 		}
 	}
+	if mode == TableAutoPandoc {
+		if s.isComplexTable(node) {
+			mode = TablePandoc
+		} else {
+			mode = TablePipe
+		}
+	}
 
 	switch mode {
 	case TableHTML:
 		return s.renderTableHTML(node)
+	case TablePandoc:
+		if s.hasTableSpans(node) {
+			s.addWarning(WarningDroppedFeature, node.Type, "pandoc grid table does not support colspan/rowspan; fell back to html table")
+			return s.renderTableHTML(node)
+		}
+		rows, err := s.extractTableRows(node)
+		if err != nil {
+			return "", err
+		}
+		if len(rows) == 0 {
+			return "", nil
+		}
+		return s.renderTableGrid(rows), nil
 	default:
 		rows, err := s.extractTableRows(node)
 		if err != nil {
@@ -48,6 +68,24 @@ func (s *state) isComplexTable(node Node) bool {
 				if isComplexTableBlockNode(child.Type) {
 					return true
 				}
+			}
+		}
+	}
+
+	return false
+}
+
+func (s *state) hasTableSpans(node Node) bool {
+	for _, rowNode := range node.Content {
+		if rowNode.Type != "tableRow" {
+			continue
+		}
+		for _, cellNode := range rowNode.Content {
+			if cellNode.Type != "tableCell" && cellNode.Type != "tableHeader" {
+				continue
+			}
+			if cellNode.GetIntAttr("colspan", 1) > 1 || cellNode.GetIntAttr("rowspan", 1) > 1 {
+				return true
 			}
 		}
 	}
@@ -204,6 +242,73 @@ func (s *state) renderTableGFM(rows [][]string) string {
 	}
 
 	sb.WriteString("\n")
+	return sb.String()
+}
+
+func (s *state) renderTableGrid(rows [][]string) string {
+	if len(rows) == 0 {
+		return ""
+	}
+
+	colCount := 0
+	for _, row := range rows {
+		if len(row) > colCount {
+			colCount = len(row)
+		}
+	}
+	if colCount == 0 {
+		return ""
+	}
+
+	widths := make([]int, colCount)
+	for _, row := range rows {
+		for colIdx := 0; colIdx < colCount; colIdx++ {
+			cell := ""
+			if colIdx < len(row) {
+				cell = row[colIdx]
+			}
+			if len(cell) > widths[colIdx] {
+				widths[colIdx] = len(cell)
+			}
+		}
+	}
+
+	var sb strings.Builder
+	writeBorder := func(ch string) {
+		sb.WriteString("+")
+		for _, width := range widths {
+			sb.WriteString(strings.Repeat(ch, width+2))
+			sb.WriteString("+")
+		}
+		sb.WriteString("\n")
+	}
+	writeRow := func(row []string) {
+		sb.WriteString("|")
+		for colIdx := 0; colIdx < colCount; colIdx++ {
+			cell := ""
+			if colIdx < len(row) {
+				cell = row[colIdx]
+			}
+			sb.WriteString(" ")
+			sb.WriteString(cell)
+			sb.WriteString(strings.Repeat(" ", widths[colIdx]-len(cell)))
+			sb.WriteString(" |")
+		}
+		sb.WriteString("\n")
+	}
+
+	writeBorder("-")
+	writeRow(rows[0])
+	writeBorder("=")
+	for _, row := range rows[1:] {
+		writeRow(row)
+		writeBorder("-")
+	}
+	if len(rows) == 1 {
+		writeBorder("-")
+	}
+	sb.WriteString("\n")
+
 	return sb.String()
 }
 

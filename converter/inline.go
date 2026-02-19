@@ -66,6 +66,12 @@ func (s *state) convertMention(node Node) (string, error) {
 			return mentionText, nil
 		}
 		return fmt.Sprintf(`<span data-mention-id="%s">%s</span>`, html.EscapeString(id), html.EscapeString(mentionText)), nil
+	case MentionPandoc:
+		if id == "" {
+			s.addWarning(WarningMissingAttribute, node.Type, "mention node missing id")
+			return mentionText, nil
+		}
+		return fmt.Sprintf(`[%s]{.mention mention-id="%s"}`, mentionText, escapePandocAttrValue(id)), nil
 	default:
 		return mentionText, nil
 	}
@@ -183,6 +189,18 @@ func (s *state) convertInlineCard(node Node) (string, error) {
 		if title != "" {
 			return title, nil
 		}
+	case InlineCardPandoc:
+		if url == "" {
+			s.addWarning(WarningMissingAttribute, node.Type, "inlineCard missing url and valid data")
+			if title != "" {
+				return title, nil
+			}
+			return "[Smart Link]", nil
+		}
+		if title == "" {
+			title = url
+		}
+		return fmt.Sprintf(`[%s]{.inline-card url="%s"}`, title, escapePandocAttrValue(url)), nil
 	}
 
 	// Fallback
@@ -226,6 +244,11 @@ func rewriteInlineCardAttrs(attrs map[string]any, title, href string) map[string
 	rewritten["data"] = clonedData
 
 	return rewritten
+}
+
+func escapePandocAttrValue(value string) string {
+	value = strings.ReplaceAll(value, "\\", "\\\\")
+	return strings.ReplaceAll(value, "\"", "\\\"")
 }
 
 func firstNonEmptyTrimmed(values ...string) string {
