@@ -1,0 +1,6 @@
+<div class="adf-bodied-extension" data-extension-key="panel" data-extension-type="com.atlassian.confluence.macro.core" data-parameters="{&#34;macroParams&#34;:{&#34;title&#34;:{&#34;value&#34;:&#34;Next you might want to:&#34;}}}">
+
+- [ ] **Customise the overview page** - Click the pencil icon...
+- [ ] **Create additional pages** - Click the + in the left sidebar...
+
+</div>

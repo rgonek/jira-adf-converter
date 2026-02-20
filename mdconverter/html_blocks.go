@@ -14,13 +14,19 @@ import (
 )
 
 var (
-	detailsOpenPattern       = regexp.MustCompile(`(?is)^<details>\s*<summary>(.*?)</summary>\s*$`)
-	detailsClosePattern      = regexp.MustCompile(`(?is)^</details>\s*$`)
-	alignedDivPattern        = regexp.MustCompile(`(?is)^<div\s+align="(left|center|right)"\s*>(.*?)</div>\s*$`)
-	alignedHeadingPattern    = regexp.MustCompile(`(?is)^<h([1-6])\s+align="(left|center|right)"\s*>(.*?)</h[1-6]>\s*$`)
-	layoutSectionOpenPattern = regexp.MustCompile(`(?is)^<div\s+class="layout-section"\s*>\s*$`)
-	layoutColumnOpenPattern  = regexp.MustCompile(`(?is)^<div\s+class="layout-column"(?:\s+style="width:\s*([0-9.]+)%;")?\s*>\s*$`)
-	divClosePattern          = regexp.MustCompile(`(?is)^</div>\s*$`)
+	detailsOpenPattern         = regexp.MustCompile(`(?is)^<details>\s*<summary>(.*?)</summary>\s*$`)
+	detailsClosePattern        = regexp.MustCompile(`(?is)^</details>\s*$`)
+	alignedDivPattern          = regexp.MustCompile(`(?is)^<div\s+align="(left|center|right)"\s*>(.*?)</div>\s*$`)
+	alignedHeadingPattern      = regexp.MustCompile(`(?is)^<h([1-6])\s+align="(left|center|right)"\s*>(.*?)</h[1-6]>\s*$`)
+	layoutSectionOpenPattern   = regexp.MustCompile(`(?is)^<div\s+class="layout-section"\s*>\s*$`)
+	layoutColumnOpenPattern    = regexp.MustCompile(`(?is)^<div\s+class="layout-column"(?:\s+style="width:\s*([0-9.]+)%;")?\s*>\s*$`)
+	bodiedExtensionOpenPattern = regexp.MustCompile(
+		`(?is)^<div\s+class="adf-bodied-extension"\s+` +
+			`data-extension-key="([^"]*)"\s+` +
+			`data-extension-type="([^"]*)"\s*` +
+			`(?:data-parameters="([^"]*)")?\s*>\s*$`,
+	)
+	divClosePattern = regexp.MustCompile(`(?is)^</div>\s*$`)
 )
 
 func parseDetailsOpenTagFromHTMLBlock(node *ast.HTMLBlock, source []byte) (string, bool) {
@@ -68,6 +74,24 @@ func parseLayoutColumnOpenTag(raw string) (float64, bool) {
 		}
 	}
 	return 0, true
+}
+
+func parseBodiedExtensionOpenTagFromHTMLBlock(node *ast.HTMLBlock, source []byte) (string, string, string, bool) {
+	return parseBodiedExtensionOpenTag(strings.TrimSpace(string(node.Text(source))))
+}
+
+func parseBodiedExtensionOpenTag(raw string) (string, string, string, bool) {
+	match := bodiedExtensionOpenPattern.FindStringSubmatch(strings.TrimSpace(raw))
+	if len(match) == 0 {
+		return "", "", "", false
+	}
+	key := stdhtml.UnescapeString(match[1])
+	extType := stdhtml.UnescapeString(match[2])
+	params := ""
+	if match[3] != "" {
+		params = stdhtml.UnescapeString(match[3])
+	}
+	return key, extType, params, true
 }
 
 func isDivCloseHTMLBlock(node *ast.HTMLBlock, source []byte) bool {
@@ -512,4 +536,3 @@ func (s *state) convertBlockFragment(fragment string) ([]converter.Node, error) 
 	}
 	return s.convertNodeSequence(root)
 }
-

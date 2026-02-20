@@ -1,0 +1,6 @@
+::: { .adf-bodied-extension key="panel" extensionType="com.atlassian.confluence.macro.core" parameters="{\"macroParams\":{\"title\":{\"value\":\"Next you might want to:\"}}}" }
+
+- [ ] **Customise the overview page** - Click the pencil icon...
+- [ ] **Create additional pages** - Click the + in the left sidebar...
+
+:::

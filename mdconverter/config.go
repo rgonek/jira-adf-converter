@@ -114,6 +114,16 @@ const (
 	LayoutSectionDetectAll LayoutSectionDetection = "all"
 )
 
+// BodiedExtensionDetection controls how bodied extensions are reconstructed.
+type BodiedExtensionDetection string
+
+const (
+	BodiedExtensionDetectNone   BodiedExtensionDetection = "none"
+	BodiedExtensionDetectHTML   BodiedExtensionDetection = "html"
+	BodiedExtensionDetectPandoc BodiedExtensionDetection = "pandoc"
+	BodiedExtensionDetectAll    BodiedExtensionDetection = "all"
+)
+
 // ExpandDetection controls how expand blocks are reconstructed.
 type ExpandDetection string
 
@@ -147,20 +157,21 @@ const (
 
 // ReverseConfig configures Markdown to ADF conversion behavior.
 type ReverseConfig struct {
-	MentionDetection       MentionDetection       `json:"mentionDetection,omitempty"`
-	UnderlineDetection     UnderlineDetection     `json:"underlineDetection,omitempty"`
-	SubSupDetection        SubSupDetection        `json:"subSupDetection,omitempty"`
-	ColorDetection         ColorDetection         `json:"colorDetection,omitempty"`
-	AlignmentDetection     AlignmentDetection     `json:"alignmentDetection,omitempty"`
-	EmojiDetection         EmojiDetection         `json:"emojiDetection,omitempty"`
-	StatusDetection        StatusDetection        `json:"statusDetection,omitempty"`
-	DateDetection          DateDetection          `json:"dateDetection,omitempty"`
-	PanelDetection         PanelDetection         `json:"panelDetection,omitempty"`
-	LayoutSectionDetection LayoutSectionDetection `json:"layoutSectionDetection,omitempty"`
-	ExpandDetection        ExpandDetection        `json:"expandDetection,omitempty"`
-	InlineCardDetection    InlineCardDetection    `json:"inlineCardDetection,omitempty"`
-	TableGridDetection     bool                   `json:"tableGridDetection,omitempty"`
-	DecisionDetection      DecisionDetection      `json:"decisionDetection,omitempty"`
+	MentionDetection         MentionDetection         `json:"mentionDetection,omitempty"`
+	UnderlineDetection       UnderlineDetection       `json:"underlineDetection,omitempty"`
+	SubSupDetection          SubSupDetection          `json:"subSupDetection,omitempty"`
+	ColorDetection           ColorDetection           `json:"colorDetection,omitempty"`
+	AlignmentDetection       AlignmentDetection       `json:"alignmentDetection,omitempty"`
+	EmojiDetection           EmojiDetection           `json:"emojiDetection,omitempty"`
+	StatusDetection          StatusDetection          `json:"statusDetection,omitempty"`
+	DateDetection            DateDetection            `json:"dateDetection,omitempty"`
+	PanelDetection           PanelDetection           `json:"panelDetection,omitempty"`
+	LayoutSectionDetection   LayoutSectionDetection   `json:"layoutSectionDetection,omitempty"`
+	BodiedExtensionDetection BodiedExtensionDetection `json:"bodiedExtensionDetection,omitempty"`
+	ExpandDetection          ExpandDetection          `json:"expandDetection,omitempty"`
+	InlineCardDetection      InlineCardDetection      `json:"inlineCardDetection,omitempty"`
+	TableGridDetection       bool                     `json:"tableGridDetection,omitempty"`
+	DecisionDetection        DecisionDetection        `json:"decisionDetection,omitempty"`
 
 	DateFormat        string                                `json:"dateFormat,omitempty"`
 	HeadingOffset     int                                   `json:"headingOffset,omitempty"`
@@ -206,6 +217,9 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 
 		c.LayoutSectionDetection = LayoutSectionDetectHTML
 
+	}
+	if c.BodiedExtensionDetection == "" {
+		c.BodiedExtensionDetection = BodiedExtensionDetectPandoc
 	}
 	if c.ExpandDetection == "" {
 		c.ExpandDetection = ExpandDetectHTML
@@ -316,6 +330,13 @@ func (c ReverseConfig) Validate() error {
 
 	}
 
+	if c.BodiedExtensionDetection != BodiedExtensionDetectNone &&
+		c.BodiedExtensionDetection != BodiedExtensionDetectHTML &&
+		c.BodiedExtensionDetection != BodiedExtensionDetectPandoc &&
+		c.BodiedExtensionDetection != BodiedExtensionDetectAll {
+		return fmt.Errorf("invalid bodiedExtensionDetection %q", c.BodiedExtensionDetection)
+	}
+
 	if c.ExpandDetection != ExpandDetectNone &&
 		c.ExpandDetection != ExpandDetectBlockquote &&
 		c.ExpandDetection != ExpandDetectHTML &&
@@ -383,6 +404,7 @@ func (c ReverseConfig) needsPandocBlockExtension() bool {
 	return c.ExpandDetection == ExpandDetectPandoc || c.ExpandDetection == ExpandDetectAll ||
 		c.LayoutSectionDetection == LayoutSectionDetectPandoc || c.LayoutSectionDetection == LayoutSectionDetectAll ||
 		c.AlignmentDetection == AlignDetectPandoc || c.AlignmentDetection == AlignDetectAll ||
+		c.BodiedExtensionDetection == BodiedExtensionDetectPandoc || c.BodiedExtensionDetection == BodiedExtensionDetectAll ||
 		len(c.ExtensionHandlers) > 0
 }
 

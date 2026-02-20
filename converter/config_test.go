@@ -24,7 +24,10 @@ func TestApplyDefaults(t *testing.T) {
 	assert.Equal(t, ExpandHTML, cfg.ExpandStyle)
 	assert.Equal(t, StatusBracket, cfg.StatusStyle)
 	assert.Equal(t, InlineCardLink, cfg.InlineCardStyle)
+	assert.Equal(t, LayoutSectionStandard, cfg.LayoutSectionStyle)
+	assert.Equal(t, BodiedExtensionPandoc, cfg.BodiedExtensionStyle)
 	assert.Equal(t, DecisionEmoji, cfg.DecisionStyle)
+
 	assert.Equal(t, "2006-01-02", cfg.DateFormat)
 	assert.Equal(t, TableAuto, cfg.TableMode)
 	assert.Equal(t, rune('-'), cfg.BulletMarker)
@@ -50,10 +53,11 @@ func TestValidateValid(t *testing.T) {
 		ExpandStyle:          ExpandBlockquote,
 		StatusStyle:          StatusText,
 		InlineCardStyle:      InlineCardEmbed,
+		BodiedExtensionStyle: BodiedExtensionStandard,
 		DecisionStyle:        DecisionText,
 		DateFormat:           "2006-01-02",
 		TableMode:            TablePipe,
-			LayoutSectionStyle:   LayoutSectionStandard,
+		LayoutSectionStyle:   LayoutSectionStandard,
 		BulletMarker:         '*',
 		OrderedListStyle:     OrderedLazy,
 		Extensions: ExtensionRules{
@@ -89,6 +93,7 @@ func TestValidateAcceptsPandocStyles(t *testing.T) {
 	cfg.AlignmentStyle = AlignPandoc
 	cfg.ExpandStyle = ExpandPandoc
 	cfg.InlineCardStyle = InlineCardPandoc
+	cfg.BodiedExtensionStyle = BodiedExtensionPandoc
 	cfg.TableMode = TablePandoc
 	require.NoError(t, cfg.Validate())
 
