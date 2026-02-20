@@ -23,7 +23,7 @@ Both packages validate config at `New(...)` time and keep config immutable after
 | `doc` | Root container | Ensures trailing newline for non-empty output. |
 | `paragraph` | Text block separated by blank lines | Supports inline marks and inline nodes. |
 | `text` | Plain text | Marks applied via mark stack continuity. |
-| `heading` | `#` through `######` | `HeadingOffset` with clamping; optional HTML alignment. |
+| `heading` | `#` through `######` | `HeadingOffset` with clamping; optional HTML or Pandoc alignment. |
 | `blockquote` | `>` blockquote | Nested content supported. |
 | `rule` | `---` | Standard thematic break. |
 | `hardBreak` | `\\` + newline | `HardBreakStyle`: `backslash` or `html` (`<br>`). |
@@ -31,15 +31,15 @@ Both packages validate config at `New(...)` time and keep config immutable after
 | `bulletList` | `- item` | Marker configurable via `BulletMarker` (`-`, `*`, `+`). |
 | `orderedList` | `1.`, `2.`, ... | `OrderedListStyle`: `incremental` or `lazy` (`1.` for every item). |
 | `taskList` / `taskItem` | `- [ ]` / `- [x]` | Nested task structures supported. |
-| `table` | Pipe or HTML table | `TableMode`: `auto`, `pipe`, `html`; auto-detects complex cells/spans. |
+| `table` | Pipe, Grid (Pandoc) or HTML table | `TableMode`: `auto`, `pipe`, `pandoc`, `autopandoc`, `html`; auto-detects complex cells/spans. |
 | `panel` | GitHub-style callout blockquote | `PanelStyle`: `none`, `bold`, `github`, `title`. |
 | `decisionList` / `decisionItem` | Blockquote with decision prefix | `DecisionStyle`: `emoji` (`✓/? Decision`) or `text` (`DECIDED/UNDECIDED`). |
-| `expand` / `nestedExpand` | `<details><summary>...</summary>` | `ExpandStyle`: `html` (default) or `blockquote`. |
+| `expand` / `nestedExpand` | `<details><summary>...</summary>` | `ExpandStyle`: `html` (default), `blockquote`, or `pandoc` (`:::{ .details }`). |
 | `emoji` | `:shortcode:` | `EmojiStyle`: `shortcode` or `unicode` fallback. |
-| `mention` | `[@Name](mention:id)` | `MentionStyle`: `text`, `link`, `html`. |
+| `mention` | `[@Name](mention:id)` | `MentionStyle`: `text`, `link`, `html`, `pandoc`. |
 | `status` | `[Status: TEXT]` | `StatusStyle`: `bracket` or `text`. |
 | `date` | Formatted timestamp | Uses configurable `DateFormat`. |
-| `inlineCard` | `[title](url)` | `InlineCardStyle`: `link`, `url`, `embed` (`adf:inlineCard` fenced JSON). |
+| `inlineCard` | `[title](url)` | `InlineCardStyle`: `link`, `url`, `embed` (`adf:inlineCard` fenced JSON), `pandoc`. |
 | `media` (+ `mediaSingle`/`mediaGroup`) | Image markdown or placeholders | External: `![alt](url)`; internal: `[Image: id]` / `[File: id]`; optional `MediaBaseURL` expansion. |
 | `extension` / `inlineExtension` / `bodiedExtension` | Fenced JSON by default | `Extensions.Default`: `json`, `text`, `strip`; per-type override via `Extensions.ByType`. |
 
@@ -57,10 +57,10 @@ Unknown handling is policy driven:
 | `strike` | `~~text~~` | - |
 | `code` | `` `text` `` | - |
 | `link` | `[text](href "title")` | Can be rewritten by runtime `LinkHook`. |
-| `underline` | `**text**` | `ignore`, `bold`, `html` (`<u>`). |
-| `subsup` | HTML by default (`<sub>`, `<sup>`) | `ignore`, `html`, `latex`. |
-| `textColor` | dropped by default | `ignore` or `html` (`<span style="color: ...">`). |
-| `backgroundColor` | dropped by default | `ignore` or `html` (`<span style="background-color: ...">`). |
+| `underline` | `**text**` | `ignore`, `bold`, `html` (`<u>`), `pandoc` (`[text]{.underline}`). |
+| `subsup` | HTML by default (`<sub>`, `<sup>`) | `ignore`, `html`, `latex`, `pandoc` (`~text~`, `^text^`). |
+| `textColor` | dropped by default | `ignore`, `html` (`<span style="color: ...">`), `pandoc` (`[text]{color="..."}`). |
+| `backgroundColor` | dropped by default | `ignore`, `html` (`<span style="background-color: ...">`), `pandoc` (`[text]{background-color="..."}`). |
 
 ## Markdown -> ADF (`mdconverter`)
 
@@ -77,8 +77,10 @@ Unknown handling is policy driven:
 | Bullet/ordered lists | `bulletList` / `orderedList` | Preserves ordered `start` when present. |
 | Task lists (`- [ ]`, `- [x]`) | `taskList` / `taskItem` | State mapped to `TODO`/`DONE`. |
 | GFM pipe tables | `table` nodes | Header/data cells reconstructed. |
+| Grid tables (`+---+`) | `table` nodes | Reconstructs Pandoc grid tables into ADF tables. |
 | HTML tables (`<table>`) | `table` nodes | Supports `colspan` / `rowspan` and nested markdown parsing in cells. |
 | `[text](mention:id)` | `mention` | Controlled by `MentionDetection` (`link` / `all`). |
+| `[Name]{.mention mention-id="..."}` | `mention` | Controlled by `MentionDetection` (`pandoc` / `all`). |
 | `![alt](dest)` | `mediaSingle` + `media` | Hook runs first; fallback strips `MediaBaseURL` to `id` when configured. |
 | `[Image: id]`, `[File: id]` | `mediaSingle` + `media` | Parsed from text patterns. |
 | `:shortcode:` | `emoji` | Controlled by `EmojiDetection`. |
@@ -86,13 +88,21 @@ Unknown handling is policy driven:
 | `YYYY-MM-DD` | `date` | Controlled by `DateDetection` + `DateFormat`. |
 | `@Name` | `mention` | Requires `MentionRegistry`; controlled by `MentionDetection` (`at` / `all`). |
 | `<u>`, `<sub>`, `<sup>` | `underline` / `subsup` marks | Parsed from inline HTML tags. |
+| `~text~`, `^text^` | `subsup` marks | Pandoc subscript and superscript. |
+| `[text]{.underline}` | `underline` mark | Pandoc underline span. |
 | `<span style="color:...">` | `textColor` mark | Inline HTML parsing. |
+| `[text]{color="..."}` | `textColor` mark | Pandoc color span. |
 | `<span style="background-color:...">` | `backgroundColor` mark | Inline HTML parsing. |
+| `[text]{background-color="..."}` | `backgroundColor` mark | Pandoc background color span. |
 | `<span data-mention-id="...">` | `mention` node | Controlled by `MentionDetection` (`html` / `all`). |
 | `<details><summary>...</summary>...</details>` | `expand` / `nestedExpand` | Controlled by `ExpandDetection` (`html` / `all`). |
+| `:::{ .details summary="..." }...:::` | `expand` / `nestedExpand` | Controlled by `ExpandDetection` (`pandoc` / `all`). |
 | `<div align="...">` | aligned `paragraph` | Alignment attr restored in ADF attrs. |
+| `:::{ align="..." }` | aligned `paragraph`/`heading` | Pandoc fenced div with alignment attribute. |
 | `<h1 align="...">...` | aligned `heading` | Alignment attr + heading level restoration. |
+| `[title]{.inline-card url="..."}` | `inlineCard` | Controlled by `InlineCardDetection` (`pandoc` / `all`). |
 | ```` ```adf:extension ```` | extension node | Reconstructs extension payload from JSON body. |
+| `:::{ .adf-extension key="..." }` | extension node | Reconstructs handled extension from custom handler metadata/content. |
 | ```` ```adf:inlineCard ```` | `inlineCard` | Reconstructs inline card attrs from JSON body. |
 
 Unsupported markdown constructs are downgraded to text with warnings when possible instead of failing by default.
@@ -119,16 +129,16 @@ When panel/decision/expand detection is enabled, blockquotes are checked in this
 | `ExpandDetection` | `html` |
 | `DecisionDetection` | `emoji` |
 
-## Runtime Link and Media Hooks
+## Runtime Hooks (Link, Media, Extensions)
 
 Both directions support optional runtime hooks. Hook fields are runtime-only (`json:"-"`) and are not serialized in config JSON.
 
 ### Hook Surfaces
 
-| Direction | Link Hook | Media Hook |
-|---|---|---|
-| ADF -> Markdown | `LinkHook(ctx, LinkRenderInput) (LinkRenderOutput, error)` | `MediaHook(ctx, MediaRenderInput) (MediaRenderOutput, error)` |
-| Markdown -> ADF | `LinkHook(ctx, LinkParseInput) (LinkParseOutput, error)` | `MediaHook(ctx, MediaParseInput) (MediaParseOutput, error)` |
+| Direction | Link Hook | Media Hook | Extension Handler |
+|---|---|---|---|
+| ADF -> Markdown | `LinkHook(ctx, LinkRenderInput) (LinkRenderOutput, error)` | `MediaHook(ctx, MediaRenderInput) (MediaRenderOutput, error)` | `ExtensionHandlers[key].ToMarkdown(ctx, ...)` |
+| Markdown -> ADF | `LinkHook(ctx, LinkParseInput) (LinkParseOutput, error)` | `MediaHook(ctx, MediaParseInput) (MediaParseOutput, error)` | `ExtensionHandlers[key].FromMarkdown(ctx, ...)` |
 
 Typed metadata is available in both directions (`PageID`, `SpaceKey`, `AttachmentID`, `Filename`, `Anchor`) plus raw attrs payloads.
 
@@ -138,11 +148,13 @@ Typed metadata is available in both directions (`PageID`, `SpaceKey`, `Attachmen
   1. Link marks
   2. `inlineCard`
   3. Media nodes
+  4. Extensions (matches by `extensionKey`)
 - Markdown -> ADF:
   1. Mention-link detection (`mention:`) first
   2. Link hook for non-mention links
   3. Card heuristics (`inlineCard`) unless forced by hook output
   4. Media hook before `MediaBaseURL` stripping
+  5. Extension handler on `:::{ .adf-extension key="..." }`
 
 ### Unresolved and Validation Behavior
 
@@ -157,6 +169,7 @@ Handled hook outputs are validated:
 4. Reverse link output cannot set both `ForceLink` and `ForceCard`.
 5. Reverse media output requires `MediaType` of `image` or `file`.
 6. Reverse media output must set exactly one of `ID` or `URL`.
+7. Extensions gracefully fall back to default behavior (e.g. fenced JSON block) if handler declines (`Handled: false`).
 
 `ForceCard` currently maps to `inlineCard` output (block-card output is not currently emitted by reverse conversion).
 
@@ -169,7 +182,7 @@ Use context-aware entrypoints to pass deterministic source location and cancella
 
 ## CLI Presets
 
-`jac --preset=...` supports `balanced`, `strict`, `readable`, and `lossy` in both directions.
+`jac --preset=...` supports `balanced`, `strict`, `readable`, `lossy`, and `pandoc` in both directions.
 
 | Preset | Forward Intent | Reverse Intent |
 |---|---|---|
@@ -177,6 +190,7 @@ Use context-aware entrypoints to pass deterministic source location and cancella
 | `strict` | error on unknown nodes/marks; preserve IDs/extensions | conservative detection set matching round-trip formats |
 | `readable` | human-focused markdown (text mentions, text extensions, blockquote expands) | readable pattern set (`@Name`, text status, bold panels, blockquote expands) |
 | `lossy` | minimize metadata (`inlineCard` URLs, stripped extensions, text mentions) | disable most semantic detectors (`none`) |
+| `pandoc` | Pandoc-flavored Markdown using span/div syntax and grid tables | detect and parse Pandoc syntax back to ADF metadata |
 
 CLI compatibility flags are layered on top of preset output:
 

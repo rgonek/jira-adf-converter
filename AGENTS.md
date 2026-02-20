@@ -9,6 +9,8 @@ The current development plan is stored in:
 *   [agents/plans/phase6-detailed.md](agents/plans/phase6-detailed.md) (granular config + presets)
 *   [agents/plans/gfm-to-adf.md](agents/plans/gfm-to-adf.md) (reverse converter architecture)
 *   [agents/plans/link-media-hooks.md](agents/plans/link-media-hooks.md) (runtime link/media hooks)
+*   [agents/plans/extension-hook-system.md](agents/plans/extension-hook-system.md) (registry-based extension hooks)
+*   [agents/plans/pandoc-strategies.md](agents/plans/pandoc-strategies.md) (Pandoc metadata-preserving syntax)
 
 ## Quick Commands
 

@@ -12,7 +12,9 @@ The project focuses on semantic, AI-friendly output while preserving round-trip 
 - Granular, JSON-serializable configuration for formatting, detection, unknown handling, and extensions.
 - Structured conversion results with warnings (`Result{Markdown|ADF, Warnings}`).
 - Runtime link/media hooks in both directions with context, source-path support, and strict/best-effort unresolved behavior.
-- CLI presets (`balanced`, `strict`, `readable`, `lossy`) with directional mapping.
+- Registry-based Extension Hook system to serialize specific ADF extensions as custom Markdown.
+- Pandoc-flavored Markdown support for maximum fidelity (bracketed spans, fenced divs, grid tables).
+- CLI presets (`balanced`, `strict`, `readable`, `lossy`, `pandoc`) with directional mapping.
 
 See `docs/features.md` for detailed node/mark coverage and parsing rules.
 
@@ -48,7 +50,7 @@ Reverse mode prints pretty-formatted ADF JSON.
 
 Common options:
 
-- `--preset=balanced|strict|readable|lossy`
+- `--preset=balanced|strict|readable|lossy|pandoc`
 - `--allow-html` (compatibility override; in forward mode it forces HTML-oriented rendering for underline/subsup/hard breaks/expand, and in reverse mode it enables broad HTML mention/expand detection)
 - `--strict` (compatibility override; in forward mode it enforces unknown-node/mark errors, and in reverse mode it applies strict detection defaults)
 
@@ -132,7 +134,7 @@ func main() {
 
 ## Context-Aware Conversion and Hooks
 
-Use `ConvertWithContext` when you need cancellation/timeouts, deterministic relative-path resolution, or custom link/media mapping.
+Use `ConvertWithContext` when you need cancellation/timeouts, deterministic relative-path resolution, or custom mapping for links, media, and extensions.
 
 ```go
 ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -148,6 +150,9 @@ cfg := converter.Config{
         }
         return converter.LinkRenderOutput{Handled: false}, nil
     },
+    ExtensionHandlers: map[string]converter.ExtensionHandler{
+        "plantumlcloud": &MyPlantUMLHandler{},
+    },
 }
 
 conv, _ := converter.New(cfg)
@@ -158,7 +163,7 @@ _ = result
 _ = err
 ```
 
-Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHook`) and receive `ConvertOptions{SourcePath: ...}` for consistent relative reference mapping.
+Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHook` / `mdconverter.ExtensionHandler`) and receive `ConvertOptions{SourcePath: ...}` for consistent relative reference mapping.
 
 ### Resolution Modes
 
@@ -205,12 +210,13 @@ Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHoo
 
 ## CLI Presets
 
-`jac` supports `balanced`, `strict`, `readable`, and `lossy` presets in both directions.
+`jac` supports `balanced`, `strict`, `readable`, `lossy`, and `pandoc` presets in both directions.
 
 - `balanced`: library defaults (recommended for most workflows).
 - `strict`: stronger fidelity/parsing constraints.
 - `readable`: favors cleaner human-facing markdown and lenient reverse patterns.
 - `lossy`: favors compact output over metadata preservation.
+- `pandoc`: produces Pandoc-flavored Markdown with bracketed spans and fenced divs for maximum metadata preservation.
 
 ## Concurrency
 
