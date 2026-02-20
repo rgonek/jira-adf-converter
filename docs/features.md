@@ -40,6 +40,8 @@ Both packages validate config at `New(...)` time and keep config immutable after
 | `status` | `[Status: TEXT]` | `StatusStyle`: `bracket` or `text`. |
 | `date` | Formatted timestamp | Uses configurable `DateFormat`. |
 | `inlineCard` | `[title](url)` | `InlineCardStyle`: `link`, `url`, `embed` (`adf:inlineCard` fenced JSON), `pandoc`. |
+| `layoutSection` | Grid container | `LayoutSectionStyle`: `standard` (flat), `html`, `pandoc`. |
+| `layoutColumn` | Column container | `LayoutSectionStyle`: `standard` (flat), `html` (with width style), `pandoc` (with width attr). |
 | `media` (+ `mediaSingle`/`mediaGroup`) | Image markdown or placeholders | External: `![alt](url)`; internal: `[Image: id]` / `[File: id]`; optional `MediaBaseURL` expansion. |
 | `extension` / `inlineExtension` / `bodiedExtension` | Fenced JSON by default | `Extensions.Default`: `json`, `text`, `strip`; per-type override via `Extensions.ByType`. |
 
@@ -100,6 +102,10 @@ Unknown handling is policy driven:
 | `<div align="...">` | aligned `paragraph` | Alignment attr restored in ADF attrs. |
 | `:::{ align="..." }` | aligned `paragraph`/`heading` | Pandoc fenced div with alignment attribute. |
 | `<h1 align="...">...` | aligned `heading` | Alignment attr + heading level restoration. |
+| `<div class="layout-section">` | `layoutSection` | Controlled by `LayoutSectionDetection` (`html` / `all`). |
+| `<div class="layout-column">` | `layoutColumn` | Controlled by `LayoutSectionDetection` (`html` / `all`); width parsed from style. |
+| `:::{ .layoutSection }` | `layoutSection` | Controlled by `LayoutSectionDetection` (`pandoc` / `all`). |
+| `:::{ .layoutColumn }` | `layoutColumn` | Controlled by `LayoutSectionDetection` (`pandoc` / `all`); width parsed from attributes. |
 | `[title]{.inline-card url="..."}` | `inlineCard` | Controlled by `InlineCardDetection` (`pandoc` / `all`). |
 | ```` ```adf:extension ```` | extension node | Reconstructs extension payload from JSON body. |
 | `:::{ .adf-extension key="..." }` | extension node | Reconstructs handled extension from custom handler metadata/content. |
@@ -126,6 +132,7 @@ When panel/decision/expand detection is enabled, blockquotes are checked in this
 | `StatusDetection` | `bracket` |
 | `DateDetection` | `iso` |
 | `PanelDetection` | `github` |
+| `LayoutSectionDetection` | `html` |
 | `ExpandDetection` | `html` |
 | `DecisionDetection` | `emoji` |
 

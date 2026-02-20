@@ -188,6 +188,7 @@ Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHoo
 | `MentionStyle` | `link` |
 | `PanelStyle` | `github` |
 | `ExpandStyle` | `html` |
+| `LayoutSectionStyle` | `standard` |
 | `InlineCardStyle` | `link` |
 | `TableMode` | `auto` |
 | `Extensions.Default` | `json` |
@@ -204,6 +205,7 @@ Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHoo
 | `StatusDetection` | `bracket` |
 | `DateDetection` | `iso` |
 | `PanelDetection` | `github` |
+| `LayoutSectionDetection` | `html` |
 | `ExpandDetection` | `html` |
 | `DecisionDetection` | `emoji` |
 | `ResolutionMode` | `best_effort` |
