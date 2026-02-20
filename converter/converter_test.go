@@ -42,6 +42,8 @@ func goldenConfigForPath(path string) Config {
 		cfg.SubSupStyle = SubSupHTML
 		cfg.HardBreakStyle = HardBreakHTML
 		cfg.ExpandStyle = ExpandHTML
+		cfg.LayoutSectionStyle = LayoutSectionHTML
+
 	}
 	if strings.Contains(base, "_pandoc") {
 		cfg.UnderlineStyle = UnderlinePandoc
@@ -51,6 +53,8 @@ func goldenConfigForPath(path string) Config {
 		cfg.MentionStyle = MentionPandoc
 		cfg.AlignmentStyle = AlignPandoc
 		cfg.ExpandStyle = ExpandPandoc
+		cfg.LayoutSectionStyle = LayoutSectionPandoc
+
 		cfg.InlineCardStyle = InlineCardPandoc
 		cfg.TableMode = TableAutoPandoc
 		if strings.Contains(path, string(filepath.Separator)+"tables"+string(filepath.Separator)) {
@@ -96,6 +100,8 @@ func goldenConfigForPath(path string) Config {
 	}
 	if strings.Contains(base, "expand_html") {
 		cfg.ExpandStyle = ExpandHTML
+		cfg.LayoutSectionStyle = LayoutSectionHTML
+
 	}
 	if strings.Contains(base, "unknown_placeholder") {
 		cfg.UnknownMarks = UnknownPlaceholder

@@ -1,18 +1,1 @@
-{
-  "type": "doc",
-  "version": 1,
-  "content": [
-    {
-      "type": "codeBlock",
-      "attrs": {
-        "language": "go"
-      },
-      "content": [
-        {
-          "type": "text",
-          "text": "func main() {\n    fmt.Println(\"Hello, World!\")\n}"
-        }
-      ]
-    }
-  ]
-}
+{"version":1,"type":"doc","content":[{"type":"codeBlock","content":[{"type":"text","text":"func main() {\n    fmt.Println(\"Hello, World!\")\n}"}],"attrs":{"language":"go"}}]}

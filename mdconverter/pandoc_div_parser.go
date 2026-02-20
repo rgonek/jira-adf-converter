@@ -101,7 +101,7 @@ func isPandocDivClosingFence(line string, openingFenceLength int) bool {
 	if strings.TrimSpace(line[fenceLength:]) != "" {
 		return false
 	}
-	return fenceLength <= openingFenceLength
+	return fenceLength == openingFenceLength
 }
 
 func isPandocDivOpeningFence(line string) bool {

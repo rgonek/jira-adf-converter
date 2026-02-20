@@ -123,6 +123,15 @@ const (
 	OrderedLazy        OrderedListStyle = "lazy"
 )
 
+// LayoutSectionStyle controls how layout sections are rendered.
+type LayoutSectionStyle string
+
+const (
+	LayoutSectionStandard LayoutSectionStyle = "standard"
+	LayoutSectionHTML     LayoutSectionStyle = "html"
+	LayoutSectionPandoc   LayoutSectionStyle = "pandoc"
+)
+
 // TableMode controls how tables are rendered.
 type TableMode string
 
@@ -183,6 +192,7 @@ type Config struct {
 	ExpandStyle          ExpandStyle                 `json:"expandStyle,omitempty"`
 	StatusStyle          StatusStyle                 `json:"statusStyle,omitempty"`
 	InlineCardStyle      InlineCardStyle             `json:"inlineCardStyle,omitempty"`
+	LayoutSectionStyle   LayoutSectionStyle          `json:"layoutSectionStyle,omitempty"`
 	DecisionStyle        DecisionStyle               `json:"decisionStyle,omitempty"`
 	DateFormat           string                      `json:"dateFormat,omitempty"`
 	TableMode            TableMode                   `json:"tableMode,omitempty"`
@@ -235,6 +245,9 @@ func (c Config) applyDefaults() Config {
 	}
 	if c.InlineCardStyle == "" {
 		c.InlineCardStyle = InlineCardLink
+	}
+	if c.LayoutSectionStyle == "" {
+		c.LayoutSectionStyle = LayoutSectionStandard
 	}
 	if c.DecisionStyle == "" {
 		c.DecisionStyle = DecisionEmoji
@@ -318,6 +331,9 @@ func (c Config) Validate() error {
 	}
 	if c.InlineCardStyle != InlineCardLink && c.InlineCardStyle != InlineCardURL && c.InlineCardStyle != InlineCardEmbed && c.InlineCardStyle != InlineCardPandoc {
 		return fmt.Errorf("invalid inlineCardStyle %q", c.InlineCardStyle)
+	}
+	if c.LayoutSectionStyle != LayoutSectionStandard && c.LayoutSectionStyle != LayoutSectionHTML && c.LayoutSectionStyle != LayoutSectionPandoc {
+		return fmt.Errorf("invalid layoutSectionStyle %q", c.LayoutSectionStyle)
 	}
 	if c.DecisionStyle != DecisionEmoji && c.DecisionStyle != DecisionText {
 		return fmt.Errorf("invalid decisionStyle %q", c.DecisionStyle)

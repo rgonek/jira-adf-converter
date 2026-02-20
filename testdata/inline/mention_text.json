@@ -1,18 +1,1 @@
-{
-  "type": "doc",
-  "version": 1,
-  "content": [
-    {
-      "type": "paragraph",
-      "content": [
-        {
-          "type": "mention",
-          "attrs": {
-            "id": "12345",
-            "text": "User Name"
-          }
-        }
-      ]
-    }
-  ]
-}
+{"version":1,"type":"doc","content":[{"type":"paragraph","content":[{"type":"mention","attrs":{"id":"12345","text":"User Name"}}]}]}

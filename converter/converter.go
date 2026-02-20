@@ -152,6 +152,12 @@ func (s *state) convertNode(node Node) (string, error) {
 	case "expand", "nestedExpand":
 		return s.convertExpand(node)
 
+	case "layoutSection":
+		return s.convertLayoutSection(node)
+
+	case "layoutColumn":
+		return s.convertLayoutColumn(node)
+
 	case "mediaSingle":
 		return s.convertMediaSingle(node)
 

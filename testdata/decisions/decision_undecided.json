@@ -1,1 +1,1 @@
-{"type":"doc","content":[{"type":"decisionList","content":[{"type":"decisionItem","attrs":{"state":"UNDECIDED"},"content":[{"type":"paragraph","content":[{"type":"text","text":"test undecided"}]}]}]}]}
+{"version":1,"type":"doc","content":[{"type":"decisionList","content":[{"type":"decisionItem","content":[{"type":"paragraph","content":[{"type":"text","text":"test undecided"}]}],"attrs":{"state":"UNDECIDED"}}]}]}

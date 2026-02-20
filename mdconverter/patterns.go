@@ -77,6 +77,14 @@ func (s *state) shouldDetectExpandPandoc() bool {
 	return s.config.ExpandDetection == ExpandDetectPandoc || s.config.ExpandDetection == ExpandDetectAll
 }
 
+func (s *state) shouldDetectLayoutSectionHTML() bool {
+	return s.config.LayoutSectionDetection == LayoutSectionDetectHTML || s.config.LayoutSectionDetection == LayoutSectionDetectAll
+}
+
+func (s *state) shouldDetectLayoutSectionPandoc() bool {
+	return s.config.LayoutSectionDetection == LayoutSectionDetectPandoc || s.config.LayoutSectionDetection == LayoutSectionDetectAll
+}
+
 func (s *state) shouldDetectInlineCardPandoc() bool {
 	return s.config.InlineCardDetection == InlineCardDetectPandoc || s.config.InlineCardDetection == InlineCardDetectAll
 }

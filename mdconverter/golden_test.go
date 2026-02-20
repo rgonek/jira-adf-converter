@@ -1,6 +1,8 @@
 package mdconverter
 
 import (
+	"flag"
+
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -12,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var update = flag.Bool("update", false, "update golden files")
+
 func newGoldenReverseConverter(t testing.TB, cfg ReverseConfig) *Converter {
 	t.Helper()
 	conv, err := New(cfg)
@@ -21,14 +25,15 @@ func newGoldenReverseConverter(t testing.TB, cfg ReverseConfig) *Converter {
 
 func reverseGoldenConfigForPath(path string) ReverseConfig {
 	cfg := ReverseConfig{
-		MentionDetection:  MentionDetectLink,
-		EmojiDetection:    EmojiDetectShortcode,
-		StatusDetection:   StatusDetectBracket,
-		DateDetection:     DateDetectISO,
-		PanelDetection:    PanelDetectGitHub,
-		ExpandDetection:   ExpandDetectHTML,
-		DecisionDetection: DecisionDetectEmoji,
-		DateFormat:        "2006-01-02",
+		MentionDetection:       MentionDetectLink,
+		EmojiDetection:         EmojiDetectShortcode,
+		StatusDetection:        StatusDetectBracket,
+		DateDetection:          DateDetectISO,
+		PanelDetection:         PanelDetectGitHub,
+		ExpandDetection:        ExpandDetectHTML,
+		LayoutSectionDetection: LayoutSectionDetectHTML,
+		DecisionDetection:      DecisionDetectEmoji,
+		DateFormat:             "2006-01-02",
 		MentionRegistry: map[string]string{
 			"User Name": "12345",
 			"username":  "12345",
@@ -44,6 +49,8 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 		cfg.ColorDetection = ColorDetectPandoc
 		cfg.AlignmentDetection = AlignDetectPandoc
 		cfg.ExpandDetection = ExpandDetectPandoc
+		cfg.LayoutSectionDetection = LayoutSectionDetectPandoc
+
 		cfg.InlineCardDetection = InlineCardDetectPandoc
 		cfg.TableGridDetection = true
 	}
@@ -75,6 +82,8 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 	}
 	if strings.Contains(base, "expand_html") {
 		cfg.ExpandDetection = ExpandDetectHTML
+		cfg.LayoutSectionDetection = LayoutSectionDetectHTML
+
 	}
 	if strings.Contains(base, "language_map_cpp") {
 		cfg.LanguageMap = map[string]string{
@@ -105,9 +114,12 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 	if strings.Contains(base, "pandoc_div_detection_disabled") {
 		cfg.ExpandDetection = ExpandDetectNone
 		cfg.AlignmentDetection = AlignDetectNone
+		cfg.LayoutSectionDetection = LayoutSectionDetectNone
 	}
 	if strings.Contains(base, "unknown_div_class_fallback") {
 		cfg.ExpandDetection = ExpandDetectPandoc
+		cfg.LayoutSectionDetection = LayoutSectionDetectPandoc
+
 		cfg.AlignmentDetection = AlignDetectPandoc
 	}
 	if strings.Contains(base, "grid_table_") {
@@ -202,6 +214,8 @@ func TestReverseGoldenFiles(t *testing.T) {
 		"reverse/expanders/right_alignment_from_pandoc_div",
 		"reverse/expanders/unknown_div_class_fallback",
 		"reverse/expanders/pandoc_div_detection_disabled",
+		"reverse/layout/layout_section_pandoc",
+		"reverse/layout/layout_section_html",
 		"reverse/tables/grid_table_with_header",
 		"reverse/tables/grid_table_no_header_separator",
 		"reverse/tables/grid_table_multiline_cell",
@@ -227,16 +241,25 @@ func TestReverseGoldenFiles(t *testing.T) {
 			markdown, err := os.ReadFile(mdPath)
 			require.NoError(t, err)
 
+			markdownStr := strings.ReplaceAll(string(markdown), "\r\n", "\n")
+
 			expectedJSON, err := os.ReadFile(jsonPath)
 			require.NoError(t, err)
 
 			cfg := reverseGoldenConfigForPath(mdPath)
 			conv := newGoldenReverseConverter(t, cfg)
-			result, err := conv.Convert(string(markdown))
+			result, err := conv.Convert(markdownStr)
 			require.NoError(t, err)
 
 			var actualDoc converter.Doc
 			var expectedDoc converter.Doc
+			if *update {
+
+				os.WriteFile(jsonPath, result.ADF, 0644)
+
+				expectedJSON = result.ADF
+
+			}
 			require.NoError(t, json.Unmarshal(result.ADF, &actualDoc))
 			require.NoError(t, json.Unmarshal(expectedJSON, &expectedDoc))
 

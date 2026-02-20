@@ -63,6 +63,9 @@ func presetConfig(preset string) (converter.Config, error) {
 			AlignmentStyle:       converter.AlignPandoc,
 			ExpandStyle:          converter.ExpandPandoc,
 			InlineCardStyle:      converter.InlineCardPandoc,
+
+
+			LayoutSectionStyle:   converter.LayoutSectionPandoc,
 			TableMode:            converter.TableAutoPandoc,
 		}, nil
 	default:
@@ -81,6 +84,8 @@ func resolveConfig(preset string, allowHTML, strict bool) (converter.Config, err
 		cfg.SubSupStyle = converter.SubSupHTML
 		cfg.HardBreakStyle = converter.HardBreakHTML
 		cfg.ExpandStyle = converter.ExpandHTML
+		cfg.LayoutSectionStyle = converter.LayoutSectionHTML
+
 	}
 	if strict {
 		cfg.UnknownNodes = converter.UnknownError
@@ -101,7 +106,10 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 			StatusDetection:   mdconverter.StatusDetectBracket,
 			DateDetection:     mdconverter.DateDetectISO,
 			PanelDetection:    mdconverter.PanelDetectGitHub,
-			ExpandDetection:   mdconverter.ExpandDetectHTML,
+
+
+			LayoutSectionDetection: mdconverter.LayoutSectionDetectHTML,
+				ExpandDetection:   mdconverter.ExpandDetectHTML,
 			DecisionDetection: mdconverter.DecisionDetectEmoji,
 		}, nil
 	case presetReadable:
@@ -111,7 +119,10 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 			StatusDetection:   mdconverter.StatusDetectText,
 			DateDetection:     mdconverter.DateDetectISO,
 			PanelDetection:    mdconverter.PanelDetectBold,
-			ExpandDetection:   mdconverter.ExpandDetectBlockquote,
+
+
+			LayoutSectionDetection: mdconverter.LayoutSectionDetectNone,
+				ExpandDetection:   mdconverter.ExpandDetectBlockquote,
 			DecisionDetection: mdconverter.DecisionDetectText,
 		}, nil
 	case presetLossy:
@@ -121,7 +132,10 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 			StatusDetection:   mdconverter.StatusDetectNone,
 			DateDetection:     mdconverter.DateDetectNone,
 			PanelDetection:    mdconverter.PanelDetectNone,
-			ExpandDetection:   mdconverter.ExpandDetectNone,
+
+
+			LayoutSectionDetection: mdconverter.LayoutSectionDetectNone,
+				ExpandDetection:   mdconverter.ExpandDetectNone,
 			DecisionDetection: mdconverter.DecisionDetectNone,
 		}, nil
 	case presetPandoc:
@@ -133,7 +147,10 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 			MentionDetection:    mdconverter.MentionDetectPandoc,
 			ExpandDetection:     mdconverter.ExpandDetectPandoc,
 			InlineCardDetection: mdconverter.InlineCardDetectPandoc,
-			TableGridDetection:  true,
+
+
+			LayoutSectionDetection: mdconverter.LayoutSectionDetectPandoc,
+				TableGridDetection:  true,
 		}, nil
 	default:
 		return mdconverter.ReverseConfig{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy, pandoc)", preset)

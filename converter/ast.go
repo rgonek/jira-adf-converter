@@ -45,6 +45,17 @@ func (n Node) GetIntAttr(key string, defaultValue int) int {
 	return defaultValue
 }
 
+// GetFloat64Attr retrieves a float64 attribute or returns the default value.
+func (n Node) GetFloat64Attr(key string, defaultValue float64) float64 {
+	if n.Attrs == nil {
+		return defaultValue
+	}
+	if v, ok := n.Attrs[key].(float64); ok {
+		return v
+	}
+	return defaultValue
+}
+
 // GetStringAttr retrieves a string attribute from a Mark or returns the default value.
 func (m Mark) GetStringAttr(key, defaultValue string) string {
 	if m.Attrs == nil {

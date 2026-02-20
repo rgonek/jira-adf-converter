@@ -472,11 +472,68 @@ func (s *state) convertExpand(node Node) (string, error) {
 	if content == "" {
 		return text.String() + "\n\n", nil
 	}
-
 	// Apply blockquote to content
 	// If title exists, we've already written the header, so we prefix content with just "> "
 	quotedContent := s.blockquoteContent(content, "")
 	text.WriteString(quotedContent)
 
 	return text.String() + "\n\n", nil
+}
+
+// convertLayoutSection converts a layout section node
+func (s *state) convertLayoutSection(node Node) (string, error) {
+	if len(node.Content) == 0 {
+		return "", nil
+	}
+
+	content, err := s.convertChildren(node.Content)
+	if err != nil {
+		return "", err
+	}
+
+	if s.config.LayoutSectionStyle == LayoutSectionHTML {
+		return "<div class=\"layout-section\">\n\n" + content + "</div>\n\n", nil
+	}
+
+	if s.config.LayoutSectionStyle == LayoutSectionPandoc {
+		return "::::{ .layoutSection }\n" + content + "::::\n\n", nil
+	}
+
+	// Default Standard (Lossy) strategy
+	return content, nil
+}
+
+// convertLayoutColumn converts a layout column node
+func (s *state) convertLayoutColumn(node Node) (string, error) {
+	if len(node.Content) == 0 {
+		return "", nil
+	}
+
+	content, err := s.convertChildren(node.Content)
+	if err != nil {
+		return "", err
+	}
+
+	if s.config.LayoutSectionStyle == LayoutSectionHTML {
+		width := node.GetFloat64Attr("width", 0)
+		if width > 0 {
+			formattedWidth := fmt.Sprintf("%f", width)
+			formattedWidth = strings.TrimRight(strings.TrimRight(formattedWidth, "0"), ".")
+			return fmt.Sprintf("<div class=\"layout-column\" style=\"width: %s%%;\">\n\n%s\n</div>\n\n", formattedWidth, strings.TrimRight(content, "\n")), nil
+		}
+		return "<div class=\"layout-column\">\n\n" + strings.TrimRight(content, "\n") + "\n</div>\n\n", nil
+	}
+
+	if s.config.LayoutSectionStyle == LayoutSectionPandoc {
+		width := node.GetFloat64Attr("width", 0)
+		if width > 0 {
+			formattedWidth := fmt.Sprintf("%f", width)
+			formattedWidth = strings.TrimRight(strings.TrimRight(formattedWidth, "0"), ".")
+			return fmt.Sprintf(":::{ .layoutColumn width=\"%s%%\" }\n\n%s\n\n:::\n\n", formattedWidth, strings.TrimRight(content, "\n")), nil
+		}
+		return ":::{ .layoutColumn }\n\n" + strings.TrimRight(content, "\n") + "\n\n:::\n\n", nil
+	}
+
+	// Default Standard (Lossy) strategy
+	return content, nil
 }

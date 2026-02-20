@@ -29,6 +29,7 @@ type state struct {
 	htmlMentionStack  []string
 	htmlSpanStack     []htmlSpanContext
 	pandocExpandDepth int
+	htmlExpandDepth   int
 }
 
 // New creates a new reverse Converter with the given config.

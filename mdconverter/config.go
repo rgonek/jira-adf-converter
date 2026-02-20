@@ -100,6 +100,20 @@ const (
 	PanelDetectAll    PanelDetection = "all"
 )
 
+// LayoutSectionDetection controls how layout sections are reconstructed.
+
+type LayoutSectionDetection string
+
+const (
+	LayoutSectionDetectNone LayoutSectionDetection = "none"
+
+	LayoutSectionDetectHTML LayoutSectionDetection = "html"
+
+	LayoutSectionDetectPandoc LayoutSectionDetection = "pandoc"
+
+	LayoutSectionDetectAll LayoutSectionDetection = "all"
+)
+
 // ExpandDetection controls how expand blocks are reconstructed.
 type ExpandDetection string
 
@@ -133,19 +147,20 @@ const (
 
 // ReverseConfig configures Markdown to ADF conversion behavior.
 type ReverseConfig struct {
-	MentionDetection    MentionDetection    `json:"mentionDetection,omitempty"`
-	UnderlineDetection  UnderlineDetection  `json:"underlineDetection,omitempty"`
-	SubSupDetection     SubSupDetection     `json:"subSupDetection,omitempty"`
-	ColorDetection      ColorDetection      `json:"colorDetection,omitempty"`
-	AlignmentDetection  AlignmentDetection  `json:"alignmentDetection,omitempty"`
-	EmojiDetection      EmojiDetection      `json:"emojiDetection,omitempty"`
-	StatusDetection     StatusDetection     `json:"statusDetection,omitempty"`
-	DateDetection       DateDetection       `json:"dateDetection,omitempty"`
-	PanelDetection      PanelDetection      `json:"panelDetection,omitempty"`
-	ExpandDetection     ExpandDetection     `json:"expandDetection,omitempty"`
-	InlineCardDetection InlineCardDetection `json:"inlineCardDetection,omitempty"`
-	TableGridDetection  bool                `json:"tableGridDetection,omitempty"`
-	DecisionDetection   DecisionDetection   `json:"decisionDetection,omitempty"`
+	MentionDetection       MentionDetection       `json:"mentionDetection,omitempty"`
+	UnderlineDetection     UnderlineDetection     `json:"underlineDetection,omitempty"`
+	SubSupDetection        SubSupDetection        `json:"subSupDetection,omitempty"`
+	ColorDetection         ColorDetection         `json:"colorDetection,omitempty"`
+	AlignmentDetection     AlignmentDetection     `json:"alignmentDetection,omitempty"`
+	EmojiDetection         EmojiDetection         `json:"emojiDetection,omitempty"`
+	StatusDetection        StatusDetection        `json:"statusDetection,omitempty"`
+	DateDetection          DateDetection          `json:"dateDetection,omitempty"`
+	PanelDetection         PanelDetection         `json:"panelDetection,omitempty"`
+	LayoutSectionDetection LayoutSectionDetection `json:"layoutSectionDetection,omitempty"`
+	ExpandDetection        ExpandDetection        `json:"expandDetection,omitempty"`
+	InlineCardDetection    InlineCardDetection    `json:"inlineCardDetection,omitempty"`
+	TableGridDetection     bool                   `json:"tableGridDetection,omitempty"`
+	DecisionDetection      DecisionDetection      `json:"decisionDetection,omitempty"`
 
 	DateFormat        string                                `json:"dateFormat,omitempty"`
 	HeadingOffset     int                                   `json:"headingOffset,omitempty"`
@@ -186,6 +201,11 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 	}
 	if c.PanelDetection == "" {
 		c.PanelDetection = PanelDetectGitHub
+	}
+	if c.LayoutSectionDetection == "" {
+
+		c.LayoutSectionDetection = LayoutSectionDetectHTML
+
 	}
 	if c.ExpandDetection == "" {
 		c.ExpandDetection = ExpandDetectHTML
@@ -284,6 +304,18 @@ func (c ReverseConfig) Validate() error {
 		return fmt.Errorf("invalid panelDetection %q", c.PanelDetection)
 	}
 
+	if c.LayoutSectionDetection != LayoutSectionDetectNone &&
+
+		c.LayoutSectionDetection != LayoutSectionDetectHTML &&
+
+		c.LayoutSectionDetection != LayoutSectionDetectPandoc &&
+
+		c.LayoutSectionDetection != LayoutSectionDetectAll {
+
+		return fmt.Errorf("invalid layoutSectionDetection %q", c.LayoutSectionDetection)
+
+	}
+
 	if c.ExpandDetection != ExpandDetectNone &&
 		c.ExpandDetection != ExpandDetectBlockquote &&
 		c.ExpandDetection != ExpandDetectHTML &&
@@ -349,6 +381,7 @@ func (c ReverseConfig) needsPandocInlineExtension() bool {
 
 func (c ReverseConfig) needsPandocBlockExtension() bool {
 	return c.ExpandDetection == ExpandDetectPandoc || c.ExpandDetection == ExpandDetectAll ||
+		c.LayoutSectionDetection == LayoutSectionDetectPandoc || c.LayoutSectionDetection == LayoutSectionDetectAll ||
 		c.AlignmentDetection == AlignDetectPandoc || c.AlignmentDetection == AlignDetectAll ||
 		len(c.ExtensionHandlers) > 0
 }
