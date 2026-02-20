@@ -1,6 +1,7 @@
 package mdconverter
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/rgonek/jira-adf-converter/converter"
@@ -8,6 +9,73 @@ import (
 
 func (s *state) convertPandocDivNode(node *PandocDivNode) (converter.Node, bool, error) {
 	literalFallback := pandocLiteralParagraph(node.Literal())
+
+	if hasPandocClass(node.Classes, "layoutSection") {
+
+		if !s.shouldDetectLayoutSectionPandoc() {
+
+			return literalFallback, true, nil
+
+		}
+
+		content, err := s.convertBlockFragment(node.Body())
+
+		if err != nil {
+
+			return converter.Node{}, false, err
+
+		}
+
+		return converter.Node{
+
+			Type: "layoutSection",
+
+			Content: content,
+		}, true, nil
+
+	}
+
+	if hasPandocClass(node.Classes, "layoutColumn") {
+
+		if !s.shouldDetectLayoutSectionPandoc() {
+
+			return literalFallback, true, nil
+
+		}
+
+		content, err := s.convertBlockFragment(node.Body())
+
+		if err != nil {
+
+			return converter.Node{}, false, err
+
+		}
+
+		layoutCol := converter.Node{
+
+			Type: "layoutColumn",
+
+			Content: content,
+		}
+
+		if widthStr, hasWidth := node.Attrs["width"]; hasWidth {
+
+			widthStr = strings.TrimSuffix(widthStr, "%")
+
+			if width, err := strconv.ParseFloat(widthStr, 64); err == nil {
+
+				layoutCol.Attrs = map[string]interface{}{
+
+					"width": width,
+				}
+
+			}
+
+		}
+
+		return layoutCol, true, nil
+
+	}
 
 	if hasPandocClass(node.Classes, "details") {
 		if !s.shouldDetectExpandPandoc() {
@@ -172,7 +240,7 @@ func normalizePandocAlignment(value string) string {
 
 func hasUnknownPandocDivClass(classes []string) bool {
 	for _, className := range classes {
-		if className != "details" {
+		if className != "details" && className != "layoutSection" && className != "layoutColumn" {
 			return true
 		}
 	}

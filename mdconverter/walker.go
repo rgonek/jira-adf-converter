@@ -110,6 +110,33 @@ func (s *state) convertBlockSlice(children []ast.Node, parent ast.Node) ([]conve
 			}
 		}
 
+		if s.shouldDetectLayoutSectionHTML() {
+			if opening, ok := children[index].(*ast.HTMLBlock); ok {
+				if parseLayoutSectionOpenTagFromHTMLBlock(opening, s.source) {
+					sectionNode, consumed, consumedOK, err := s.consumeLayoutSectionBlock(children, index, parent)
+					if err != nil {
+						return nil, err
+					}
+					if consumedOK {
+						content = s.appendConvertedBlock(content, sectionNode, &mergeNextParagraph)
+						index += consumed
+						continue
+					}
+				}
+				if width, ok := parseLayoutColumnOpenTagFromHTMLBlock(opening, s.source); ok {
+					columnNode, consumed, consumedOK, err := s.consumeLayoutColumnBlock(children, index, parent, width)
+					if err != nil {
+						return nil, err
+					}
+					if consumedOK {
+						content = s.appendConvertedBlock(content, columnNode, &mergeNextParagraph)
+						index += consumed
+						continue
+					}
+				}
+			}
+		}
+
 		converted, ok, err := s.convertBlockNode(children[index])
 		if err != nil {
 			return nil, err
@@ -149,24 +176,21 @@ func (s *state) consumeDetailsBlock(children []ast.Node, start int, parent ast.N
 		return converter.Node{}, 0, false, nil
 	}
 
-	innerParent := parent
-	if opening, ok := children[start].(*ast.HTMLBlock); ok {
-		innerParent = opening
+	expandType := "expand"
+	if s.htmlExpandDepth > 0 || isNestedExpandContext(parent) {
+		expandType = "nestedExpand"
 	}
 
-	innerContent, err := s.convertBlockSlice(children[start+1:end], innerParent)
+	s.htmlExpandDepth++
+	content, err := s.convertBlockSlice(children[start+1:end], parent)
+	s.htmlExpandDepth--
 	if err != nil {
 		return converter.Node{}, 0, false, err
 	}
 
-	expandType := "expand"
-	if isNestedExpandContext(parent) {
-		expandType = "nestedExpand"
-	}
-
 	expandNode := converter.Node{
 		Type:    expandType,
-		Content: innerContent,
+		Content: content,
 	}
 	if title != "" {
 		expandNode.Attrs = map[string]interface{}{
@@ -175,6 +199,93 @@ func (s *state) consumeDetailsBlock(children []ast.Node, start int, parent ast.N
 	}
 
 	return expandNode, end - start + 1, true, nil
+}
+
+func (s *state) consumeLayoutSectionBlock(children []ast.Node, start int, parent ast.Node) (converter.Node, int, bool, error) {
+	end := -1
+	depth := 1
+	for idx := start + 1; idx < len(children); idx++ {
+		htmlNode, ok := children[idx].(*ast.HTMLBlock)
+		if !ok {
+			continue
+		}
+		if parseLayoutSectionOpenTagFromHTMLBlock(htmlNode, s.source) {
+			depth++
+			continue
+		}
+		if _, ok := parseLayoutColumnOpenTagFromHTMLBlock(htmlNode, s.source); ok {
+			depth++
+			continue
+		}
+		if isDivCloseHTMLBlock(htmlNode, s.source) {
+			depth--
+			if depth == 0 {
+				end = idx
+				break
+			}
+		}
+	}
+	if end == -1 {
+		return converter.Node{}, 0, false, nil
+	}
+
+	content, err := s.convertBlockSlice(children[start+1:end], parent)
+	if err != nil {
+		return converter.Node{}, 0, false, err
+	}
+
+	sectionNode := converter.Node{
+		Type:    "layoutSection",
+		Content: content,
+	}
+
+	return sectionNode, end - start + 1, true, nil
+}
+
+func (s *state) consumeLayoutColumnBlock(children []ast.Node, start int, parent ast.Node, width float64) (converter.Node, int, bool, error) {
+	end := -1
+	depth := 1
+	for idx := start + 1; idx < len(children); idx++ {
+		htmlNode, ok := children[idx].(*ast.HTMLBlock)
+		if !ok {
+			continue
+		}
+		if parseLayoutSectionOpenTagFromHTMLBlock(htmlNode, s.source) {
+			depth++
+			continue
+		}
+		if _, ok := parseLayoutColumnOpenTagFromHTMLBlock(htmlNode, s.source); ok {
+			depth++
+			continue
+		}
+		if isDivCloseHTMLBlock(htmlNode, s.source) {
+			depth--
+			if depth == 0 {
+				end = idx
+				break
+			}
+		}
+	}
+	if end == -1 {
+		return converter.Node{}, 0, false, nil
+	}
+
+	content, err := s.convertBlockSlice(children[start+1:end], parent)
+	if err != nil {
+		return converter.Node{}, 0, false, err
+	}
+
+	columnNode := converter.Node{
+		Type:    "layoutColumn",
+		Content: content,
+	}
+	if width > 0 {
+		columnNode.Attrs = map[string]interface{}{
+			"width": width,
+		}
+	}
+
+	return columnNode, end - start + 1, true, nil
 }
 
 func isNestedExpandContext(parent ast.Node) bool {
@@ -191,14 +302,6 @@ func (s *state) shouldDetectExpandHTML() bool {
 }
 
 func (s *state) appendConvertedBlock(content []converter.Node, next converter.Node, mergeNextParagraph *bool) []converter.Node {
-	if next.Type == "layoutSection" {
-		*mergeNextParagraph = false
-		for _, child := range next.Content {
-			content = s.appendConvertedBlock(content, child, mergeNextParagraph)
-		}
-		return content
-	}
-
 	if isInlineBlockNodeType(next.Type) {
 		if len(content) == 0 || content[len(content)-1].Type != "paragraph" {
 			content = append(content, converter.Node{
