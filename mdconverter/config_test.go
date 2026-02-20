@@ -17,7 +17,9 @@ func TestReverseConfigDefaultsIncludeResolutionMode(t *testing.T) {
 	assert.Equal(t, SubSupDetectHTML, cfg.SubSupDetection)
 	assert.Equal(t, ColorDetectHTML, cfg.ColorDetection)
 	assert.Equal(t, AlignDetectHTML, cfg.AlignmentDetection)
+	assert.Equal(t, BodiedExtensionDetectPandoc, cfg.BodiedExtensionDetection)
 	assert.Equal(t, InlineCardDetectNone, cfg.InlineCardDetection)
+
 }
 
 func TestReverseConfigValidateRejectsInvalidResolutionMode(t *testing.T) {
@@ -57,6 +59,7 @@ func TestReverseConfigValidateAcceptsPandocDetections(t *testing.T) {
 	cfg.ColorDetection = ColorDetectPandoc
 	cfg.AlignmentDetection = AlignDetectPandoc
 	cfg.ExpandDetection = ExpandDetectPandoc
+	cfg.BodiedExtensionDetection = BodiedExtensionDetectPandoc
 	cfg.InlineCardDetection = InlineCardDetectPandoc
 	require.NoError(t, cfg.Validate())
 }
@@ -108,6 +111,12 @@ func TestReverseConfigValidateRejectsInvalidDetectionValues(t *testing.T) {
 				cfg.InlineCardDetection = InlineCardDetection("invalid")
 			},
 		},
+		{
+			name: "bodiedExtension",
+			mut: func(cfg *ReverseConfig) {
+				cfg.BodiedExtensionDetection = BodiedExtensionDetection("invalid")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -129,6 +138,10 @@ func TestReverseConfigNeedsPandocInlineExtension(t *testing.T) {
 
 func TestReverseConfigNeedsPandocBlockExtension(t *testing.T) {
 	cfg := (ReverseConfig{}).applyDefaults()
+	// Now true because BodiedExtensionDetection defaults to Pandoc
+	assert.True(t, cfg.needsPandocBlockExtension())
+
+	cfg.BodiedExtensionDetection = BodiedExtensionDetectNone
 	assert.False(t, cfg.needsPandocBlockExtension())
 
 	cfg.ExpandDetection = ExpandDetectPandoc

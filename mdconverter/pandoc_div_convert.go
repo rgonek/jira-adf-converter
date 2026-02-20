@@ -1,6 +1,7 @@
 package mdconverter
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -156,6 +157,38 @@ func (s *state) convertPandocDivNode(node *PandocDivNode) (converter.Node, bool,
 				Content: aligned,
 			}, true, nil
 		}
+	}
+
+	if hasPandocClass(node.Classes, "adf-bodied-extension") {
+		if !s.shouldDetectBodiedExtensionPandoc() {
+			return literalFallback, true, nil
+		}
+
+		extensionKey := node.Attrs["key"]
+		extensionType := node.Attrs["extensionType"]
+		paramsJSON := node.Attrs["parameters"]
+
+		content, err := s.convertBlockFragment(node.Body())
+		if err != nil {
+			return converter.Node{}, false, err
+		}
+
+		attrs := map[string]interface{}{
+			"extensionKey":  extensionKey,
+			"extensionType": extensionType,
+		}
+		if paramsJSON != "" {
+			var params interface{}
+			if err := json.Unmarshal([]byte(paramsJSON), &params); err == nil {
+				attrs["parameters"] = params
+			}
+		}
+
+		return converter.Node{
+			Type:    "bodiedExtension",
+			Attrs:   attrs,
+			Content: content,
+		}, true, nil
 	}
 
 	if hasPandocClass(node.Classes, "adf-extension") {

@@ -3,6 +3,7 @@ package converter
 import (
 	"encoding/json"
 	"fmt"
+	"html"
 	"sort"
 	"strings"
 )
@@ -41,6 +42,10 @@ func (s *state) convertExtension(node Node) (string, error) {
 				return sb.String(), nil
 			}
 		}
+	}
+
+	if node.Type == "bodiedExtension" && s.config.BodiedExtensionStyle != BodiedExtensionJSON {
+		return s.convertBodiedExtension(node)
 	}
 
 	extensionType := node.GetStringAttr("extensionType", "")
@@ -108,4 +113,73 @@ func (s *state) getExtensionFallbackText(node Node) (string, error) {
 	}
 
 	return node.GetStringAttr("text", ""), nil
+}
+
+func (s *state) convertBodiedExtension(node Node) (string, error) {
+	children, err := s.convertChildren(node.Content)
+	if err != nil {
+		return "", err
+	}
+
+	switch s.config.BodiedExtensionStyle {
+	case BodiedExtensionStandard:
+		return children, nil
+
+	case BodiedExtensionHTML:
+		key := node.GetStringAttr("extensionKey", "")
+		extType := node.GetStringAttr("extensionType", "")
+		params := s.serializeBodiedExtensionParams(node.Attrs)
+
+		var sb strings.Builder
+		sb.WriteString("<div class=\"adf-bodied-extension\" ")
+		sb.WriteString(fmt.Sprintf("data-extension-key=%q ", html.EscapeString(key)))
+		sb.WriteString(fmt.Sprintf("data-extension-type=%q", html.EscapeString(extType)))
+		if params != "" {
+			sb.WriteString(fmt.Sprintf(" data-parameters=%q", html.EscapeString(params)))
+		}
+		sb.WriteString(">\n\n")
+		sb.WriteString(children)
+		if !strings.HasSuffix(children, "\n") {
+			sb.WriteString("\n")
+		}
+		sb.WriteString("</div>\n\n")
+		return sb.String(), nil
+
+	case BodiedExtensionPandoc:
+		key := node.GetStringAttr("extensionKey", "")
+		extType := node.GetStringAttr("extensionType", "")
+		params := s.serializeBodiedExtensionParams(node.Attrs)
+
+		var sb strings.Builder
+		sb.WriteString("::: { .adf-bodied-extension ")
+		sb.WriteString(fmt.Sprintf("key=%q ", key))
+		sb.WriteString(fmt.Sprintf("extensionType=%q", extType))
+		if params != "" {
+			sb.WriteString(fmt.Sprintf(" parameters=%q", params))
+		}
+		sb.WriteString(" }\n\n")
+		sb.WriteString(children)
+		if !strings.HasSuffix(children, "\n") {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(":::\n\n")
+		return sb.String(), nil
+
+	default:
+		return s.renderExtensionJSON(node)
+	}
+}
+
+func (s *state) serializeBodiedExtensionParams(attrs map[string]interface{}) string {
+	params, ok := attrs["parameters"]
+	if !ok || params == nil {
+		return ""
+	}
+
+	data, err := json.Marshal(params)
+	if err != nil {
+		return ""
+	}
+
+	return string(data)
 }

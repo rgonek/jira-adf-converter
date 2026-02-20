@@ -122,7 +122,14 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 
 		cfg.AlignmentDetection = AlignDetectPandoc
 	}
+	if strings.Contains(base, "bodied_ext_html") {
+		cfg.BodiedExtensionDetection = BodiedExtensionDetectHTML
+	}
+	if strings.Contains(base, "bodied_ext_pandoc") {
+		cfg.BodiedExtensionDetection = BodiedExtensionDetectPandoc
+	}
 	if strings.Contains(base, "grid_table_") {
+
 		cfg.TableGridDetection = true
 	}
 
@@ -225,6 +232,10 @@ func TestReverseGoldenFiles(t *testing.T) {
 		"reverse/smoke/empty",
 		"extensions/ext_json",
 		"extensions/inline_extension_with_text",
+		"extensions/bodied_ext_pandoc",
+		"extensions/bodied_ext_html",
+		"extensions/bodied_ext_json",
+		"extensions/bodied_ext_pandoc_no_params",
 	}
 
 	for _, fixture := range fixtures {

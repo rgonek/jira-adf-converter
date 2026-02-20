@@ -132,6 +132,16 @@ const (
 	LayoutSectionPandoc   LayoutSectionStyle = "pandoc"
 )
 
+// BodiedExtensionStyle controls how bodied extensions are rendered.
+type BodiedExtensionStyle string
+
+const (
+	BodiedExtensionStandard BodiedExtensionStyle = "standard"
+	BodiedExtensionHTML     BodiedExtensionStyle = "html"
+	BodiedExtensionPandoc   BodiedExtensionStyle = "pandoc"
+	BodiedExtensionJSON     BodiedExtensionStyle = "json"
+)
+
 // TableMode controls how tables are rendered.
 type TableMode string
 
@@ -193,6 +203,7 @@ type Config struct {
 	StatusStyle          StatusStyle                 `json:"statusStyle,omitempty"`
 	InlineCardStyle      InlineCardStyle             `json:"inlineCardStyle,omitempty"`
 	LayoutSectionStyle   LayoutSectionStyle          `json:"layoutSectionStyle,omitempty"`
+	BodiedExtensionStyle BodiedExtensionStyle        `json:"bodiedExtensionStyle,omitempty"`
 	DecisionStyle        DecisionStyle               `json:"decisionStyle,omitempty"`
 	DateFormat           string                      `json:"dateFormat,omitempty"`
 	TableMode            TableMode                   `json:"tableMode,omitempty"`
@@ -248,6 +259,9 @@ func (c Config) applyDefaults() Config {
 	}
 	if c.LayoutSectionStyle == "" {
 		c.LayoutSectionStyle = LayoutSectionStandard
+	}
+	if c.BodiedExtensionStyle == "" {
+		c.BodiedExtensionStyle = BodiedExtensionPandoc
 	}
 	if c.DecisionStyle == "" {
 		c.DecisionStyle = DecisionEmoji
@@ -334,6 +348,9 @@ func (c Config) Validate() error {
 	}
 	if c.LayoutSectionStyle != LayoutSectionStandard && c.LayoutSectionStyle != LayoutSectionHTML && c.LayoutSectionStyle != LayoutSectionPandoc {
 		return fmt.Errorf("invalid layoutSectionStyle %q", c.LayoutSectionStyle)
+	}
+	if c.BodiedExtensionStyle != BodiedExtensionStandard && c.BodiedExtensionStyle != BodiedExtensionHTML && c.BodiedExtensionStyle != BodiedExtensionPandoc && c.BodiedExtensionStyle != BodiedExtensionJSON {
+		return fmt.Errorf("invalid bodiedExtensionStyle %q", c.BodiedExtensionStyle)
 	}
 	if c.DecisionStyle != DecisionEmoji && c.DecisionStyle != DecisionText {
 		return fmt.Errorf("invalid decisionStyle %q", c.DecisionStyle)

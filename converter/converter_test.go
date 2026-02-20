@@ -147,15 +147,32 @@ func goldenConfigForPath(path string) Config {
 	// Extensions
 	if strings.Contains(base, "ext_json") {
 		cfg.Extensions.Default = ExtensionJSON
+		cfg.BodiedExtensionStyle = BodiedExtensionJSON
 	}
 	if strings.Contains(base, "ext_strip") {
 		cfg.Extensions.Default = ExtensionStrip
 	}
 	if strings.Contains(base, "ext_text") {
 		cfg.Extensions.Default = ExtensionText
+		cfg.BodiedExtensionStyle = BodiedExtensionJSON
+	}
+
+	// Bodied Extensions
+	if strings.Contains(base, "bodied_ext_html") {
+		cfg.BodiedExtensionStyle = BodiedExtensionHTML
+	}
+	if strings.Contains(base, "bodied_ext_pandoc") {
+		cfg.BodiedExtensionStyle = BodiedExtensionPandoc
+	}
+	if strings.Contains(base, "bodied_ext_standard") {
+		cfg.BodiedExtensionStyle = BodiedExtensionStandard
+	}
+	if strings.Contains(base, "bodied_ext_json") {
+		cfg.BodiedExtensionStyle = BodiedExtensionJSON
 	}
 
 	// Inline
+
 	if strings.Contains(base, "mention_text") {
 		cfg.MentionStyle = MentionText
 	}

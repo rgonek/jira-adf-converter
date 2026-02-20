@@ -1,6 +1,7 @@
 package mdconverter
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -137,7 +138,24 @@ func (s *state) convertBlockSlice(children []ast.Node, parent ast.Node) ([]conve
 			}
 		}
 
+		if s.shouldDetectBodiedExtensionHTML() {
+			if opening, ok := children[index].(*ast.HTMLBlock); ok {
+				if key, extType, params, ok := parseBodiedExtensionOpenTagFromHTMLBlock(opening, s.source); ok {
+					node, consumed, consumedOK, err := s.consumeBodiedExtensionBlock(children, index, parent, key, extType, params)
+					if err != nil {
+						return nil, err
+					}
+					if consumedOK {
+						content = s.appendConvertedBlock(content, node, &mergeNextParagraph)
+						index += consumed
+						continue
+					}
+				}
+			}
+		}
+
 		converted, ok, err := s.convertBlockNode(children[index])
+
 		if err != nil {
 			return nil, err
 		}
@@ -286,6 +304,55 @@ func (s *state) consumeLayoutColumnBlock(children []ast.Node, start int, parent 
 	}
 
 	return columnNode, end - start + 1, true, nil
+}
+
+func (s *state) consumeBodiedExtensionBlock(children []ast.Node, start int, parent ast.Node, key, extType, paramsJSON string) (converter.Node, int, bool, error) {
+	end := -1
+	depth := 1
+	for idx := start + 1; idx < len(children); idx++ {
+		htmlNode, ok := children[idx].(*ast.HTMLBlock)
+		if !ok {
+			continue
+		}
+		if _, _, _, ok := parseBodiedExtensionOpenTagFromHTMLBlock(htmlNode, s.source); ok {
+			depth++
+			continue
+		}
+		if isDivCloseHTMLBlock(htmlNode, s.source) {
+			depth--
+			if depth == 0 {
+				end = idx
+				break
+			}
+		}
+	}
+	if end == -1 {
+		return converter.Node{}, 0, false, nil
+	}
+
+	content, err := s.convertBlockSlice(children[start+1:end], parent)
+	if err != nil {
+		return converter.Node{}, 0, false, err
+	}
+
+	attrs := map[string]interface{}{
+		"extensionKey":  key,
+		"extensionType": extType,
+	}
+	if paramsJSON != "" {
+		var params interface{}
+		if err := json.Unmarshal([]byte(paramsJSON), &params); err == nil {
+			attrs["parameters"] = params
+		}
+	}
+
+	node := converter.Node{
+		Type:    "bodiedExtension",
+		Attrs:   attrs,
+		Content: content,
+	}
+
+	return node, end - start + 1, true, nil
 }
 
 func isNestedExpandContext(parent ast.Node) bool {

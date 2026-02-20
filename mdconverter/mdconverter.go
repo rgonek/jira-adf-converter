@@ -145,3 +145,13 @@ func (s *state) addWarning(warnType converter.WarningType, nodeType, message str
 		Message:  message,
 	})
 }
+
+func (s *state) shouldDetectBodiedExtensionHTML() bool {
+	return s.config.BodiedExtensionDetection == BodiedExtensionDetectHTML ||
+		s.config.BodiedExtensionDetection == BodiedExtensionDetectAll
+}
+
+func (s *state) shouldDetectBodiedExtensionPandoc() bool {
+	return s.config.BodiedExtensionDetection == BodiedExtensionDetectPandoc ||
+		s.config.BodiedExtensionDetection == BodiedExtensionDetectAll
+}
