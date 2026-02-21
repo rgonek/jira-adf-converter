@@ -167,6 +167,9 @@ func (s *state) convertNode(node Node) (string, error) {
 	case "decisionItem":
 		return s.convertDecisionItem(node)
 
+	case "placeholder":
+		return "", nil
+
 	default:
 		if s.isExtensionNode(node.Type) {
 			return s.convertExtension(node)
