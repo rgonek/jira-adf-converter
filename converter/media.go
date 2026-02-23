@@ -123,6 +123,28 @@ func (s *state) convertMedia(node Node) (string, error) {
 
 // convertMediaInline converts a mediaInline node
 func (s *state) convertMediaInline(node Node) (string, error) {
+	if s.config.MediaInlineStyle == MediaInlinePandoc {
+		id := s.getMediaID(node)
+		mediaType := node.GetStringAttr("type", "file")
+		if id == "" {
+			s.addWarningWithContext(WarningMissingAttribute, node, "mediaInline missing id")
+			return "[Media: (no id)]", nil
+		}
+		var label string
+		switch mediaType {
+		case "image":
+			label = fmt.Sprintf("Image: %s", id)
+		case "file":
+			label = fmt.Sprintf("File: %s", id)
+		default:
+			label = fmt.Sprintf("Media: %s", id)
+		}
+		span := fmt.Sprintf("[%s]{.media-inline", label)
+		span += fmt.Sprintf(` media-id=%q`, id)
+		span += fmt.Sprintf(` media-type=%q`, mediaType)
+		span += "}"
+		return span, nil
+	}
 	return s.convertMedia(node)
 }
 
