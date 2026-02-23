@@ -139,6 +139,14 @@ const (
 	EmbedCardPandoc  EmbedCardStyle = "pandoc"
 )
 
+// CaptionStyle controls how caption nodes are rendered.
+type CaptionStyle string
+
+const (
+	CaptionDefault CaptionStyle = "default"
+	CaptionPandoc  CaptionStyle = "pandoc"
+)
+
 // DecisionStyle controls the prefix for decision items.
 type DecisionStyle string
 
@@ -238,6 +246,7 @@ type Config struct {
 	MediaInlineStyle     MediaInlineStyle            `json:"mediaInlineStyle,omitempty"`
 	BlockCardStyle       BlockCardStyle              `json:"blockCardStyle,omitempty"`
 	EmbedCardStyle       EmbedCardStyle              `json:"embedCardStyle,omitempty"`
+	CaptionStyle         CaptionStyle                `json:"captionStyle,omitempty"`
 	LayoutSectionStyle   LayoutSectionStyle          `json:"layoutSectionStyle,omitempty"`
 	BodiedExtensionStyle BodiedExtensionStyle        `json:"bodiedExtensionStyle,omitempty"`
 	DecisionStyle        DecisionStyle               `json:"decisionStyle,omitempty"`
@@ -304,6 +313,9 @@ func (c Config) applyDefaults() Config {
 	}
 	if c.EmbedCardStyle == "" {
 		c.EmbedCardStyle = EmbedCardDefault
+	}
+	if c.CaptionStyle == "" {
+		c.CaptionStyle = CaptionDefault
 	}
 	if c.LayoutSectionStyle == "" {
 		c.LayoutSectionStyle = LayoutSectionStandard
@@ -405,6 +417,9 @@ func (c Config) Validate() error {
 	}
 	if c.EmbedCardStyle != EmbedCardDefault && c.EmbedCardStyle != EmbedCardPandoc {
 		return fmt.Errorf("invalid embedCardStyle %q", c.EmbedCardStyle)
+	}
+	if c.CaptionStyle != CaptionDefault && c.CaptionStyle != CaptionPandoc {
+		return fmt.Errorf("invalid captionStyle %q", c.CaptionStyle)
 	}
 	if c.LayoutSectionStyle != LayoutSectionStandard && c.LayoutSectionStyle != LayoutSectionHTML && c.LayoutSectionStyle != LayoutSectionPandoc {
 		return fmt.Errorf("invalid layoutSectionStyle %q", c.LayoutSectionStyle)

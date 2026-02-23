@@ -177,6 +177,14 @@ const (
 	EmbedCardDetectPandoc EmbedCardDetection = "pandoc"
 )
 
+// CaptionDetection controls how caption nodes are reconstructed.
+type CaptionDetection string
+
+const (
+	CaptionDetectNone   CaptionDetection = "none"
+	CaptionDetectPandoc CaptionDetection = "pandoc"
+)
+
 // DecisionDetection controls how decision blocks are reconstructed.
 type DecisionDetection string
 
@@ -206,6 +214,7 @@ type ReverseConfig struct {
 	MediaInlineDetection     MediaInlineDetection     `json:"mediaInlineDetection,omitempty"`
 	BlockCardDetection       BlockCardDetection       `json:"blockCardDetection,omitempty"`
 	EmbedCardDetection       EmbedCardDetection       `json:"embedCardDetection,omitempty"`
+	CaptionDetection         CaptionDetection         `json:"captionDetection,omitempty"`
 	TableGridDetection       bool                     `json:"tableGridDetection,omitempty"`
 	DecisionDetection        DecisionDetection        `json:"decisionDetection,omitempty"`
 
@@ -274,6 +283,9 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 	}
 	if c.EmbedCardDetection == "" {
 		c.EmbedCardDetection = EmbedCardDetectNone
+	}
+	if c.CaptionDetection == "" {
+		c.CaptionDetection = CaptionDetectNone
 	}
 	if c.DecisionDetection == "" {
 		c.DecisionDetection = DecisionDetectEmoji
@@ -420,6 +432,11 @@ func (c ReverseConfig) Validate() error {
 		return fmt.Errorf("invalid embedCardDetection %q", c.EmbedCardDetection)
 	}
 
+	if c.CaptionDetection != CaptionDetectNone &&
+		c.CaptionDetection != CaptionDetectPandoc {
+		return fmt.Errorf("invalid captionDetection %q", c.CaptionDetection)
+	}
+
 	if c.DecisionDetection != DecisionDetectNone &&
 		c.DecisionDetection != DecisionDetectEmoji &&
 		c.DecisionDetection != DecisionDetectText &&
@@ -469,7 +486,8 @@ func (c ReverseConfig) needsPandocInlineExtension() bool {
 		c.AnnotationDetection == AnnotationDetectPandoc ||
 		c.MediaInlineDetection == MediaInlineDetectPandoc ||
 		c.BlockCardDetection == BlockCardDetectPandoc ||
-		c.EmbedCardDetection == EmbedCardDetectPandoc
+		c.EmbedCardDetection == EmbedCardDetectPandoc ||
+		c.CaptionDetection == CaptionDetectPandoc
 }
 
 func (c ReverseConfig) needsPandocBlockExtension() bool {

@@ -105,6 +105,10 @@ func (s *state) shouldDetectEmbedCardPandoc() bool {
 	return s.config.EmbedCardDetection == EmbedCardDetectPandoc
 }
 
+func (s *state) shouldDetectCaptionPandoc() bool {
+	return s.config.CaptionDetection == CaptionDetectPandoc
+}
+
 func (s *state) shouldDetectEmoji() bool {
 	return s.config.EmojiDetection == EmojiDetectShortcode || s.config.EmojiDetection == EmojiDetectAll
 }
