@@ -31,6 +31,7 @@ func TestPandocRoundTripFixtures(t *testing.T) {
 		{name: "media inline", fixturePath: "media/media_inline_pandoc.json"},
 		{name: "block card", fixturePath: "inline/block_card_pandoc.json"},
 		{name: "embed card", fixturePath: "inline/embed_card_pandoc.json"},
+		{name: "media caption", fixturePath: "media/media_caption_pandoc.json"},
 		{name: "paragraph alignment", fixturePath: "blocks/paragraph_aligned_center_pandoc.json"},
 		{name: "expand with title", fixturePath: "expanders/expand_with_title_pandoc.json"},
 		{name: "expand without title", fixturePath: "expanders/expand_without_title_pandoc.json"},
@@ -75,6 +76,7 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 		MediaInlineStyle:     converter.MediaInlinePandoc,
 		BlockCardStyle:       converter.BlockCardPandoc,
 		EmbedCardStyle:       converter.EmbedCardPandoc,
+		CaptionStyle:         converter.CaptionPandoc,
 		TableMode:            tableMode,
 	}
 	if forwardCfg.TableMode == "" {
@@ -99,6 +101,7 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 		MediaInlineDetection: mdconverter.MediaInlineDetectPandoc,
 		BlockCardDetection:   mdconverter.BlockCardDetectPandoc,
 		EmbedCardDetection:   mdconverter.EmbedCardDetectPandoc,
+		CaptionDetection:     mdconverter.CaptionDetectPandoc,
 		TableGridDetection:   true,
 	})
 	require.NoError(t, err)
