@@ -177,6 +177,20 @@ func (s *state) convertPandocSpanNode(node *PandocSpanNode, stack *markStack) ([
 		}}, nil
 	}
 
+	if hasPandocClass(node.Classes, "media-caption") {
+		if !s.shouldDetectCaptionPandoc() {
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		captionContent, err := s.convertInlineFragment(node.Content)
+		if err != nil {
+			return nil, err
+		}
+		return []converter.Node{{
+			Type:    "caption",
+			Content: captionContent,
+		}}, nil
+	}
+
 	if hasPandocClass(node.Classes, "underline") && !s.shouldDetectUnderlinePandoc() {
 		return []converter.Node{newTextNode(literal, stack.current())}, nil
 	}
@@ -310,7 +324,7 @@ func hasPandocClass(classes []string, target string) bool {
 func hasUnknownPandocSpanClass(classes []string) bool {
 	for _, className := range classes {
 		switch className {
-		case "underline", "mention", "inline-card", "annotation", "media-inline", "block-card", "embed-card":
+		case "underline", "mention", "inline-card", "annotation", "media-inline", "block-card", "embed-card", "media-caption":
 			continue
 		default:
 			return true
