@@ -123,6 +123,22 @@ const (
 	MediaInlinePandoc  MediaInlineStyle = "pandoc"
 )
 
+// BlockCardStyle controls how blockCard nodes are rendered.
+type BlockCardStyle string
+
+const (
+	BlockCardDefault BlockCardStyle = "default"
+	BlockCardPandoc  BlockCardStyle = "pandoc"
+)
+
+// EmbedCardStyle controls how embedCard nodes are rendered.
+type EmbedCardStyle string
+
+const (
+	EmbedCardDefault EmbedCardStyle = "default"
+	EmbedCardPandoc  EmbedCardStyle = "pandoc"
+)
+
 // DecisionStyle controls the prefix for decision items.
 type DecisionStyle string
 
@@ -220,6 +236,8 @@ type Config struct {
 	InlineCardStyle      InlineCardStyle             `json:"inlineCardStyle,omitempty"`
 	AnnotationStyle      AnnotationStyle             `json:"annotationStyle,omitempty"`
 	MediaInlineStyle     MediaInlineStyle            `json:"mediaInlineStyle,omitempty"`
+	BlockCardStyle       BlockCardStyle              `json:"blockCardStyle,omitempty"`
+	EmbedCardStyle       EmbedCardStyle              `json:"embedCardStyle,omitempty"`
 	LayoutSectionStyle   LayoutSectionStyle          `json:"layoutSectionStyle,omitempty"`
 	BodiedExtensionStyle BodiedExtensionStyle        `json:"bodiedExtensionStyle,omitempty"`
 	DecisionStyle        DecisionStyle               `json:"decisionStyle,omitempty"`
@@ -280,6 +298,12 @@ func (c Config) applyDefaults() Config {
 	}
 	if c.MediaInlineStyle == "" {
 		c.MediaInlineStyle = MediaInlineDefault
+	}
+	if c.BlockCardStyle == "" {
+		c.BlockCardStyle = BlockCardDefault
+	}
+	if c.EmbedCardStyle == "" {
+		c.EmbedCardStyle = EmbedCardDefault
 	}
 	if c.LayoutSectionStyle == "" {
 		c.LayoutSectionStyle = LayoutSectionStandard
@@ -375,6 +399,12 @@ func (c Config) Validate() error {
 	}
 	if c.MediaInlineStyle != MediaInlineDefault && c.MediaInlineStyle != MediaInlinePandoc {
 		return fmt.Errorf("invalid mediaInlineStyle %q", c.MediaInlineStyle)
+	}
+	if c.BlockCardStyle != BlockCardDefault && c.BlockCardStyle != BlockCardPandoc {
+		return fmt.Errorf("invalid blockCardStyle %q", c.BlockCardStyle)
+	}
+	if c.EmbedCardStyle != EmbedCardDefault && c.EmbedCardStyle != EmbedCardPandoc {
+		return fmt.Errorf("invalid embedCardStyle %q", c.EmbedCardStyle)
 	}
 	if c.LayoutSectionStyle != LayoutSectionStandard && c.LayoutSectionStyle != LayoutSectionHTML && c.LayoutSectionStyle != LayoutSectionPandoc {
 		return fmt.Errorf("invalid layoutSectionStyle %q", c.LayoutSectionStyle)

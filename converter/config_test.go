@@ -56,6 +56,8 @@ func TestValidateValid(t *testing.T) {
 		BodiedExtensionStyle: BodiedExtensionStandard,
 		AnnotationStyle:      AnnotationIgnore,
 		MediaInlineStyle:     MediaInlineDefault,
+		BlockCardStyle:       BlockCardDefault,
+		EmbedCardStyle:       EmbedCardDefault,
 		DecisionStyle:        DecisionText,
 		DateFormat:           "2006-01-02",
 		TableMode:            TablePipe,
