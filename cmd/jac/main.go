@@ -63,6 +63,7 @@ func presetConfig(preset string) (converter.Config, error) {
 			AlignmentStyle:       converter.AlignPandoc,
 			ExpandStyle:          converter.ExpandPandoc,
 			InlineCardStyle:      converter.InlineCardPandoc,
+			AnnotationStyle:      converter.AnnotationPandoc,
 
 			LayoutSectionStyle: converter.LayoutSectionPandoc,
 			TableMode:          converter.TableAutoPandoc,
@@ -143,6 +144,7 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 			MentionDetection:    mdconverter.MentionDetectPandoc,
 			ExpandDetection:     mdconverter.ExpandDetectPandoc,
 			InlineCardDetection: mdconverter.InlineCardDetectPandoc,
+			AnnotationDetection: mdconverter.AnnotationDetectPandoc,
 
 			LayoutSectionDetection: mdconverter.LayoutSectionDetectPandoc,
 			TableGridDetection:     true,

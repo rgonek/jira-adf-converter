@@ -27,6 +27,7 @@ func TestPandocRoundTripFixtures(t *testing.T) {
 		{name: "background color", fixturePath: "marks/background_color_pandoc.json"},
 		{name: "mention", fixturePath: "inline/mention_with_account_id_pandoc.json"},
 		{name: "inline card", fixturePath: "inline/inline_card_with_title_pandoc.json"},
+		{name: "annotation mark", fixturePath: "marks/annotation_pandoc.json"},
 		{name: "paragraph alignment", fixturePath: "blocks/paragraph_aligned_center_pandoc.json"},
 		{name: "expand with title", fixturePath: "expanders/expand_with_title_pandoc.json"},
 		{name: "expand without title", fixturePath: "expanders/expand_without_title_pandoc.json"},
@@ -67,6 +68,7 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 		AlignmentStyle:       converter.AlignPandoc,
 		ExpandStyle:          converter.ExpandPandoc,
 		InlineCardStyle:      converter.InlineCardPandoc,
+		AnnotationStyle:      converter.AnnotationPandoc,
 		TableMode:            tableMode,
 	}
 	if forwardCfg.TableMode == "" {
@@ -87,6 +89,7 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 		MentionDetection:    mdconverter.MentionDetectPandoc,
 		ExpandDetection:     mdconverter.ExpandDetectPandoc,
 		InlineCardDetection: mdconverter.InlineCardDetectPandoc,
+		AnnotationDetection: mdconverter.AnnotationDetectPandoc,
 		TableGridDetection:  true,
 	})
 	require.NoError(t, err)
