@@ -28,6 +28,7 @@ func TestPandocRoundTripFixtures(t *testing.T) {
 		{name: "mention", fixturePath: "inline/mention_with_account_id_pandoc.json"},
 		{name: "inline card", fixturePath: "inline/inline_card_with_title_pandoc.json"},
 		{name: "annotation mark", fixturePath: "marks/annotation_pandoc.json"},
+		{name: "media inline", fixturePath: "media/media_inline_pandoc.json"},
 		{name: "paragraph alignment", fixturePath: "blocks/paragraph_aligned_center_pandoc.json"},
 		{name: "expand with title", fixturePath: "expanders/expand_with_title_pandoc.json"},
 		{name: "expand without title", fixturePath: "expanders/expand_without_title_pandoc.json"},
@@ -69,6 +70,7 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 		ExpandStyle:          converter.ExpandPandoc,
 		InlineCardStyle:      converter.InlineCardPandoc,
 		AnnotationStyle:      converter.AnnotationPandoc,
+		MediaInlineStyle:     converter.MediaInlinePandoc,
 		TableMode:            tableMode,
 	}
 	if forwardCfg.TableMode == "" {
@@ -82,15 +84,16 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 	require.NoError(t, err)
 
 	reverse, err := mdconverter.New(mdconverter.ReverseConfig{
-		UnderlineDetection:  mdconverter.UnderlineDetectPandoc,
-		SubSupDetection:     mdconverter.SubSupDetectPandoc,
-		ColorDetection:      mdconverter.ColorDetectPandoc,
-		AlignmentDetection:  mdconverter.AlignDetectPandoc,
-		MentionDetection:    mdconverter.MentionDetectPandoc,
-		ExpandDetection:     mdconverter.ExpandDetectPandoc,
-		InlineCardDetection: mdconverter.InlineCardDetectPandoc,
-		AnnotationDetection: mdconverter.AnnotationDetectPandoc,
-		TableGridDetection:  true,
+		UnderlineDetection:   mdconverter.UnderlineDetectPandoc,
+		SubSupDetection:      mdconverter.SubSupDetectPandoc,
+		ColorDetection:       mdconverter.ColorDetectPandoc,
+		AlignmentDetection:   mdconverter.AlignDetectPandoc,
+		MentionDetection:     mdconverter.MentionDetectPandoc,
+		ExpandDetection:      mdconverter.ExpandDetectPandoc,
+		InlineCardDetection:  mdconverter.InlineCardDetectPandoc,
+		AnnotationDetection:  mdconverter.AnnotationDetectPandoc,
+		MediaInlineDetection: mdconverter.MediaInlineDetectPandoc,
+		TableGridDetection:   true,
 	})
 	require.NoError(t, err)
 
@@ -145,7 +148,7 @@ func normalizeRoundTripNodes(nodes []converter.Node) []converter.Node {
 		}
 		if node.Attrs != nil {
 			delete(node.Attrs, "localId")
-			if node.Type == "media" {
+			if node.Type == "media" || node.Type == "mediaInline" {
 				delete(node.Attrs, "collection")
 			}
 			if node.Type == "inlineCard" {

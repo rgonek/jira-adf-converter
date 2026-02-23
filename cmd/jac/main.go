@@ -64,6 +64,7 @@ func presetConfig(preset string) (converter.Config, error) {
 			ExpandStyle:          converter.ExpandPandoc,
 			InlineCardStyle:      converter.InlineCardPandoc,
 			AnnotationStyle:      converter.AnnotationPandoc,
+			MediaInlineStyle:     converter.MediaInlinePandoc,
 
 			LayoutSectionStyle: converter.LayoutSectionPandoc,
 			TableMode:          converter.TableAutoPandoc,
@@ -137,14 +138,15 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 		}, nil
 	case presetPandoc:
 		return mdconverter.ReverseConfig{
-			UnderlineDetection:  mdconverter.UnderlineDetectPandoc,
-			SubSupDetection:     mdconverter.SubSupDetectPandoc,
-			ColorDetection:      mdconverter.ColorDetectPandoc,
-			AlignmentDetection:  mdconverter.AlignDetectPandoc,
-			MentionDetection:    mdconverter.MentionDetectPandoc,
-			ExpandDetection:     mdconverter.ExpandDetectPandoc,
-			InlineCardDetection: mdconverter.InlineCardDetectPandoc,
-			AnnotationDetection: mdconverter.AnnotationDetectPandoc,
+			UnderlineDetection:   mdconverter.UnderlineDetectPandoc,
+			SubSupDetection:      mdconverter.SubSupDetectPandoc,
+			ColorDetection:       mdconverter.ColorDetectPandoc,
+			AlignmentDetection:   mdconverter.AlignDetectPandoc,
+			MentionDetection:     mdconverter.MentionDetectPandoc,
+			ExpandDetection:      mdconverter.ExpandDetectPandoc,
+			InlineCardDetection:  mdconverter.InlineCardDetectPandoc,
+			AnnotationDetection:  mdconverter.AnnotationDetectPandoc,
+			MediaInlineDetection: mdconverter.MediaInlineDetectPandoc,
 
 			LayoutSectionDetection: mdconverter.LayoutSectionDetectPandoc,
 			TableGridDetection:     true,
