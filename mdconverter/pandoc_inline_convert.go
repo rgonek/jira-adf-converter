@@ -123,6 +123,26 @@ func (s *state) convertPandocSpanNode(node *PandocSpanNode, stack *markStack) ([
 		return applyOuterMarksToInlineNodes(inlineContent, stack.current()), nil
 	}
 
+	if hasPandocClass(node.Classes, "media-inline") {
+		if !s.shouldDetectMediaInlinePandoc() {
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		mediaID := strings.TrimSpace(node.Attrs["media-id"])
+		mediaType := strings.TrimSpace(node.Attrs["media-type"])
+		if mediaType == "" {
+			mediaType = "file"
+		}
+		if mediaID == "" {
+			s.addWarning(converter.WarningMissingAttribute, "pandocSpan", "pandoc media-inline span missing media-id")
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		attrs := map[string]interface{}{
+			"id":   mediaID,
+			"type": mediaType,
+		}
+		return []converter.Node{{Type: "mediaInline", Attrs: attrs}}, nil
+	}
+
 	if hasPandocClass(node.Classes, "underline") && !s.shouldDetectUnderlinePandoc() {
 		return []converter.Node{newTextNode(literal, stack.current())}, nil
 	}
@@ -256,7 +276,7 @@ func hasPandocClass(classes []string, target string) bool {
 func hasUnknownPandocSpanClass(classes []string) bool {
 	for _, className := range classes {
 		switch className {
-		case "underline", "mention", "inline-card", "annotation":
+		case "underline", "mention", "inline-card", "annotation", "media-inline":
 			continue
 		default:
 			return true
@@ -268,7 +288,8 @@ func hasUnknownPandocSpanClass(classes []string) bool {
 func hasUnknownPandocSpanAttr(attrs map[string]string) bool {
 	for key := range attrs {
 		switch key {
-		case "mention-id", "url", "color", "background-color", "style", "annotation-id", "annotation-type":
+		case "mention-id", "url", "color", "background-color", "style", "annotation-id", "annotation-type",
+			"media-id", "media-type":
 			continue
 		default:
 			return true
