@@ -288,8 +288,24 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 			return "", "", nil
 		}
 	case "annotation":
-		// Preserves text, ignores annotation details
-		return "", "", nil
+		switch s.config.AnnotationStyle {
+		case AnnotationPandoc:
+			id := mark.GetStringAttr("id", "")
+			annotationType := mark.GetStringAttr("annotationType", "")
+			open := `[`
+			close := `]{.annotation`
+			if id != "" {
+				close += fmt.Sprintf(` annotation-id=%q`, id)
+			}
+			if annotationType != "" {
+				close += fmt.Sprintf(` annotation-type=%q`, annotationType)
+			}
+			close += `}`
+			return open, close, nil
+		default:
+			// ignore — preserve text, drop mark
+			return "", "", nil
+		}
 	default:
 		if s.config.UnknownMarks == UnknownError {
 			return "", "", fmt.Errorf("unknown mark type: %s", mark.Type)

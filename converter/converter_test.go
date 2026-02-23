@@ -56,6 +56,7 @@ func goldenConfigForPath(path string) Config {
 		cfg.LayoutSectionStyle = LayoutSectionPandoc
 
 		cfg.InlineCardStyle = InlineCardPandoc
+		cfg.AnnotationStyle = AnnotationPandoc
 		cfg.TableMode = TableAutoPandoc
 		if strings.Contains(path, string(filepath.Separator)+"tables"+string(filepath.Separator)) {
 			cfg.TableMode = TablePandoc
