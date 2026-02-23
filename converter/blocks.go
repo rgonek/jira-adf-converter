@@ -250,6 +250,13 @@ func (s *state) indent(content, marker string) string {
 
 // convertBlockCard converts a blockCard node
 func (s *state) convertBlockCard(node Node) (string, error) {
+	if s.config.BlockCardStyle == BlockCardPandoc {
+		_, url := s.getInlineCardLinkData(node)
+		if url == "" {
+			return "", nil
+		}
+		return fmt.Sprintf("[%s]{.block-card url=%q}\n\n", url, url), nil
+	}
 	content, err := s.convertInlineCard(node)
 	if err != nil {
 		return "", err
@@ -266,6 +273,19 @@ func (s *state) convertBlockCard(node Node) (string, error) {
 
 // convertEmbedCard converts an embedCard node
 func (s *state) convertEmbedCard(node Node) (string, error) {
+	if s.config.EmbedCardStyle == EmbedCardPandoc {
+		_, url := s.getInlineCardLinkData(node)
+		if url == "" {
+			return "", nil
+		}
+		layout := node.GetStringAttr("layout", "")
+		span := fmt.Sprintf("[%s]{.embed-card url=%q", url, url)
+		if layout != "" {
+			span += fmt.Sprintf(` layout=%q`, layout)
+		}
+		span += "}\n\n"
+		return span, nil
+	}
 	content, err := s.convertInlineCard(node)
 	if err != nil {
 		return "", err
