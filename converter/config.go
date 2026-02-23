@@ -107,6 +107,46 @@ const (
 	InlineCardPandoc InlineCardStyle = "pandoc"
 )
 
+// AnnotationStyle controls how annotation marks are rendered.
+type AnnotationStyle string
+
+const (
+	AnnotationIgnore AnnotationStyle = "ignore"
+	AnnotationPandoc AnnotationStyle = "pandoc"
+)
+
+// MediaInlineStyle controls how mediaInline nodes are rendered.
+type MediaInlineStyle string
+
+const (
+	MediaInlineDefault MediaInlineStyle = "default"
+	MediaInlinePandoc  MediaInlineStyle = "pandoc"
+)
+
+// BlockCardStyle controls how blockCard nodes are rendered.
+type BlockCardStyle string
+
+const (
+	BlockCardDefault BlockCardStyle = "default"
+	BlockCardPandoc  BlockCardStyle = "pandoc"
+)
+
+// EmbedCardStyle controls how embedCard nodes are rendered.
+type EmbedCardStyle string
+
+const (
+	EmbedCardDefault EmbedCardStyle = "default"
+	EmbedCardPandoc  EmbedCardStyle = "pandoc"
+)
+
+// CaptionStyle controls how caption nodes are rendered.
+type CaptionStyle string
+
+const (
+	CaptionDefault CaptionStyle = "default"
+	CaptionPandoc  CaptionStyle = "pandoc"
+)
+
 // DecisionStyle controls the prefix for decision items.
 type DecisionStyle string
 
@@ -202,6 +242,11 @@ type Config struct {
 	ExpandStyle          ExpandStyle                 `json:"expandStyle,omitempty"`
 	StatusStyle          StatusStyle                 `json:"statusStyle,omitempty"`
 	InlineCardStyle      InlineCardStyle             `json:"inlineCardStyle,omitempty"`
+	AnnotationStyle      AnnotationStyle             `json:"annotationStyle,omitempty"`
+	MediaInlineStyle     MediaInlineStyle            `json:"mediaInlineStyle,omitempty"`
+	BlockCardStyle       BlockCardStyle              `json:"blockCardStyle,omitempty"`
+	EmbedCardStyle       EmbedCardStyle              `json:"embedCardStyle,omitempty"`
+	CaptionStyle         CaptionStyle                `json:"captionStyle,omitempty"`
 	LayoutSectionStyle   LayoutSectionStyle          `json:"layoutSectionStyle,omitempty"`
 	BodiedExtensionStyle BodiedExtensionStyle        `json:"bodiedExtensionStyle,omitempty"`
 	DecisionStyle        DecisionStyle               `json:"decisionStyle,omitempty"`
@@ -256,6 +301,21 @@ func (c Config) applyDefaults() Config {
 	}
 	if c.InlineCardStyle == "" {
 		c.InlineCardStyle = InlineCardLink
+	}
+	if c.AnnotationStyle == "" {
+		c.AnnotationStyle = AnnotationIgnore
+	}
+	if c.MediaInlineStyle == "" {
+		c.MediaInlineStyle = MediaInlineDefault
+	}
+	if c.BlockCardStyle == "" {
+		c.BlockCardStyle = BlockCardDefault
+	}
+	if c.EmbedCardStyle == "" {
+		c.EmbedCardStyle = EmbedCardDefault
+	}
+	if c.CaptionStyle == "" {
+		c.CaptionStyle = CaptionDefault
 	}
 	if c.LayoutSectionStyle == "" {
 		c.LayoutSectionStyle = LayoutSectionStandard
@@ -345,6 +405,21 @@ func (c Config) Validate() error {
 	}
 	if c.InlineCardStyle != InlineCardLink && c.InlineCardStyle != InlineCardURL && c.InlineCardStyle != InlineCardEmbed && c.InlineCardStyle != InlineCardPandoc {
 		return fmt.Errorf("invalid inlineCardStyle %q", c.InlineCardStyle)
+	}
+	if c.AnnotationStyle != AnnotationIgnore && c.AnnotationStyle != AnnotationPandoc {
+		return fmt.Errorf("invalid annotationStyle %q", c.AnnotationStyle)
+	}
+	if c.MediaInlineStyle != MediaInlineDefault && c.MediaInlineStyle != MediaInlinePandoc {
+		return fmt.Errorf("invalid mediaInlineStyle %q", c.MediaInlineStyle)
+	}
+	if c.BlockCardStyle != BlockCardDefault && c.BlockCardStyle != BlockCardPandoc {
+		return fmt.Errorf("invalid blockCardStyle %q", c.BlockCardStyle)
+	}
+	if c.EmbedCardStyle != EmbedCardDefault && c.EmbedCardStyle != EmbedCardPandoc {
+		return fmt.Errorf("invalid embedCardStyle %q", c.EmbedCardStyle)
+	}
+	if c.CaptionStyle != CaptionDefault && c.CaptionStyle != CaptionPandoc {
+		return fmt.Errorf("invalid captionStyle %q", c.CaptionStyle)
 	}
 	if c.LayoutSectionStyle != LayoutSectionStandard && c.LayoutSectionStyle != LayoutSectionHTML && c.LayoutSectionStyle != LayoutSectionPandoc {
 		return fmt.Errorf("invalid layoutSectionStyle %q", c.LayoutSectionStyle)

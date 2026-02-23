@@ -92,7 +92,7 @@ func (s *state) markAttrsEqual(attrs1, attrs2 map[string]any, keys []string) boo
 // isKnownMark checks if a mark type is supported
 func (s *state) isKnownMark(markType string) bool {
 	switch markType {
-	case "strong", "em", "strike", "code", "underline", "link", "subsup", "textColor", "backgroundColor":
+	case "strong", "em", "strike", "code", "underline", "link", "subsup", "textColor", "backgroundColor", "annotation":
 		return true
 	default:
 		return false
@@ -285,6 +285,25 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 			}
 			return "[", `]{style="background-color: ` + color + `;"}`, nil
 		default:
+			return "", "", nil
+		}
+	case "annotation":
+		switch s.config.AnnotationStyle {
+		case AnnotationPandoc:
+			id := mark.GetStringAttr("id", "")
+			annotationType := mark.GetStringAttr("annotationType", "")
+			open := `[`
+			close := `]{.annotation`
+			if id != "" {
+				close += fmt.Sprintf(` annotation-id=%q`, id)
+			}
+			if annotationType != "" {
+				close += fmt.Sprintf(` annotation-type=%q`, annotationType)
+			}
+			close += `}`
+			return open, close, nil
+		default:
+			// ignore — preserve text, drop mark
 			return "", "", nil
 		}
 	default:

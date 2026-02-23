@@ -27,12 +27,17 @@ func TestPandocRoundTripFixtures(t *testing.T) {
 		{name: "background color", fixturePath: "marks/background_color_pandoc.json"},
 		{name: "mention", fixturePath: "inline/mention_with_account_id_pandoc.json"},
 		{name: "inline card", fixturePath: "inline/inline_card_with_title_pandoc.json"},
+		{name: "annotation mark", fixturePath: "marks/annotation_pandoc.json"},
+		{name: "media inline", fixturePath: "media/media_inline_pandoc.json"},
+		{name: "block card", fixturePath: "inline/block_card_pandoc.json"},
+		{name: "embed card", fixturePath: "inline/embed_card_pandoc.json"},
+		{name: "media caption", fixturePath: "media/media_caption_pandoc.json"},
 		{name: "paragraph alignment", fixturePath: "blocks/paragraph_aligned_center_pandoc.json"},
 		{name: "expand with title", fixturePath: "expanders/expand_with_title_pandoc.json"},
 		{name: "expand without title", fixturePath: "expanders/expand_without_title_pandoc.json"},
 		{name: "nested expand", fixturePath: "expanders/nested_expand_pandoc.json"},
 		{name: "simple table grid", fixturePath: "tables/simple_table_pandoc.json", tableMode: converter.TablePandoc},
-		{name: "complex table fallback", fixturePath: "tables/complex_table_autopandoc_fallback.json", tableMode: converter.TableAutoPandoc, expectWarnings: true},
+		{name: "complex table fallback", fixturePath: "tables/complex_table_autopandoc_fallback.json", tableMode: converter.TableAutoPandoc},
 	}
 
 	for _, tt := range tests {
@@ -67,6 +72,11 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 		AlignmentStyle:       converter.AlignPandoc,
 		ExpandStyle:          converter.ExpandPandoc,
 		InlineCardStyle:      converter.InlineCardPandoc,
+		AnnotationStyle:      converter.AnnotationPandoc,
+		MediaInlineStyle:     converter.MediaInlinePandoc,
+		BlockCardStyle:       converter.BlockCardPandoc,
+		EmbedCardStyle:       converter.EmbedCardPandoc,
+		CaptionStyle:         converter.CaptionPandoc,
 		TableMode:            tableMode,
 	}
 	if forwardCfg.TableMode == "" {
@@ -80,14 +90,19 @@ func runPandocRoundTrip(t *testing.T, adfInput []byte, tableMode converter.Table
 	require.NoError(t, err)
 
 	reverse, err := mdconverter.New(mdconverter.ReverseConfig{
-		UnderlineDetection:  mdconverter.UnderlineDetectPandoc,
-		SubSupDetection:     mdconverter.SubSupDetectPandoc,
-		ColorDetection:      mdconverter.ColorDetectPandoc,
-		AlignmentDetection:  mdconverter.AlignDetectPandoc,
-		MentionDetection:    mdconverter.MentionDetectPandoc,
-		ExpandDetection:     mdconverter.ExpandDetectPandoc,
-		InlineCardDetection: mdconverter.InlineCardDetectPandoc,
-		TableGridDetection:  true,
+		UnderlineDetection:   mdconverter.UnderlineDetectPandoc,
+		SubSupDetection:      mdconverter.SubSupDetectPandoc,
+		ColorDetection:       mdconverter.ColorDetectPandoc,
+		AlignmentDetection:   mdconverter.AlignDetectPandoc,
+		MentionDetection:     mdconverter.MentionDetectPandoc,
+		ExpandDetection:      mdconverter.ExpandDetectPandoc,
+		InlineCardDetection:  mdconverter.InlineCardDetectPandoc,
+		AnnotationDetection:  mdconverter.AnnotationDetectPandoc,
+		MediaInlineDetection: mdconverter.MediaInlineDetectPandoc,
+		BlockCardDetection:   mdconverter.BlockCardDetectPandoc,
+		EmbedCardDetection:   mdconverter.EmbedCardDetectPandoc,
+		CaptionDetection:     mdconverter.CaptionDetectPandoc,
+		TableGridDetection:   true,
 	})
 	require.NoError(t, err)
 
@@ -142,7 +157,7 @@ func normalizeRoundTripNodes(nodes []converter.Node) []converter.Node {
 		}
 		if node.Attrs != nil {
 			delete(node.Attrs, "localId")
-			if node.Type == "media" {
+			if node.Type == "media" || node.Type == "mediaInline" {
 				delete(node.Attrs, "collection")
 			}
 			if node.Type == "inlineCard" {

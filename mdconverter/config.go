@@ -145,6 +145,46 @@ const (
 	InlineCardDetectAll    InlineCardDetection = "all"
 )
 
+// AnnotationDetection controls how annotation marks are reconstructed.
+type AnnotationDetection string
+
+const (
+	AnnotationDetectNone   AnnotationDetection = "none"
+	AnnotationDetectPandoc AnnotationDetection = "pandoc"
+)
+
+// MediaInlineDetection controls how mediaInline nodes are reconstructed.
+type MediaInlineDetection string
+
+const (
+	MediaInlineDetectNone   MediaInlineDetection = "none"
+	MediaInlineDetectPandoc MediaInlineDetection = "pandoc"
+)
+
+// BlockCardDetection controls how blockCard nodes are reconstructed.
+type BlockCardDetection string
+
+const (
+	BlockCardDetectNone   BlockCardDetection = "none"
+	BlockCardDetectPandoc BlockCardDetection = "pandoc"
+)
+
+// EmbedCardDetection controls how embedCard nodes are reconstructed.
+type EmbedCardDetection string
+
+const (
+	EmbedCardDetectNone   EmbedCardDetection = "none"
+	EmbedCardDetectPandoc EmbedCardDetection = "pandoc"
+)
+
+// CaptionDetection controls how caption nodes are reconstructed.
+type CaptionDetection string
+
+const (
+	CaptionDetectNone   CaptionDetection = "none"
+	CaptionDetectPandoc CaptionDetection = "pandoc"
+)
+
 // DecisionDetection controls how decision blocks are reconstructed.
 type DecisionDetection string
 
@@ -170,6 +210,11 @@ type ReverseConfig struct {
 	BodiedExtensionDetection BodiedExtensionDetection `json:"bodiedExtensionDetection,omitempty"`
 	ExpandDetection          ExpandDetection          `json:"expandDetection,omitempty"`
 	InlineCardDetection      InlineCardDetection      `json:"inlineCardDetection,omitempty"`
+	AnnotationDetection      AnnotationDetection      `json:"annotationDetection,omitempty"`
+	MediaInlineDetection     MediaInlineDetection     `json:"mediaInlineDetection,omitempty"`
+	BlockCardDetection       BlockCardDetection       `json:"blockCardDetection,omitempty"`
+	EmbedCardDetection       EmbedCardDetection       `json:"embedCardDetection,omitempty"`
+	CaptionDetection         CaptionDetection         `json:"captionDetection,omitempty"`
 	TableGridDetection       bool                     `json:"tableGridDetection,omitempty"`
 	DecisionDetection        DecisionDetection        `json:"decisionDetection,omitempty"`
 
@@ -226,6 +271,21 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 	}
 	if c.InlineCardDetection == "" {
 		c.InlineCardDetection = InlineCardDetectNone
+	}
+	if c.AnnotationDetection == "" {
+		c.AnnotationDetection = AnnotationDetectNone
+	}
+	if c.MediaInlineDetection == "" {
+		c.MediaInlineDetection = MediaInlineDetectNone
+	}
+	if c.BlockCardDetection == "" {
+		c.BlockCardDetection = BlockCardDetectNone
+	}
+	if c.EmbedCardDetection == "" {
+		c.EmbedCardDetection = EmbedCardDetectNone
+	}
+	if c.CaptionDetection == "" {
+		c.CaptionDetection = CaptionDetectNone
 	}
 	if c.DecisionDetection == "" {
 		c.DecisionDetection = DecisionDetectEmoji
@@ -352,6 +412,31 @@ func (c ReverseConfig) Validate() error {
 		return fmt.Errorf("invalid inlineCardDetection %q", c.InlineCardDetection)
 	}
 
+	if c.AnnotationDetection != AnnotationDetectNone &&
+		c.AnnotationDetection != AnnotationDetectPandoc {
+		return fmt.Errorf("invalid annotationDetection %q", c.AnnotationDetection)
+	}
+
+	if c.MediaInlineDetection != MediaInlineDetectNone &&
+		c.MediaInlineDetection != MediaInlineDetectPandoc {
+		return fmt.Errorf("invalid mediaInlineDetection %q", c.MediaInlineDetection)
+	}
+
+	if c.BlockCardDetection != BlockCardDetectNone &&
+		c.BlockCardDetection != BlockCardDetectPandoc {
+		return fmt.Errorf("invalid blockCardDetection %q", c.BlockCardDetection)
+	}
+
+	if c.EmbedCardDetection != EmbedCardDetectNone &&
+		c.EmbedCardDetection != EmbedCardDetectPandoc {
+		return fmt.Errorf("invalid embedCardDetection %q", c.EmbedCardDetection)
+	}
+
+	if c.CaptionDetection != CaptionDetectNone &&
+		c.CaptionDetection != CaptionDetectPandoc {
+		return fmt.Errorf("invalid captionDetection %q", c.CaptionDetection)
+	}
+
 	if c.DecisionDetection != DecisionDetectNone &&
 		c.DecisionDetection != DecisionDetectEmoji &&
 		c.DecisionDetection != DecisionDetectText &&
@@ -397,7 +482,12 @@ func (c ReverseConfig) needsPandocInlineExtension() bool {
 		c.SubSupDetection == SubSupDetectPandoc || c.SubSupDetection == SubSupDetectAll ||
 		c.ColorDetection == ColorDetectPandoc || c.ColorDetection == ColorDetectAll ||
 		c.MentionDetection == MentionDetectPandoc || c.MentionDetection == MentionDetectAll ||
-		c.InlineCardDetection == InlineCardDetectPandoc || c.InlineCardDetection == InlineCardDetectAll
+		c.InlineCardDetection == InlineCardDetectPandoc || c.InlineCardDetection == InlineCardDetectAll ||
+		c.AnnotationDetection == AnnotationDetectPandoc ||
+		c.MediaInlineDetection == MediaInlineDetectPandoc ||
+		c.BlockCardDetection == BlockCardDetectPandoc ||
+		c.EmbedCardDetection == EmbedCardDetectPandoc ||
+		c.CaptionDetection == CaptionDetectPandoc
 }
 
 func (c ReverseConfig) needsPandocBlockExtension() bool {

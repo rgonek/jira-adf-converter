@@ -63,10 +63,14 @@ func presetConfig(preset string) (converter.Config, error) {
 			AlignmentStyle:       converter.AlignPandoc,
 			ExpandStyle:          converter.ExpandPandoc,
 			InlineCardStyle:      converter.InlineCardPandoc,
+			AnnotationStyle:      converter.AnnotationPandoc,
+			MediaInlineStyle:     converter.MediaInlinePandoc,
+			BlockCardStyle:       converter.BlockCardPandoc,
+			EmbedCardStyle:       converter.EmbedCardPandoc,
+			CaptionStyle:         converter.CaptionPandoc,
 
-
-			LayoutSectionStyle:   converter.LayoutSectionPandoc,
-			TableMode:            converter.TableAutoPandoc,
+			LayoutSectionStyle: converter.LayoutSectionPandoc,
+			TableMode:          converter.TableAutoPandoc,
 		}, nil
 	default:
 		return converter.Config{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy, pandoc)", preset)
@@ -101,56 +105,57 @@ func reversePresetConfig(preset string) (mdconverter.ReverseConfig, error) {
 		return mdconverter.ReverseConfig{}, nil
 	case presetStrict:
 		return mdconverter.ReverseConfig{
-			MentionDetection:  mdconverter.MentionDetectLink,
-			EmojiDetection:    mdconverter.EmojiDetectShortcode,
-			StatusDetection:   mdconverter.StatusDetectBracket,
-			DateDetection:     mdconverter.DateDetectISO,
-			PanelDetection:    mdconverter.PanelDetectGitHub,
-
+			MentionDetection: mdconverter.MentionDetectLink,
+			EmojiDetection:   mdconverter.EmojiDetectShortcode,
+			StatusDetection:  mdconverter.StatusDetectBracket,
+			DateDetection:    mdconverter.DateDetectISO,
+			PanelDetection:   mdconverter.PanelDetectGitHub,
 
 			LayoutSectionDetection: mdconverter.LayoutSectionDetectHTML,
-				ExpandDetection:   mdconverter.ExpandDetectHTML,
-			DecisionDetection: mdconverter.DecisionDetectEmoji,
+			ExpandDetection:        mdconverter.ExpandDetectHTML,
+			DecisionDetection:      mdconverter.DecisionDetectEmoji,
 		}, nil
 	case presetReadable:
 		return mdconverter.ReverseConfig{
-			MentionDetection:  mdconverter.MentionDetectAt,
-			EmojiDetection:    mdconverter.EmojiDetectShortcode,
-			StatusDetection:   mdconverter.StatusDetectText,
-			DateDetection:     mdconverter.DateDetectISO,
-			PanelDetection:    mdconverter.PanelDetectBold,
-
+			MentionDetection: mdconverter.MentionDetectAt,
+			EmojiDetection:   mdconverter.EmojiDetectShortcode,
+			StatusDetection:  mdconverter.StatusDetectText,
+			DateDetection:    mdconverter.DateDetectISO,
+			PanelDetection:   mdconverter.PanelDetectBold,
 
 			LayoutSectionDetection: mdconverter.LayoutSectionDetectNone,
-				ExpandDetection:   mdconverter.ExpandDetectBlockquote,
-			DecisionDetection: mdconverter.DecisionDetectText,
+			ExpandDetection:        mdconverter.ExpandDetectBlockquote,
+			DecisionDetection:      mdconverter.DecisionDetectText,
 		}, nil
 	case presetLossy:
 		return mdconverter.ReverseConfig{
-			MentionDetection:  mdconverter.MentionDetectNone,
-			EmojiDetection:    mdconverter.EmojiDetectNone,
-			StatusDetection:   mdconverter.StatusDetectNone,
-			DateDetection:     mdconverter.DateDetectNone,
-			PanelDetection:    mdconverter.PanelDetectNone,
-
+			MentionDetection: mdconverter.MentionDetectNone,
+			EmojiDetection:   mdconverter.EmojiDetectNone,
+			StatusDetection:  mdconverter.StatusDetectNone,
+			DateDetection:    mdconverter.DateDetectNone,
+			PanelDetection:   mdconverter.PanelDetectNone,
 
 			LayoutSectionDetection: mdconverter.LayoutSectionDetectNone,
-				ExpandDetection:   mdconverter.ExpandDetectNone,
-			DecisionDetection: mdconverter.DecisionDetectNone,
+			ExpandDetection:        mdconverter.ExpandDetectNone,
+			DecisionDetection:      mdconverter.DecisionDetectNone,
 		}, nil
 	case presetPandoc:
 		return mdconverter.ReverseConfig{
-			UnderlineDetection:  mdconverter.UnderlineDetectPandoc,
-			SubSupDetection:     mdconverter.SubSupDetectPandoc,
-			ColorDetection:      mdconverter.ColorDetectPandoc,
-			AlignmentDetection:  mdconverter.AlignDetectPandoc,
-			MentionDetection:    mdconverter.MentionDetectPandoc,
-			ExpandDetection:     mdconverter.ExpandDetectPandoc,
-			InlineCardDetection: mdconverter.InlineCardDetectPandoc,
-
+			UnderlineDetection:   mdconverter.UnderlineDetectPandoc,
+			SubSupDetection:      mdconverter.SubSupDetectPandoc,
+			ColorDetection:       mdconverter.ColorDetectPandoc,
+			AlignmentDetection:   mdconverter.AlignDetectPandoc,
+			MentionDetection:     mdconverter.MentionDetectPandoc,
+			ExpandDetection:      mdconverter.ExpandDetectPandoc,
+			InlineCardDetection:  mdconverter.InlineCardDetectPandoc,
+			AnnotationDetection:  mdconverter.AnnotationDetectPandoc,
+			MediaInlineDetection: mdconverter.MediaInlineDetectPandoc,
+			BlockCardDetection:   mdconverter.BlockCardDetectPandoc,
+			EmbedCardDetection:   mdconverter.EmbedCardDetectPandoc,
+			CaptionDetection:     mdconverter.CaptionDetectPandoc,
 
 			LayoutSectionDetection: mdconverter.LayoutSectionDetectPandoc,
-				TableGridDetection:  true,
+			TableGridDetection:     true,
 		}, nil
 	default:
 		return mdconverter.ReverseConfig{}, fmt.Errorf("unknown preset %q (allowed: balanced, strict, readable, lossy, pandoc)", preset)

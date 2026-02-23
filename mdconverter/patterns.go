@@ -89,6 +89,26 @@ func (s *state) shouldDetectInlineCardPandoc() bool {
 	return s.config.InlineCardDetection == InlineCardDetectPandoc || s.config.InlineCardDetection == InlineCardDetectAll
 }
 
+func (s *state) shouldDetectAnnotationPandoc() bool {
+	return s.config.AnnotationDetection == AnnotationDetectPandoc
+}
+
+func (s *state) shouldDetectMediaInlinePandoc() bool {
+	return s.config.MediaInlineDetection == MediaInlineDetectPandoc
+}
+
+func (s *state) shouldDetectBlockCardPandoc() bool {
+	return s.config.BlockCardDetection == BlockCardDetectPandoc
+}
+
+func (s *state) shouldDetectEmbedCardPandoc() bool {
+	return s.config.EmbedCardDetection == EmbedCardDetectPandoc
+}
+
+func (s *state) shouldDetectCaptionPandoc() bool {
+	return s.config.CaptionDetection == CaptionDetectPandoc
+}
+
 func (s *state) shouldDetectEmoji() bool {
 	return s.config.EmojiDetection == EmojiDetectShortcode || s.config.EmojiDetection == EmojiDetectAll
 }

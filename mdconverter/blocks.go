@@ -12,6 +12,14 @@ func (s *state) convertParagraphNode(node *ast.Paragraph) (converter.Node, bool,
 	if err != nil {
 		return converter.Node{}, false, err
 	}
+
+	// If a mediaSingle is followed immediately by a caption node, merge them.
+	if len(content) == 2 && content[0].Type == "mediaSingle" && content[1].Type == "caption" {
+		merged := content[0]
+		merged.Content = append(merged.Content, content[1])
+		return merged, true, nil
+	}
+
 	content = s.normalizeParagraphInline(content)
 
 	if len(content) == 1 && isParagraphBlockReplacement(content[0].Type) {
@@ -31,6 +39,14 @@ func (s *state) convertTextBlockNode(node *ast.TextBlock) (converter.Node, bool,
 	if err != nil {
 		return converter.Node{}, false, err
 	}
+
+	// If a mediaSingle is followed immediately by a caption node, merge them.
+	if len(content) == 2 && content[0].Type == "mediaSingle" && content[1].Type == "caption" {
+		merged := content[0]
+		merged.Content = append(merged.Content, content[1])
+		return merged, true, nil
+	}
+
 	content = s.normalizeParagraphInline(content)
 
 	if len(content) == 1 && isParagraphBlockReplacement(content[0].Type) {
@@ -210,7 +226,7 @@ func (s *state) normalizeParagraphInline(content []converter.Node) []converter.N
 
 func isParagraphBlockReplacement(nodeType string) bool {
 	switch nodeType {
-	case "mediaSingle", "table":
+	case "mediaSingle", "table", "blockCard", "embedCard":
 		return true
 	default:
 		return false
