@@ -145,6 +145,14 @@ const (
 	InlineCardDetectAll    InlineCardDetection = "all"
 )
 
+// AnnotationDetection controls how annotation marks are reconstructed.
+type AnnotationDetection string
+
+const (
+	AnnotationDetectNone   AnnotationDetection = "none"
+	AnnotationDetectPandoc AnnotationDetection = "pandoc"
+)
+
 // DecisionDetection controls how decision blocks are reconstructed.
 type DecisionDetection string
 
@@ -170,6 +178,7 @@ type ReverseConfig struct {
 	BodiedExtensionDetection BodiedExtensionDetection `json:"bodiedExtensionDetection,omitempty"`
 	ExpandDetection          ExpandDetection          `json:"expandDetection,omitempty"`
 	InlineCardDetection      InlineCardDetection      `json:"inlineCardDetection,omitempty"`
+	AnnotationDetection      AnnotationDetection      `json:"annotationDetection,omitempty"`
 	TableGridDetection       bool                     `json:"tableGridDetection,omitempty"`
 	DecisionDetection        DecisionDetection        `json:"decisionDetection,omitempty"`
 
@@ -226,6 +235,9 @@ func (c ReverseConfig) applyDefaults() ReverseConfig {
 	}
 	if c.InlineCardDetection == "" {
 		c.InlineCardDetection = InlineCardDetectNone
+	}
+	if c.AnnotationDetection == "" {
+		c.AnnotationDetection = AnnotationDetectNone
 	}
 	if c.DecisionDetection == "" {
 		c.DecisionDetection = DecisionDetectEmoji
@@ -352,6 +364,11 @@ func (c ReverseConfig) Validate() error {
 		return fmt.Errorf("invalid inlineCardDetection %q", c.InlineCardDetection)
 	}
 
+	if c.AnnotationDetection != AnnotationDetectNone &&
+		c.AnnotationDetection != AnnotationDetectPandoc {
+		return fmt.Errorf("invalid annotationDetection %q", c.AnnotationDetection)
+	}
+
 	if c.DecisionDetection != DecisionDetectNone &&
 		c.DecisionDetection != DecisionDetectEmoji &&
 		c.DecisionDetection != DecisionDetectText &&
@@ -397,7 +414,8 @@ func (c ReverseConfig) needsPandocInlineExtension() bool {
 		c.SubSupDetection == SubSupDetectPandoc || c.SubSupDetection == SubSupDetectAll ||
 		c.ColorDetection == ColorDetectPandoc || c.ColorDetection == ColorDetectAll ||
 		c.MentionDetection == MentionDetectPandoc || c.MentionDetection == MentionDetectAll ||
-		c.InlineCardDetection == InlineCardDetectPandoc || c.InlineCardDetection == InlineCardDetectAll
+		c.InlineCardDetection == InlineCardDetectPandoc || c.InlineCardDetection == InlineCardDetectAll ||
+		c.AnnotationDetection == AnnotationDetectPandoc
 }
 
 func (c ReverseConfig) needsPandocBlockExtension() bool {
