@@ -157,6 +157,9 @@ func (s *state) convertCaption(node Node) (string, error) {
 	if content == "" {
 		return "", nil
 	}
+	if s.config.CaptionStyle == CaptionPandoc {
+		return fmt.Sprintf("[%s]{.media-caption}", content), nil
+	}
 	// For now, just render as text. In many systems, this follows an image.
 	return content, nil
 }
