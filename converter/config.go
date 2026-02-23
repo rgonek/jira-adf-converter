@@ -115,6 +115,14 @@ const (
 	AnnotationPandoc AnnotationStyle = "pandoc"
 )
 
+// MediaInlineStyle controls how mediaInline nodes are rendered.
+type MediaInlineStyle string
+
+const (
+	MediaInlineDefault MediaInlineStyle = "default"
+	MediaInlinePandoc  MediaInlineStyle = "pandoc"
+)
+
 // DecisionStyle controls the prefix for decision items.
 type DecisionStyle string
 
@@ -211,6 +219,7 @@ type Config struct {
 	StatusStyle          StatusStyle                 `json:"statusStyle,omitempty"`
 	InlineCardStyle      InlineCardStyle             `json:"inlineCardStyle,omitempty"`
 	AnnotationStyle      AnnotationStyle             `json:"annotationStyle,omitempty"`
+	MediaInlineStyle     MediaInlineStyle            `json:"mediaInlineStyle,omitempty"`
 	LayoutSectionStyle   LayoutSectionStyle          `json:"layoutSectionStyle,omitempty"`
 	BodiedExtensionStyle BodiedExtensionStyle        `json:"bodiedExtensionStyle,omitempty"`
 	DecisionStyle        DecisionStyle               `json:"decisionStyle,omitempty"`
@@ -268,6 +277,9 @@ func (c Config) applyDefaults() Config {
 	}
 	if c.AnnotationStyle == "" {
 		c.AnnotationStyle = AnnotationIgnore
+	}
+	if c.MediaInlineStyle == "" {
+		c.MediaInlineStyle = MediaInlineDefault
 	}
 	if c.LayoutSectionStyle == "" {
 		c.LayoutSectionStyle = LayoutSectionStandard
@@ -360,6 +372,9 @@ func (c Config) Validate() error {
 	}
 	if c.AnnotationStyle != AnnotationIgnore && c.AnnotationStyle != AnnotationPandoc {
 		return fmt.Errorf("invalid annotationStyle %q", c.AnnotationStyle)
+	}
+	if c.MediaInlineStyle != MediaInlineDefault && c.MediaInlineStyle != MediaInlinePandoc {
+		return fmt.Errorf("invalid mediaInlineStyle %q", c.MediaInlineStyle)
 	}
 	if c.LayoutSectionStyle != LayoutSectionStandard && c.LayoutSectionStyle != LayoutSectionHTML && c.LayoutSectionStyle != LayoutSectionPandoc {
 		return fmt.Errorf("invalid layoutSectionStyle %q", c.LayoutSectionStyle)
