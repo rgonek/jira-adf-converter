@@ -20,7 +20,9 @@ const (
 
 // Warning represents a non-fatal issue encountered during conversion.
 type Warning struct {
-	Type     WarningType `json:"type"`
-	NodeType string      `json:"nodeType,omitempty"`
-	Message  string      `json:"message"`
+	Type       WarningType `json:"type"`
+	NodeType   string      `json:"nodeType,omitempty"`
+	ParentType string      `json:"parentType,omitempty"`
+	Context    string      `json:"context,omitempty"`
+	Message    string      `json:"message"`
 }

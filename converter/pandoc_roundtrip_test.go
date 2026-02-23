@@ -32,7 +32,7 @@ func TestPandocRoundTripFixtures(t *testing.T) {
 		{name: "expand without title", fixturePath: "expanders/expand_without_title_pandoc.json"},
 		{name: "nested expand", fixturePath: "expanders/nested_expand_pandoc.json"},
 		{name: "simple table grid", fixturePath: "tables/simple_table_pandoc.json", tableMode: converter.TablePandoc},
-		{name: "complex table fallback", fixturePath: "tables/complex_table_autopandoc_fallback.json", tableMode: converter.TableAutoPandoc, expectWarnings: true},
+		{name: "complex table fallback", fixturePath: "tables/complex_table_autopandoc_fallback.json", tableMode: converter.TableAutoPandoc},
 	}
 
 	for _, tt := range tests {

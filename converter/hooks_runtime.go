@@ -139,9 +139,10 @@ func mediaMetadataFromAttrs(attrs map[string]any, id, mediaURL string) MediaMeta
 	meta := MediaMetadata{
 		PageID:       lookupMetadataValue(attrs, "pageId", "pageID", "contentId"),
 		SpaceKey:     lookupMetadataValue(attrs, "spaceKey", "space"),
-		AttachmentID: lookupMetadataValue(attrs, "attachmentId", "attachmentID", "mediaId", "id"),
-		Filename:     lookupMetadataValue(attrs, "filename", "fileName", "name"),
-		Anchor:       lookupMetadataValue(attrs, "anchor", "fragment"),
+		AttachmentID: lookupMetadataValue(attrs, "attachmentId", "attachmentID", "mediaId", "id", "fileId", "attachment-id"),
+
+		Filename: lookupMetadataValue(attrs, "filename", "fileName", "name"),
+		Anchor:   lookupMetadataValue(attrs, "anchor", "fragment"),
 	}
 
 	if meta.AttachmentID == "" {

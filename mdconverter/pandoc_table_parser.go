@@ -9,7 +9,11 @@ import (
 	"github.com/yuin/goldmark/text"
 )
 
-var pandocGridBorderRe = regexp.MustCompile(`^\+[=-]+(?:\+[=-]+)+\+$`)
+// pandocGridBorderRe matches a Pandoc grid-table border line.
+// It accepts both multi-column borders ("+---+---+") and single-column
+// borders ("+-------+") which appear in rows where all cells are merged
+// via colspan.
+var pandocGridBorderRe = regexp.MustCompile(`^\+[=-]+(?:\+[=-]+)*\+$`)
 
 type PandocGridTableParser struct{}
 

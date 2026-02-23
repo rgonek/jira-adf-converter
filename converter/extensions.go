@@ -102,7 +102,8 @@ func (s *state) renderExtensionJSON(node Node) (string, error) {
 
 func (s *state) getExtensionFallbackText(node Node) (string, error) {
 	if len(node.Content) > 0 {
-		text, err := s.convertChildren(node.Content)
+		text, err := s.convertChildrenWithParent(node.Content, node.Type)
+
 		if err != nil {
 			return "", err
 		}
@@ -116,7 +117,7 @@ func (s *state) getExtensionFallbackText(node Node) (string, error) {
 }
 
 func (s *state) convertBodiedExtension(node Node) (string, error) {
-	children, err := s.convertChildren(node.Content)
+	children, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}

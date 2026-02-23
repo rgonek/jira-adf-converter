@@ -92,7 +92,7 @@ func (s *state) markAttrsEqual(attrs1, attrs2 map[string]any, keys []string) boo
 // isKnownMark checks if a mark type is supported
 func (s *state) isKnownMark(markType string) bool {
 	switch markType {
-	case "strong", "em", "strike", "code", "underline", "link", "subsup", "textColor", "backgroundColor":
+	case "strong", "em", "strike", "code", "underline", "link", "subsup", "textColor", "backgroundColor", "annotation":
 		return true
 	default:
 		return false
@@ -287,6 +287,9 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		default:
 			return "", "", nil
 		}
+	case "annotation":
+		// Preserves text, ignores annotation details
+		return "", "", nil
 	default:
 		if s.config.UnknownMarks == UnknownError {
 			return "", "", fmt.Errorf("unknown mark type: %s", mark.Type)

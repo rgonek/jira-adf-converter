@@ -15,10 +15,11 @@ type Converter struct {
 
 // state holds the per-conversion state, making the converter thread-safe.
 type state struct {
-	config   Config
-	ctx      context.Context
-	options  ConvertOptions
-	warnings []Warning
+	config     Config
+	ctx        context.Context
+	options    ConvertOptions
+	warnings   []Warning
+	parentType string
 }
 
 // New creates a new Converter with the given config
@@ -133,6 +134,12 @@ func (s *state) convertNode(node Node) (string, error) {
 	case "inlineCard":
 		return s.convertInlineCard(node)
 
+	case "blockCard":
+		return s.convertBlockCard(node)
+
+	case "embedCard":
+		return s.convertEmbedCard(node)
+
 	case "table":
 		return s.convertTable(node)
 
@@ -167,6 +174,12 @@ func (s *state) convertNode(node Node) (string, error) {
 	case "media":
 		return s.convertMedia(node)
 
+	case "mediaInline":
+		return s.convertMediaInline(node)
+
+	case "caption":
+		return s.convertCaption(node)
+
 	case "decisionList":
 		return s.convertDecisionList(node)
 
@@ -185,10 +198,10 @@ func (s *state) convertNode(node Node) (string, error) {
 		case UnknownError:
 			return "", fmt.Errorf("unknown node type: %s", node.Type)
 		case UnknownSkip:
-			s.addWarning(WarningUnknownNode, node.Type, fmt.Sprintf("unknown node skipped: %s", node.Type))
+			s.addWarningWithContext(WarningUnknownNode, node, fmt.Sprintf("unknown node skipped: %s", node.Type))
 			return "", nil
 		default:
-			s.addWarning(WarningUnknownNode, node.Type, fmt.Sprintf("unknown node rendered as placeholder: %s", node.Type))
+			s.addWarningWithContext(WarningUnknownNode, node, fmt.Sprintf("unknown node rendered as placeholder: %s", node.Type))
 			return fmt.Sprintf("[Unknown node: %s]", node.Type), nil
 		}
 	}
@@ -205,10 +218,52 @@ func (s *state) isExtensionNode(nodeType string) bool {
 
 func (s *state) addWarning(warnType WarningType, nodeType, message string) {
 	s.warnings = append(s.warnings, Warning{
-		Type:     warnType,
-		NodeType: nodeType,
-		Message:  message,
+		Type:       warnType,
+		NodeType:   nodeType,
+		ParentType: s.parentType,
+		Message:    message,
 	})
+}
+
+func (s *state) addWarningWithContext(warnType WarningType, node Node, message string) {
+	context := ""
+	if node.Text != "" {
+		context = truncate(node.Text, 50)
+	} else if len(node.Content) > 0 {
+		context = truncate(s.extractTextFromContent(node.Content), 50)
+	}
+
+	s.warnings = append(s.warnings, Warning{
+		Type:       warnType,
+		NodeType:   node.Type,
+		ParentType: s.parentType,
+		Context:    context,
+		Message:    message,
+	})
+}
+
+func (s *state) addWarningWithMarkContext(warnType WarningType, markType string, node Node, message string) {
+	context := ""
+	if node.Text != "" {
+		context = truncate(node.Text, 50)
+	}
+
+	s.warnings = append(s.warnings, Warning{
+		Type:       warnType,
+		NodeType:   markType,
+		ParentType: s.parentType,
+		Context:    context,
+		Message:    message,
+	})
+}
+
+func truncate(s string, maxLen int) string {
+	s = strings.TrimSpace(s)
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen]) + "..."
 }
 
 func (s *state) checkContext() error {
@@ -240,9 +295,16 @@ func (s *state) convertChildren(content []Node) (string, error) {
 	return sb.String(), nil
 }
 
+func (s *state) convertChildrenWithParent(content []Node, parentType string) (string, error) {
+	oldParent := s.parentType
+	s.parentType = parentType
+	defer func() { s.parentType = oldParent }()
+	return s.convertChildren(content)
+}
+
 // convertDoc converts the root document node
 func (s *state) convertDoc(node Node) (string, error) {
-	res, err := s.convertChildren(node.Content)
+	res, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}
@@ -299,9 +361,9 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 			case UnknownError:
 				return "", fmt.Errorf("unknown mark type: %s", mark.Type)
 			case UnknownSkip:
-				s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark skipped: %s", mark.Type))
+				s.addWarningWithMarkContext(WarningUnknownMark, mark.Type, node, fmt.Sprintf("unknown mark skipped: %s", mark.Type))
 			case UnknownPlaceholder:
-				s.addWarning(WarningUnknownMark, mark.Type, fmt.Sprintf("unknown mark rendered as placeholder: %s", mark.Type))
+				s.addWarningWithMarkContext(WarningUnknownMark, mark.Type, node, fmt.Sprintf("unknown mark rendered as placeholder: %s", mark.Type))
 				unknownPlaceholder.WriteString(fmt.Sprintf("[Unknown mark: %s]", mark.Type))
 			}
 		}

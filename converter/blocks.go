@@ -110,7 +110,8 @@ func (s *state) convertBlockquote(node Node) (string, error) {
 	}
 
 	// Process child content recursively
-	sbStr, err := s.convertChildren(node.Content)
+	sbStr, err := s.convertChildrenWithParent(node.Content, node.Type)
+
 	if err != nil {
 		return "", err
 	}
@@ -247,6 +248,38 @@ func (s *state) indent(content, marker string) string {
 	return strings.Join(result, "\n")
 }
 
+// convertBlockCard converts a blockCard node
+func (s *state) convertBlockCard(node Node) (string, error) {
+	content, err := s.convertInlineCard(node)
+	if err != nil {
+		return "", err
+	}
+	if content == "" {
+		return "", nil
+	}
+	// Ensure it's treated as a block
+	if !strings.HasSuffix(content, "\n\n") {
+		return content + "\n\n", nil
+	}
+	return content, nil
+}
+
+// convertEmbedCard converts an embedCard node
+func (s *state) convertEmbedCard(node Node) (string, error) {
+	content, err := s.convertInlineCard(node)
+	if err != nil {
+		return "", err
+	}
+	if content == "" {
+		return "", nil
+	}
+	// Ensure it's treated as a block
+	if !strings.HasSuffix(content, "\n\n") {
+		return content + "\n\n", nil
+	}
+	return content, nil
+}
+
 // convertPanel converts a panel node to blockquote with semantic label
 func (s *state) convertPanel(node Node) (string, error) {
 	// Handle empty panel
@@ -255,7 +288,7 @@ func (s *state) convertPanel(node Node) (string, error) {
 	}
 
 	// Check if panel has actual content or just whitespace
-	fullContent, err := s.convertChildren(node.Content)
+	fullContent, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}
@@ -388,7 +421,7 @@ func (s *state) convertDecisionItemContent(node Node) (string, error) {
 	}
 
 	// Process content
-	sbStr, err := s.convertChildren(node.Content)
+	sbStr, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}
@@ -434,7 +467,7 @@ func (s *state) convertExpand(node Node) (string, error) {
 	title := node.GetStringAttr("title", "")
 
 	// Process content
-	content, err := s.convertChildren(node.Content)
+	content, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}
@@ -486,7 +519,7 @@ func (s *state) convertLayoutSection(node Node) (string, error) {
 		return "", nil
 	}
 
-	content, err := s.convertChildren(node.Content)
+	content, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}
@@ -509,7 +542,7 @@ func (s *state) convertLayoutColumn(node Node) (string, error) {
 		return "", nil
 	}
 
-	content, err := s.convertChildren(node.Content)
+	content, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}

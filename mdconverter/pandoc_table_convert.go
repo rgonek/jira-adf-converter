@@ -6,6 +6,12 @@ import (
 	"github.com/rgonek/jira-adf-converter/converter"
 )
 
+// gridCell holds the parsed text content and colspan for a single table cell.
+type gridCell struct {
+	text    string
+	colspan int
+}
+
 func (s *state) convertPandocGridTableNode(node *PandocGridTableNode) (converter.Node, bool, error) {
 	literalFallback := pandocLiteralParagraph(node.Literal())
 	if !s.config.TableGridDetection {
@@ -43,13 +49,13 @@ func (s *state) convertPandocGridTableNode(node *PandocGridTableNode) (converter
 	return table, true, nil
 }
 
-func (s *state) convertPandocGridTableRow(cells []string, header bool) (converter.Node, error) {
+func (s *state) convertPandocGridTableRow(cells []gridCell, header bool) (converter.Node, error) {
 	row := converter.Node{
 		Type: "tableRow",
 	}
 
 	for _, cell := range cells {
-		inlineContent, err := s.convertInlineFragment(cell)
+		inlineContent, err := s.convertInlineFragment(cell.text)
 		if err != nil {
 			return converter.Node{}, err
 		}
@@ -58,7 +64,7 @@ func (s *state) convertPandocGridTableRow(cells []string, header bool) (converte
 		if header {
 			cellType = "tableHeader"
 		}
-		row.Content = append(row.Content, converter.Node{
+		cellNode := converter.Node{
 			Type: cellType,
 			Content: []converter.Node{
 				{
@@ -66,30 +72,55 @@ func (s *state) convertPandocGridTableRow(cells []string, header bool) (converte
 					Content: inlineContent,
 				},
 			},
-		})
+		}
+		if cell.colspan > 1 {
+			cellNode.Attrs = map[string]interface{}{
+				"colspan": float64(cell.colspan),
+			}
+		}
+		row.Content = append(row.Content, cellNode)
 	}
 
 	return row, nil
 }
 
-func parsePandocGridTableLines(lines []string) ([][]string, [][]string, int, bool) {
+// parsePandocGridTableLines parses all raw lines captured from a Pandoc grid
+// table block into header and data rows of gridCell slices.
+//
+// The canonical column layout is derived from the border line with the most
+// column segments (the "widest" border). This handles tables where the first
+// border is a collapsed colspan row (e.g., a single-column border for a row
+// that spans all columns).
+func parsePandocGridTableLines(lines []string) ([][]gridCell, [][]gridCell, int, bool) {
 	if len(lines) < 3 {
 		return nil, nil, 0, false
 	}
 
-	widths, _, ok := parsePandocGridBorder(lines[0])
-	if !ok {
+	// Find the canonical column layout: the border with the maximum number of
+	// column segments. This is necessary because the first border may be a
+	// single-column colspan border rather than the full-width border.
+	var colWidths []int
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "+") {
+			continue
+		}
+		widths, _, ok := parsePandocGridBorder(line)
+		if !ok {
+			continue
+		}
+		if len(widths) > len(colWidths) {
+			colWidths = widths
+		}
+	}
+	if len(colWidths) == 0 {
 		return nil, nil, 0, false
 	}
-	columns := len(widths)
-	if columns == 0 {
-		return nil, nil, 0, false
-	}
+	columns := len(colWidths)
 
-	headerRows := make([][]string, 0, 1)
-	dataRows := make([][]string, 0, 2)
+	headerRows := make([][]gridCell, 0, 1)
+	dataRows := make([][]gridCell, 0, 2)
 
-	pending := []string(nil)
+	var pending []gridCell
 	headerMode := true
 	headerSeparatorSeen := false
 
@@ -99,7 +130,7 @@ func parsePandocGridTableLines(lines []string) ([][]string, [][]string, int, boo
 		}
 		switch {
 		case strings.HasPrefix(line, "|"):
-			cells, rowOK := parsePandocGridRow(line, columns)
+			cells, rowOK := parsePandocGridRow(line, colWidths)
 			if !rowOK {
 				return nil, nil, 0, false
 			}
@@ -107,15 +138,21 @@ func parsePandocGridTableLines(lines []string) ([][]string, [][]string, int, boo
 				pending = cells
 				continue
 			}
-			for idx := 0; idx < columns; idx++ {
-				part := strings.TrimSpace(cells[idx])
+			// Merge continuation lines: append non-empty text per cell.
+			// Both pending and cells must have the same length (same colspan
+			// layout).
+			if len(cells) != len(pending) {
+				return nil, nil, 0, false
+			}
+			for idx := range cells {
+				part := strings.TrimSpace(cells[idx].text)
 				if part == "" {
 					continue
 				}
-				if pending[idx] != "" {
-					pending[idx] += " "
+				if pending[idx].text != "" {
+					pending[idx].text += " "
 				}
-				pending[idx] += part
+				pending[idx].text += part
 			}
 
 		case strings.HasPrefix(line, "+"):
@@ -157,12 +194,18 @@ func parsePandocGridTableLines(lines []string) ([][]string, [][]string, int, boo
 	return headerRows, dataRows, columns, len(headerRows)+len(dataRows) > 0
 }
 
+// parsePandocGridBorder parses a Pandoc grid-table border line such as
+// "+------+--------+" or "+-----------------+" (single column, used for
+// colspan rows). It returns the width of each column segment (the number of
+// '-' or '=' characters between two '+' signs), the fill character, and
+// whether parsing succeeded.
 func parsePandocGridBorder(line string) ([]int, byte, bool) {
-	if !pandocGridBorderRe.MatchString(line) || len(line) < 3 {
+	if len(line) < 3 || line[0] != '+' || line[len(line)-1] != '+' {
 		return nil, 0, false
 	}
 
-	parts := strings.Split(line[1:len(line)-1], "+")
+	inner := line[1 : len(line)-1]
+	parts := strings.Split(inner, "+")
 	if len(parts) == 0 {
 		return nil, 0, false
 	}
@@ -174,32 +217,93 @@ func parsePandocGridBorder(line string) ([]int, byte, bool) {
 			return nil, 0, false
 		}
 		for i := 0; i < len(part); i++ {
-			if part[i] != '-' && part[i] != '=' {
+			ch := part[i]
+			if ch != '-' && ch != '=' {
 				return nil, 0, false
 			}
 			if separator == 0 {
-				separator = part[i]
+				separator = ch
 			}
 		}
 		widths[idx] = len(part)
 	}
-
 	return widths, separator, true
 }
 
-func parsePandocGridRow(line string, columns int) ([]string, bool) {
-	if len(line) < 2 || !strings.HasPrefix(line, "|") || !strings.HasSuffix(line, "|") {
+// parsePandocGridRow parses a data line of the form "| cell1 | cell2 |".
+// colWidths is the canonical per-column width array (from the first border
+// line). The function handles colspan: if a segment's width matches the
+// combined width of multiple canonical columns, a gridCell with colspan > 1
+// is emitted.
+//
+// In a Pandoc grid table, the border line "+---+----+" has column widths
+// [3, 4] (the dash counts, which include the surrounding spaces). The
+// matching content line "| a | bc |" splits on "|" to give segments
+// [" a ", " bc "] of lengths 3 and 4 respectively — exactly equal to the
+// corresponding column widths.
+//
+// For a colspan=N merged cell, the content segment length equals:
+//
+//	colWidths[c] + colWidths[c+1] + ... + colWidths[c+N-1] + (N-1)
+//
+// where the +(N-1) accounts for the "+" junction characters that are now
+// interior to the merged cell and appear as spaces in the content line.
+func parsePandocGridRow(line string, colWidths []int) ([]gridCell, bool) {
+	if len(line) < 2 || line[0] != '|' || line[len(line)-1] != '|' {
 		return nil, false
 	}
 
+	// Split on "|" — each segment has width equal to one or more column widths.
 	parts := strings.Split(line[1:len(line)-1], "|")
-	if len(parts) != columns {
+	if len(parts) == 0 {
 		return nil, false
 	}
 
-	cells := make([]string, columns)
-	for idx, part := range parts {
-		cells[idx] = strings.TrimSpace(part)
+	columns := len(colWidths)
+	cells := make([]gridCell, 0, columns)
+	colIdx := 0
+
+	for _, part := range parts {
+		if colIdx >= columns {
+			return nil, false
+		}
+
+		segLen := len(part)
+
+		// Try to match this segment against consecutive columns starting at colIdx.
+		// For colspan=N, the expected segment width is:
+		//   sum(colWidths[colIdx..colIdx+N-1]) + (N-1)
+		// The +(N-1) accounts for the "+" junction characters between columns
+		// that are now interior to the merged cell (shown as spaces).
+		matched := false
+		accumulated := 0
+		for span := 1; colIdx+span-1 < columns; span++ {
+			if span > 1 {
+				accumulated++ // account for the "+" junction between columns
+			}
+			accumulated += colWidths[colIdx+span-1]
+			if segLen == accumulated {
+				cells = append(cells, gridCell{
+					text:    strings.TrimSpace(part),
+					colspan: span,
+				})
+				colIdx += span
+				matched = true
+				break
+			}
+			if segLen < accumulated {
+				// Went past — this segment is malformed.
+				break
+			}
+		}
+		if !matched {
+			return nil, false
+		}
+	}
+
+	if colIdx != columns {
+		// Not all columns were accounted for.
+		return nil, false
 	}
 
 	return cells, true

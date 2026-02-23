@@ -12,7 +12,7 @@ func (s *state) convertMediaSingle(node Node) (string, error) {
 	}
 
 	// Pass through to children
-	content, err := s.convertChildren(node.Content)
+	content, err := s.convertChildrenWithParent(node.Content, node.Type)
 	if err != nil {
 		return "", err
 	}
@@ -43,7 +43,7 @@ func (s *state) convertMediaGroup(node Node) (string, error) {
 // convertMedia converts a media node
 func (s *state) convertMedia(node Node) (string, error) {
 	mediaType := node.GetStringAttr("type", "")
-	id := node.GetStringAttr("id", "")
+	id := s.getMediaID(node)
 	alt := node.GetStringAttr("alt", "")
 	url := node.GetStringAttr("url", "")
 
@@ -92,7 +92,7 @@ func (s *state) convertMedia(node Node) (string, error) {
 			if s.config.UnknownNodes == UnknownError {
 				return "", fmt.Errorf("media node of type image missing id")
 			}
-			s.addWarning(WarningMissingAttribute, node.Type, "media image missing id")
+			s.addWarningWithContext(WarningMissingAttribute, node, "media image missing id")
 			return "[Image: (no id)]", nil
 		}
 		return fmt.Sprintf("[Image: %s]", id), nil
@@ -104,7 +104,7 @@ func (s *state) convertMedia(node Node) (string, error) {
 			if s.config.UnknownNodes == UnknownError {
 				return "", fmt.Errorf("media node of type file missing id")
 			}
-			s.addWarning(WarningMissingAttribute, node.Type, "media file missing id")
+			s.addWarningWithContext(WarningMissingAttribute, node, "media file missing id")
 			return "[File: (no id)]", nil
 		}
 		return fmt.Sprintf("[File: %s]", id), nil
@@ -115,8 +115,42 @@ func (s *state) convertMedia(node Node) (string, error) {
 		if s.config.UnknownNodes == UnknownError {
 			return "", fmt.Errorf("media node missing id")
 		}
-		s.addWarning(WarningMissingAttribute, node.Type, "media node missing id")
+		s.addWarningWithContext(WarningMissingAttribute, node, "media node missing id")
 		return "[Media: (no id)]", nil
 	}
 	return fmt.Sprintf("[Media: %s]", id), nil
+}
+
+// convertMediaInline converts a mediaInline node
+func (s *state) convertMediaInline(node Node) (string, error) {
+	return s.convertMedia(node)
+}
+
+// convertCaption converts a caption node
+func (s *state) convertCaption(node Node) (string, error) {
+	content, err := s.convertChildrenWithParent(node.Content, node.Type)
+	if err != nil {
+		return "", err
+	}
+	if content == "" {
+		return "", nil
+	}
+	// For now, just render as text. In many systems, this follows an image.
+	return content, nil
+}
+
+func (s *state) getMediaID(node Node) string {
+	if id := node.GetStringAttr("id", ""); id != "" {
+		return id
+	}
+	if id := node.GetStringAttr("attachmentId", ""); id != "" {
+		return id
+	}
+	if id := node.GetStringAttr("fileId", ""); id != "" {
+		return id
+	}
+	if id := node.GetStringAttr("attachment-id", ""); id != "" {
+		return id
+	}
+	return ""
 }
