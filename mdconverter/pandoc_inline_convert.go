@@ -93,6 +93,36 @@ func (s *state) convertPandocSpanNode(node *PandocSpanNode, stack *markStack) ([
 		}, nil
 	}
 
+	if hasPandocClass(node.Classes, "annotation") {
+		if !s.shouldDetectAnnotationPandoc() {
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		annotationID := strings.TrimSpace(node.Attrs["annotation-id"])
+		annotationType := strings.TrimSpace(node.Attrs["annotation-type"])
+
+		inlineContent, err := s.convertInlineFragment(node.Content)
+		if err != nil {
+			return nil, err
+		}
+
+		annotationMark := converter.Mark{
+			Type: "annotation",
+			Attrs: map[string]interface{}{
+				"id":             annotationID,
+				"annotationType": annotationType,
+			},
+		}
+		if annotationID == "" {
+			delete(annotationMark.Attrs, "id")
+		}
+		if annotationType == "" {
+			delete(annotationMark.Attrs, "annotationType")
+		}
+
+		inlineContent = applyMarkToInlineNodes(inlineContent, annotationMark)
+		return applyOuterMarksToInlineNodes(inlineContent, stack.current()), nil
+	}
+
 	if hasPandocClass(node.Classes, "underline") && !s.shouldDetectUnderlinePandoc() {
 		return []converter.Node{newTextNode(literal, stack.current())}, nil
 	}
@@ -226,7 +256,7 @@ func hasPandocClass(classes []string, target string) bool {
 func hasUnknownPandocSpanClass(classes []string) bool {
 	for _, className := range classes {
 		switch className {
-		case "underline", "mention", "inline-card":
+		case "underline", "mention", "inline-card", "annotation":
 			continue
 		default:
 			return true
@@ -238,7 +268,7 @@ func hasUnknownPandocSpanClass(classes []string) bool {
 func hasUnknownPandocSpanAttr(attrs map[string]string) bool {
 	for key := range attrs {
 		switch key {
-		case "mention-id", "url", "color", "background-color", "style":
+		case "mention-id", "url", "color", "background-color", "style", "annotation-id", "annotation-type":
 			continue
 		default:
 			return true

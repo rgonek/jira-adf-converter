@@ -89,6 +89,10 @@ func (s *state) shouldDetectInlineCardPandoc() bool {
 	return s.config.InlineCardDetection == InlineCardDetectPandoc || s.config.InlineCardDetection == InlineCardDetectAll
 }
 
+func (s *state) shouldDetectAnnotationPandoc() bool {
+	return s.config.AnnotationDetection == AnnotationDetectPandoc
+}
+
 func (s *state) shouldDetectEmoji() bool {
 	return s.config.EmojiDetection == EmojiDetectShortcode || s.config.EmojiDetection == EmojiDetectAll
 }
