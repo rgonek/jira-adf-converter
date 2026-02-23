@@ -143,6 +143,40 @@ func (s *state) convertPandocSpanNode(node *PandocSpanNode, stack *markStack) ([
 		return []converter.Node{{Type: "mediaInline", Attrs: attrs}}, nil
 	}
 
+	if hasPandocClass(node.Classes, "block-card") {
+		if !s.shouldDetectBlockCardPandoc() {
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		url := strings.TrimSpace(node.Attrs["url"])
+		if url == "" {
+			s.addWarning(converter.WarningMissingAttribute, "pandocSpan", "block-card span missing url")
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		return []converter.Node{{
+			Type:  "blockCard",
+			Attrs: map[string]interface{}{"url": url},
+		}}, nil
+	}
+
+	if hasPandocClass(node.Classes, "embed-card") {
+		if !s.shouldDetectEmbedCardPandoc() {
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		url := strings.TrimSpace(node.Attrs["url"])
+		if url == "" {
+			s.addWarning(converter.WarningMissingAttribute, "pandocSpan", "embed-card span missing url")
+			return []converter.Node{newTextNode(literal, stack.current())}, nil
+		}
+		attrs := map[string]interface{}{"url": url}
+		if layout := strings.TrimSpace(node.Attrs["layout"]); layout != "" {
+			attrs["layout"] = layout
+		}
+		return []converter.Node{{
+			Type:  "embedCard",
+			Attrs: attrs,
+		}}, nil
+	}
+
 	if hasPandocClass(node.Classes, "underline") && !s.shouldDetectUnderlinePandoc() {
 		return []converter.Node{newTextNode(literal, stack.current())}, nil
 	}
@@ -276,7 +310,7 @@ func hasPandocClass(classes []string, target string) bool {
 func hasUnknownPandocSpanClass(classes []string) bool {
 	for _, className := range classes {
 		switch className {
-		case "underline", "mention", "inline-card", "annotation", "media-inline":
+		case "underline", "mention", "inline-card", "annotation", "media-inline", "block-card", "embed-card":
 			continue
 		default:
 			return true
@@ -289,7 +323,7 @@ func hasUnknownPandocSpanAttr(attrs map[string]string) bool {
 	for key := range attrs {
 		switch key {
 		case "mention-id", "url", "color", "background-color", "style", "annotation-id", "annotation-type",
-			"media-id", "media-type":
+			"media-id", "media-type", "layout":
 			continue
 		default:
 			return true

@@ -210,7 +210,7 @@ func (s *state) normalizeParagraphInline(content []converter.Node) []converter.N
 
 func isParagraphBlockReplacement(nodeType string) bool {
 	switch nodeType {
-	case "mediaSingle", "table":
+	case "mediaSingle", "table", "blockCard", "embedCard":
 		return true
 	default:
 		return false
