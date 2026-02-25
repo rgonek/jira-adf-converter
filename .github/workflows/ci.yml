@@ -4,27 +4,82 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  checks:
+  test-matrix:
+    name: Test (${{ matrix.os }}, Go ${{ matrix.go-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        go-version: ['1.24.x', '1.25.x']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+      - name: Test
+        run: go test ./... -shuffle=on -count=1
+
+  quality:
+    name: Quality Gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: '1.25.x'
           cache: true
+
+      - name: Gofmt check
+        run: |
+          UNFORMATTED="$(gofmt -l .)"
+          if [ -n "$UNFORMATTED" ]; then
+            echo "These files need gofmt:"
+            echo "$UNFORMATTED"
+            exit 1
+          fi
+
+      - name: Tidy check
+        run: |
+          go mod tidy
+          git diff --exit-code -- go.mod go.sum
+
       - name: Vet
         run: go vet ./...
+
+      - name: Install static/security tools
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@latest
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Staticcheck
+        run: $(go env GOPATH)/bin/staticcheck -checks=all,-SA1019 ./...
+
+      - name: Govulncheck
+        run: $(go env GOPATH)/bin/govulncheck ./...
+
       - name: Test
-        run: go test ./...
+        run: go test ./... -shuffle=on -count=1
 
   race:
+    name: Race Tests
     runs-on: ubuntu-latest
+    env:
+      CGO_ENABLED: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: '1.25.x'
           cache: true
+
+      - name: Install C toolchain
+        run: sudo apt-get update && sudo apt-get install --yes build-essential
+
       - name: Race Tests
-        run: go test -race ./...
+        run: go test -race ./... -shuffle=on -count=1

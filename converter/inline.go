@@ -53,37 +53,42 @@ func (s *state) convertMention(node Node) (string, error) {
 
 	switch s.config.MentionStyle {
 	case MentionText:
-		return mentionText, nil
+		return escapeMarkdownTextLiteral(mentionText), nil
 	case MentionLink:
 		if id == "" {
 			s.addWarning(WarningMissingAttribute, node.Type, "mention node missing id")
-			return mentionText, nil
+			return escapeMarkdownTextLiteral(mentionText), nil
 		}
-		return fmt.Sprintf("[%s](mention:%s)", mentionText, id), nil
+		escapedDestination := escapeMarkdownLinkDestination("mention:" + id)
+		if escapedDestination == "" {
+			return escapeMarkdownTextLiteral(mentionText), nil
+		}
+		return fmt.Sprintf("[%s](%s)", escapeMarkdownTextLiteral(mentionText), escapedDestination), nil
 	case MentionHTML:
 		if id == "" {
 			s.addWarning(WarningMissingAttribute, node.Type, "mention node missing id")
-			return mentionText, nil
+			return escapeMarkdownTextLiteral(mentionText), nil
 		}
 		return fmt.Sprintf(`<span data-mention-id="%s">%s</span>`, html.EscapeString(id), html.EscapeString(mentionText)), nil
 	case MentionPandoc:
 		if id == "" {
 			s.addWarning(WarningMissingAttribute, node.Type, "mention node missing id")
-			return mentionText, nil
+			return escapeMarkdownTextLiteral(mentionText), nil
 		}
-		return fmt.Sprintf(`[%s]{.mention mention-id="%s"}`, mentionText, escapePandocAttrValue(id)), nil
+		return fmt.Sprintf(`[%s]{.mention mention-id="%s"}`, escapeMarkdownTextLiteral(mentionText), escapePandocAttrValue(id)), nil
 	default:
-		return mentionText, nil
+		return escapeMarkdownTextLiteral(mentionText), nil
 	}
 }
 
 // convertStatus converts a status node to text representation
 func (s *state) convertStatus(node Node) (string, error) {
 	text := node.GetStringAttr("text", "Unknown")
+	escapedText := escapeMarkdownTextLiteral(text)
 	if s.config.StatusStyle == StatusText {
-		return text, nil
+		return escapedText, nil
 	}
-	return fmt.Sprintf("[Status: %s]", text), nil
+	return fmt.Sprintf("[Status: %s]", escapedText), nil
 }
 
 // convertDate converts a date node to ISO 8601 format
@@ -122,7 +127,7 @@ func (s *state) convertDate(node Node) (string, error) {
 	}
 
 	t := time.Unix(ts, 0).UTC()
-	return t.Format(s.config.DateFormat), nil
+	return escapeMarkdownTextLiteral(t.Format(s.config.DateFormat)), nil
 }
 
 // convertInlineCard converts an inlineCard node
@@ -150,7 +155,7 @@ func (s *state) convertInlineCard(node Node) (string, error) {
 		if hookOutput.TextOnly {
 			textValue := firstNonEmptyTrimmed(hookOutput.Title, title, url)
 			if textValue != "" {
-				return textValue, nil
+				return escapeMarkdownTextLiteral(textValue), nil
 			}
 			if s.config.UnknownNodes == UnknownError {
 				return "", fmt.Errorf("inlineCard missing url and valid data")
@@ -184,23 +189,26 @@ func (s *state) convertInlineCard(node Node) (string, error) {
 			if title == "" {
 				title = url
 			}
-			return fmt.Sprintf("[%s](%s)", title, url), nil
+			escapedURL := escapeMarkdownLinkDestination(url)
+			if escapedURL != "" {
+				return fmt.Sprintf("[%s](%s)", escapeMarkdownTextLiteral(title), escapedURL), nil
+			}
 		}
 		if title != "" {
-			return title, nil
+			return escapeMarkdownTextLiteral(title), nil
 		}
 	case InlineCardPandoc:
 		if url == "" {
 			s.addWarning(WarningMissingAttribute, node.Type, "inlineCard missing url and valid data")
 			if title != "" {
-				return title, nil
+				return escapeMarkdownTextLiteral(title), nil
 			}
 			return "[Smart Link]", nil
 		}
 		if title == "" {
 			title = url
 		}
-		return fmt.Sprintf(`[%s]{.inline-card url="%s"}`, title, escapePandocAttrValue(url)), nil
+		return fmt.Sprintf(`[%s]{.inline-card url="%s"}`, escapeMarkdownTextLiteral(title), escapePandocAttrValue(url)), nil
 	}
 
 	// Fallback

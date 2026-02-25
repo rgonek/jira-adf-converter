@@ -1,4 +1,4 @@
-.PHONY: build test test-race test-update lint fmt clean install
+.PHONY: build test test-race test-update lint fmt fmt-check staticcheck vuln-check tidy-check clean install check
 
 # Use a repo-local Go build cache to avoid permission issues.
 GOCACHE ?= $(CURDIR)/.gocache
@@ -28,6 +28,23 @@ lint:
 fmt:
 	go fmt ./...
 
+# Verify gofmt has no pending changes
+fmt-check:
+	@test -z "$$(gofmt -l .)" || (gofmt -l . && exit 1)
+
+# Run static analysis with staticcheck (requires staticcheck installed)
+staticcheck:
+	staticcheck -checks=all,-SA1019 ./...
+
+# Run vulnerability scan (requires govulncheck installed)
+vuln-check:
+	govulncheck ./...
+
+# Ensure go.mod/go.sum stay tidy
+tidy-check:
+	go mod tidy
+	git diff --exit-code -- go.mod go.sum
+
 # Clean build artifacts
 clean:
 	rm -rf bin/
@@ -36,8 +53,8 @@ clean:
 install:
 	go mod download
 
-# Run all checks (fmt, lint, test)
-check: fmt lint test
+# Run all checks (fmt-check, lint, test, tidy-check)
+check: fmt-check lint test tidy-check
 
 # Default target
 all: build

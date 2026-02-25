@@ -71,7 +71,10 @@ func (s *state) convertMedia(node Node) (string, error) {
 		if alt == "" {
 			alt = "Image"
 		}
-		return fmt.Sprintf("![%s](%s)", alt, url), nil
+		escapedURL := escapeMarkdownLinkDestination(url)
+		if escapedURL != "" {
+			return fmt.Sprintf("![%s](%s)", escapeMarkdownTextLiteral(alt), escapedURL), nil
+		}
 	}
 
 	// Internal media resolved via configured base URL.
@@ -83,7 +86,10 @@ func (s *state) convertMedia(node Node) (string, error) {
 		if !strings.HasSuffix(base, "/") {
 			base += "/"
 		}
-		return fmt.Sprintf("![%s](%s%s)", alt, base, id), nil
+		escapedURL := escapeMarkdownLinkDestination(base + id)
+		if escapedURL != "" {
+			return fmt.Sprintf("![%s](%s)", escapeMarkdownTextLiteral(alt), escapedURL), nil
+		}
 	}
 
 	// Internal image
@@ -95,7 +101,7 @@ func (s *state) convertMedia(node Node) (string, error) {
 			s.addWarningWithContext(WarningMissingAttribute, node, "media image missing id")
 			return "[Image: (no id)]", nil
 		}
-		return fmt.Sprintf("[Image: %s]", id), nil
+		return fmt.Sprintf("[Image: %s]", escapeMarkdownTextLiteral(id)), nil
 	}
 
 	// File
@@ -107,7 +113,7 @@ func (s *state) convertMedia(node Node) (string, error) {
 			s.addWarningWithContext(WarningMissingAttribute, node, "media file missing id")
 			return "[File: (no id)]", nil
 		}
-		return fmt.Sprintf("[File: %s]", id), nil
+		return fmt.Sprintf("[File: %s]", escapeMarkdownTextLiteral(id)), nil
 	}
 
 	// Fallback/Unknown
@@ -118,7 +124,7 @@ func (s *state) convertMedia(node Node) (string, error) {
 		s.addWarningWithContext(WarningMissingAttribute, node, "media node missing id")
 		return "[Media: (no id)]", nil
 	}
-	return fmt.Sprintf("[Media: %s]", id), nil
+	return fmt.Sprintf("[Media: %s]", escapeMarkdownTextLiteral(id)), nil
 }
 
 // convertMediaInline converts a mediaInline node
@@ -139,7 +145,7 @@ func (s *state) convertMediaInline(node Node) (string, error) {
 		default:
 			label = fmt.Sprintf("Media: %s", id)
 		}
-		span := fmt.Sprintf("[%s]{.media-inline", label)
+		span := fmt.Sprintf("[%s]{.media-inline", escapeMarkdownTextLiteral(label))
 		span += fmt.Sprintf(` media-id=%q`, id)
 		span += fmt.Sprintf(` media-type=%q`, mediaType)
 		span += "}"

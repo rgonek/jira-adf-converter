@@ -53,6 +53,7 @@ Common options:
 - `--preset=balanced|strict|readable|lossy|pandoc`
 - `--allow-html` (compatibility override; in forward mode it forces HTML-oriented rendering for underline/subsup/hard breaks/expand, and in reverse mode it enables broad HTML mention/expand detection)
 - `--strict` (compatibility override; in forward mode it enforces unknown-node/mark errors, and in reverse mode it applies strict detection defaults)
+- `--fail-on-warning` (exit with code `2` when conversion succeeds but emits warnings)
 
 Example:
 
@@ -62,6 +63,12 @@ jac --reverse --preset=strict input.md > output.adf.json
 ```
 
 Preset precedence in CLI is deterministic: preset first, then compatibility overrides (`--allow-html`, `--strict`).
+
+CLI output contract is stream-safe for scripting:
+
+- Converted payload is written to `stdout`.
+- Warnings are written to `stderr` with `type`, `node`, optional `context`, and message fields.
+- With `--fail-on-warning`, output is still emitted, but the process exits non-zero when warnings exist.
 
 ## Library Usage
 
@@ -225,9 +232,48 @@ Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHoo
 - Converter instances are safe for concurrent `Convert`/`ConvertWithContext` calls.
 - Hook closures are caller-owned and must protect shared mutable state.
 
+## Development Checks
+
+```bash
+# Run unit and golden tests
+make test
+
+# Verify formatting without rewriting files
+make fmt-check
+
+# Run vet-based linting
+make lint
+
+# Optional stronger analysis (requires installed tools)
+make staticcheck
+make vuln-check
+
+# Ensure module metadata is normalized
+make tidy-check
+
+# Run the standard local quality gate
+make check
+```
+
+## CI and Security Gates
+
+- CI runs a multi-platform/multi-version test matrix (`ubuntu-latest`, `windows-latest`; Go `1.24.x` and `1.25.x`).
+- Quality gates enforce `gofmt` cleanliness, `go mod tidy` drift checks, `go vet`, `staticcheck`, `govulncheck`, and shuffled test runs.
+- A dedicated Linux race job runs `go test -race` with `CGO_ENABLED=1` and an explicit C toolchain install.
+- A scheduled `Security` workflow runs weekly govulncheck and CodeQL analysis.
+- Dependabot is configured for Go modules and GitHub Actions updates.
+
 ## Documentation
 
 - Detailed feature matrix and syntax mapping: `docs/features.md`
 - Development roadmap plans: `agents/plans/`
+
+## Governance and Release
+
+- License: `LICENSE` (MIT)
+- Security reporting policy: `SECURITY.md`
+- Contribution guide: `CONTRIBUTING.md`
+- Changelog: `CHANGELOG.md`
+- Release runbook: `RELEASING.md`
 
 

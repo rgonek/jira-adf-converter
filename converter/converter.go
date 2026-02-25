@@ -1,3 +1,4 @@
+// Package converter provides ADF JSON to Markdown conversion.
 package converter
 
 import (
@@ -408,6 +409,10 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 		// Write text content (including placeholders for unknown marks).
 		if unknownPlaceholder.Len() > 0 {
 			sb.WriteString(unknownPlaceholder.String())
+		}
+
+		if !hasMarkType(effectiveMarks, "code") {
+			textValue = escapeMarkdownTextLiteral(textValue)
 		}
 		sb.WriteString(textValue)
 

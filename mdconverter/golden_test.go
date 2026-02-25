@@ -108,6 +108,12 @@ func reverseGoldenConfigForPath(path string) ReverseConfig {
 	if strings.Contains(base, "subsup_pandoc_disabled") {
 		cfg.SubSupDetection = SubSupDetectNone
 	}
+	if strings.Contains(base, "date_format_dd_mmm") {
+		cfg.DateFormat = "02 Jan 2006"
+	}
+	if strings.Contains(base, "date_format_slash") {
+		cfg.DateFormat = "2006/01/02"
+	}
 	if strings.Contains(base, "pandoc_span_detection_disabled") {
 		cfg.UnderlineDetection = UnderlineDetectNone
 	}
@@ -203,6 +209,9 @@ func TestReverseGoldenFiles(t *testing.T) {
 		"reverse/expanders/expand_html_unclosed",
 		"reverse/lists/task_loose_multiblock",
 		"reverse/lists/task_inline_patterns_mention_text",
+		"reverse/lists/task_canonical_unchecked",
+		"reverse/lists/task_mixed_states",
+		"reverse/lists/task_nested",
 		"reverse/inline/span_nested_lifo_mention_html",
 		"reverse/inline/mention_link_case_insensitive",
 		"reverse/marks/subsup_not_strikethrough_pandoc",
@@ -214,6 +223,11 @@ func TestReverseGoldenFiles(t *testing.T) {
 		"reverse/inline/background_color_from_pandoc_span",
 		"reverse/inline/pandoc_span_adjacent_to_link",
 		"reverse/inline/pandoc_span_detection_disabled",
+		"reverse/inline/date_format_dd_mmm",
+		"reverse/inline/date_format_slash",
+		"reverse/inline/date_format_dd_mmm_iso_fallback",
+		"reverse/inline/date_format_dd_mmm_negative",
+		"reverse/inline/date_format_slash_boundary_negative",
 		"reverse/expanders/expand_from_pandoc_div",
 		"reverse/expanders/expand_no_title_from_pandoc_div",
 		"reverse/expanders/nested_expand_from_pandoc_divs",
