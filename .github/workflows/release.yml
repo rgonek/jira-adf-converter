@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache: true
+
+      - name: Validate tests
+        run: go test ./... -shuffle=on -count=1
+
+      - name: Task-list smoke conversions
+        run: |
+          go run ./cmd/jac --preset=balanced testdata/lists/task_canonical_unchecked.json > /tmp/task_canonical.md
+          go run ./cmd/jac --reverse --preset=balanced mdconverter/testdata/reverse/lists/task_canonical_unchecked.md > /tmp/task_canonical.adf.json
+          go run ./cmd/jac --reverse --preset=balanced mdconverter/testdata/reverse/lists/task_mixed_states.md > /tmp/task_mixed.adf.json
+          go run ./cmd/jac --reverse --preset=balanced mdconverter/testdata/reverse/lists/task_nested.md > /tmp/task_nested.adf.json
+
+      - name: Build cross-platform binaries
+        run: |
+          mkdir -p dist
+          targets=(
+            "linux amd64"
+            "linux arm64"
+            "darwin amd64"
+            "darwin arm64"
+            "windows amd64"
+            "windows arm64"
+          )
+
+          for target in "${targets[@]}"; do
+            read -r GOOS GOARCH <<<"$target"
+            output="jac_${GOOS}_${GOARCH}"
+            if [ "$GOOS" = "windows" ]; then
+              output="${output}.exe"
+            fi
+
+            echo "Building $output"
+            GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o "dist/$output" ./cmd/jac
+          done
+
+          (cd dist && sha256sum * > checksums.txt)
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/*

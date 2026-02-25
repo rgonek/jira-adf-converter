@@ -268,4 +268,12 @@ make check
 - Detailed feature matrix and syntax mapping: `docs/features.md`
 - Development roadmap plans: `agents/plans/`
 
+## Governance and Release
+
+- License: `LICENSE` (MIT)
+- Security reporting policy: `SECURITY.md`
+- Contribution guide: `CONTRIBUTING.md`
+- Changelog: `CHANGELOG.md`
+- Release runbook: `RELEASING.md`
+
 
