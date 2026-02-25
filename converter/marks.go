@@ -188,13 +188,15 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		}
 
 		// Build link syntax: [text](href) or [text](href "title")
+		escapedHref := escapeMarkdownLinkDestination(href)
+		if escapedHref == "" {
+			return "", "", nil
+		}
 		opening := "["
-		closing := "](" + href
+		closing := "](" + escapedHref
 
 		if title != "" {
-			// Escape quotes in title
-			escapedTitle := strings.ReplaceAll(title, "\\", "\\\\")
-			escapedTitle = strings.ReplaceAll(escapedTitle, "\"", "\\\"")
+			escapedTitle := escapeMarkdownLinkTitle(title)
 			closing += " \"" + escapedTitle + "\""
 		}
 		closing += ")"

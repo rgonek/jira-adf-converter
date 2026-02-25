@@ -34,7 +34,7 @@ func (s *state) convertParagraph(node Node) (string, error) {
 func (s *state) convertText(node Node) (string, error) {
 	// Text nodes should be processed within paragraph context
 	// This case handles standalone text (shouldn't normally occur)
-	return node.Text, nil
+	return escapeMarkdownTextLiteral(node.Text), nil
 }
 
 // convertParagraphContent processes all content nodes in a paragraph
@@ -255,7 +255,7 @@ func (s *state) convertBlockCard(node Node) (string, error) {
 		if url == "" {
 			return "", nil
 		}
-		return fmt.Sprintf("[%s]{.block-card url=%q}\n\n", url, url), nil
+		return fmt.Sprintf("[%s]{.block-card url=%q}\n\n", escapeMarkdownTextLiteral(url), url), nil
 	}
 	content, err := s.convertInlineCard(node)
 	if err != nil {
@@ -279,7 +279,7 @@ func (s *state) convertEmbedCard(node Node) (string, error) {
 			return "", nil
 		}
 		layout := node.GetStringAttr("layout", "")
-		span := fmt.Sprintf("[%s]{.embed-card url=%q", url, url)
+		span := fmt.Sprintf("[%s]{.embed-card url=%q", escapeMarkdownTextLiteral(url), url)
 		if layout != "" {
 			span += fmt.Sprintf(` layout=%q`, layout)
 		}
@@ -349,7 +349,7 @@ func (s *state) convertPanel(node Node) (string, error) {
 		}
 		callout := fmt.Sprintf("[!%s]", panelUpper)
 		if panelTitle != "" {
-			callout = fmt.Sprintf("[!%s: %s]", panelUpper, panelTitle)
+			callout = fmt.Sprintf("[!%s: %s]", panelUpper, escapeMarkdownTextLiteral(panelTitle))
 		}
 		quoted := s.blockquoteContent(fullContent, "")
 		if quoted == "" {
@@ -518,7 +518,7 @@ func (s *state) convertExpand(node Node) (string, error) {
 	// Text Mode: Blockquote with bold title
 	var text strings.Builder
 	if title != "" {
-		text.WriteString("> **" + title + "**\n> \n")
+		text.WriteString("> **" + escapeMarkdownTextLiteral(title) + "**\n> \n")
 	}
 
 	// Handle empty content - still need trailing newlines for block separation

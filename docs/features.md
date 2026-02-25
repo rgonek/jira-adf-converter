@@ -50,6 +50,13 @@ Unknown handling is policy driven:
 - `UnknownNodes`: `placeholder`, `skip`, or `error`
 - `UnknownMarks`: `skip`, `placeholder`, or `error`
 
+### Markdown Literal Escaping
+
+- Plain inline text is escaped to preserve literal characters (`*`, `_`, `[`, `]`, `(`, `)`, backticks, and backslashes) when emitted outside code spans/fences.
+- `#` and `>` are escaped when they appear at logical line starts so paragraph text is not reinterpreted as headings or blockquotes.
+- Markdown link destinations and titles are escaped deterministically (`\` / parentheses in destinations, quote-safe titles, angle-bracket wrapping when destinations contain whitespace).
+- Table-cell rendering still performs final pipe escaping (`|` -> `\|`) at the table layer to avoid double-escaping.
+
 ### Mark Support
 
 | Mark | Default Output | Alternatives |

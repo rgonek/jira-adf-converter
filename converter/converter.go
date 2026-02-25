@@ -409,6 +409,10 @@ func (s *state) convertInlineContent(content []Node) (string, error) {
 		if unknownPlaceholder.Len() > 0 {
 			sb.WriteString(unknownPlaceholder.String())
 		}
+
+		if !hasMarkType(effectiveMarks, "code") {
+			textValue = escapeMarkdownTextLiteral(textValue)
+		}
 		sb.WriteString(textValue)
 
 		// Update active marks

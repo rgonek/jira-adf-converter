@@ -283,6 +283,10 @@ func (s *state) convertInlineText(textValue string, stack *markStack) []converte
 		return nil
 	}
 
+	if !stackHasMarkType(stack, "code") {
+		textValue = unescapeMarkdownLiteralText(textValue)
+	}
+
 	if mentionID, ok := s.currentHTMLMentionID(); ok {
 		if strings.TrimSpace(textValue) == "" {
 			return []converter.Node{newTextNode(textValue, stack.current())}
