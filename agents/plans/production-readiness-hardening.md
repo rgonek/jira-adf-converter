@@ -333,7 +333,7 @@ The hardening effort is complete when:
 - [x] CLI prints warnings to `stderr` and supports `--fail-on-warning`.
 - [x] Reverse converter has explicit concurrent conversion test coverage.
 - [x] Canonical task-list syntax (`- [ ]` lines) is covered by forward and reverse golden tests.
-- [ ] `go.mod`/`go.sum` hygiene is enforced and clean.
+- [x] `go.mod`/`go.sum` hygiene is enforced and clean.
 - [ ] CI includes gofmt, staticcheck, govulncheck, race, matrix coverage, and tidy checks.
 - [ ] Governance files (`LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`) exist and are linked.
 - [ ] Release/tag/changelog workflow is documented and repeatable.

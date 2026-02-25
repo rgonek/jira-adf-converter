@@ -1,4 +1,4 @@
-.PHONY: build test test-race test-update lint fmt clean install
+.PHONY: build test test-race test-update lint fmt tidy-check clean install check
 
 # Use a repo-local Go build cache to avoid permission issues.
 GOCACHE ?= $(CURDIR)/.gocache
@@ -28,6 +28,11 @@ lint:
 fmt:
 	go fmt ./...
 
+# Ensure go.mod/go.sum stay tidy
+tidy-check:
+	go mod tidy
+	git diff --exit-code -- go.mod go.sum
+
 # Clean build artifacts
 clean:
 	rm -rf bin/
@@ -37,7 +42,7 @@ install:
 	go mod download
 
 # Run all checks (fmt, lint, test)
-check: fmt lint test
+check: fmt lint test tidy-check
 
 # Default target
 all: build

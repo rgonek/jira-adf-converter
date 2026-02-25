@@ -232,6 +232,22 @@ Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHoo
 - Converter instances are safe for concurrent `Convert`/`ConvertWithContext` calls.
 - Hook closures are caller-owned and must protect shared mutable state.
 
+## Development Checks
+
+```bash
+# Run unit and golden tests
+make test
+
+# Run vet-based linting
+make lint
+
+# Ensure module metadata is normalized
+make tidy-check
+
+# Run the standard local quality gate
+make check
+```
+
 ## Documentation
 
 - Detailed feature matrix and syntax mapping: `docs/features.md`
