@@ -53,6 +53,7 @@ Common options:
 - `--preset=balanced|strict|readable|lossy|pandoc`
 - `--allow-html` (compatibility override; in forward mode it forces HTML-oriented rendering for underline/subsup/hard breaks/expand, and in reverse mode it enables broad HTML mention/expand detection)
 - `--strict` (compatibility override; in forward mode it enforces unknown-node/mark errors, and in reverse mode it applies strict detection defaults)
+- `--fail-on-warning` (exit with code `2` when conversion succeeds but emits warnings)
 
 Example:
 
@@ -62,6 +63,12 @@ jac --reverse --preset=strict input.md > output.adf.json
 ```
 
 Preset precedence in CLI is deterministic: preset first, then compatibility overrides (`--allow-html`, `--strict`).
+
+CLI output contract is stream-safe for scripting:
+
+- Converted payload is written to `stdout`.
+- Warnings are written to `stderr` with `type`, `node`, optional `context`, and message fields.
+- With `--fail-on-warning`, output is still emitted, but the process exits non-zero when warnings exist.
 
 ## Library Usage
 

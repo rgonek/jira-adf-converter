@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -17,6 +18,10 @@ const (
 	presetReadable = "readable"
 	presetLossy    = "lossy"
 	presetPandoc   = "pandoc"
+
+	exitCodeOK        = 0
+	exitCodeError     = 1
+	exitCodeWarnError = 2
 )
 
 func presetConfig(preset string) (converter.Config, error) {
@@ -196,79 +201,135 @@ func resolveReverseConfig(preset string, allowHTML, strict bool) (mdconverter.Re
 }
 
 func main() {
-	reverse := flag.Bool("reverse", false, "Convert Markdown to ADF JSON")
-	allowHTML := flag.Bool("allow-html", false, "Enable HTML output")
-	strict := flag.Bool("strict", false, "Return error on unknown nodes")
-	preset := flag.String("preset", presetBalanced, "Preset: balanced|strict|readable|lossy|pandoc")
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: jac [options] <input-file>\n")
-		flag.PrintDefaults()
-	}
-	flag.Parse()
+	os.Exit(run(os.Args[1:], os.Stdout, os.Stderr))
+}
 
-	args := flag.Args()
-	if len(args) < 1 {
-		flag.Usage()
-		os.Exit(1)
-	}
-	inputFile := args[0]
+func run(args []string, stdout, stderr io.Writer) int {
+	flags := flag.NewFlagSet("jac", flag.ContinueOnError)
+	flags.SetOutput(stderr)
 
+	reverse := flags.Bool("reverse", false, "Convert Markdown to ADF JSON")
+	allowHTML := flags.Bool("allow-html", false, "Enable HTML output")
+	strict := flags.Bool("strict", false, "Return error on unknown nodes")
+	failOnWarning := flags.Bool("fail-on-warning", false, "Exit non-zero when conversion emits warnings")
+	preset := flags.String("preset", presetBalanced, "Preset: balanced|strict|readable|lossy|pandoc")
+
+	flags.Usage = func() {
+		fmt.Fprintf(stderr, "Usage: jac [options] <input-file>\n")
+		flags.PrintDefaults()
+	}
+
+	if err := flags.Parse(args); err != nil {
+		if err == flag.ErrHelp {
+			return exitCodeOK
+		}
+		return exitCodeError
+	}
+
+	if flags.NArg() < 1 {
+		flags.Usage()
+		return exitCodeError
+	}
+
+	inputFile := flags.Arg(0)
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading file: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error reading file: %v\n", err)
+		return exitCodeError
 	}
 
 	if *reverse {
-		cfg, err := resolveReverseConfig(*preset, *allowHTML, *strict)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid preset: %v\n", err)
-			os.Exit(1)
-		}
-
-		conv, err := mdconverter.New(cfg)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Invalid config: %v\n", err)
-			os.Exit(1)
-		}
-
-		result, err := conv.Convert(string(data))
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error converting file: %v\n", err)
-			os.Exit(1)
-		}
-
-		var parsed any
-		if err := json.Unmarshal(result.ADF, &parsed); err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing converted ADF JSON: %v\n", err)
-			os.Exit(1)
-		}
-		pretty, err := json.MarshalIndent(parsed, "", "  ")
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error formatting ADF JSON: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println(string(pretty))
-		return
+		return runReverse(string(data), *preset, *allowHTML, *strict, *failOnWarning, stdout, stderr)
 	}
 
-	cfg, err := resolveConfig(*preset, *allowHTML, *strict)
+	return runForward(data, *preset, *allowHTML, *strict, *failOnWarning, stdout, stderr)
+}
+
+func runReverse(markdown, preset string, allowHTML, strict, failOnWarning bool, stdout, stderr io.Writer) int {
+	cfg, err := resolveReverseConfig(preset, allowHTML, strict)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid preset: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Invalid preset: %v\n", err)
+		return exitCodeError
+	}
+
+	conv, err := mdconverter.New(cfg)
+	if err != nil {
+		fmt.Fprintf(stderr, "Invalid config: %v\n", err)
+		return exitCodeError
+	}
+
+	result, err := conv.Convert(markdown)
+	if err != nil {
+		fmt.Fprintf(stderr, "Error converting file: %v\n", err)
+		return exitCodeError
+	}
+
+	var parsed any
+	if err := json.Unmarshal(result.ADF, &parsed); err != nil {
+		fmt.Fprintf(stderr, "Error parsing converted ADF JSON: %v\n", err)
+		return exitCodeError
+	}
+
+	pretty, err := json.MarshalIndent(parsed, "", "  ")
+	if err != nil {
+		fmt.Fprintf(stderr, "Error formatting ADF JSON: %v\n", err)
+		return exitCodeError
+	}
+
+	fmt.Fprintln(stdout, string(pretty))
+	printWarnings(stderr, result.Warnings)
+	if failOnWarning && len(result.Warnings) > 0 {
+		return exitCodeWarnError
+	}
+
+	return exitCodeOK
+}
+
+func runForward(data []byte, preset string, allowHTML, strict, failOnWarning bool, stdout, stderr io.Writer) int {
+	cfg, err := resolveConfig(preset, allowHTML, strict)
+	if err != nil {
+		fmt.Fprintf(stderr, "Invalid preset: %v\n", err)
+		return exitCodeError
 	}
 
 	conv, err := converter.New(cfg)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Invalid config: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Invalid config: %v\n", err)
+		return exitCodeError
 	}
 
 	result, err := conv.Convert(data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error converting file: %v\n", err)
-		os.Exit(1)
+		fmt.Fprintf(stderr, "Error converting file: %v\n", err)
+		return exitCodeError
 	}
 
-	fmt.Print(result.Markdown)
+	fmt.Fprint(stdout, result.Markdown)
+	printWarnings(stderr, result.Warnings)
+	if failOnWarning && len(result.Warnings) > 0 {
+		return exitCodeWarnError
+	}
+
+	return exitCodeOK
+}
+
+func printWarnings(stderr io.Writer, warnings []converter.Warning) {
+	for _, warning := range warnings {
+		fmt.Fprintf(stderr, "warning: %s\n", formatWarning(warning))
+	}
+}
+
+func formatWarning(warning converter.Warning) string {
+	parts := []string{fmt.Sprintf("type=%s", warning.Type)}
+	if warning.NodeType != "" {
+		parts = append(parts, fmt.Sprintf("node=%s", warning.NodeType))
+	}
+	if warning.ParentType != "" {
+		parts = append(parts, fmt.Sprintf("parent=%s", warning.ParentType))
+	}
+	if warning.Context != "" {
+		parts = append(parts, fmt.Sprintf("context=%q", warning.Context))
+	}
+	parts = append(parts, fmt.Sprintf("message=%q", warning.Message))
+	return strings.Join(parts, " ")
 }
