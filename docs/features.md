@@ -219,5 +219,6 @@ CLI compatibility flags are layered on top of preset output:
 
 ## Concurrency Contract
 
-- Converter internals are safe for concurrent calls when using the same converter instance.
-- Hook closures are caller-owned and must synchronize shared mutable state when reused across goroutines.
+- `converter.Converter` and `mdconverter.Converter` instances are safe for concurrent `Convert` / `ConvertWithContext` calls.
+- Reverse conversion includes explicit stress coverage for shared-instance concurrent calls and config-map isolation from caller mutations after `New(...)`.
+- Hook closures are caller-owned and may be invoked concurrently; callers must synchronize shared mutable state inside hook implementations.
