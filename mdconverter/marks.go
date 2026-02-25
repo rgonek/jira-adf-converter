@@ -14,16 +14,6 @@ func (s *markStack) push(mark converter.Mark) {
 	s.items = append(s.items, cloneMark(mark))
 }
 
-func (s *markStack) pop() (converter.Mark, bool) {
-	if len(s.items) == 0 {
-		return converter.Mark{}, false
-	}
-
-	last := s.items[len(s.items)-1]
-	s.items = s.items[:len(s.items)-1]
-	return cloneMark(last), true
-}
-
 func (s *markStack) popByType(markType string) bool {
 	for i := len(s.items) - 1; i >= 0; i-- {
 		if s.items[i].Type != markType {

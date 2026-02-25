@@ -337,4 +337,4 @@ The hardening effort is complete when:
 - [x] CI includes gofmt, staticcheck, govulncheck, race, matrix coverage, and tidy checks.
 - [x] Governance files (`LICENSE`, `SECURITY.md`, `CONTRIBUTING.md`) exist and are linked.
 - [x] Release/tag/changelog workflow is documented and repeatable.
-- [ ] Release automation (or documented manual release path) is validated with a dry-run pre-release.
+- [x] Release automation (or documented manual release path) is validated with a dry-run pre-release.

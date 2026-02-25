@@ -1,3 +1,4 @@
+// Package converter provides ADF JSON to Markdown conversion.
 package converter
 
 import (

@@ -152,7 +152,7 @@ func (s *state) convertMarkFull(mark Mark, useUnderscoreForEm bool) (string, str
 		title, _ := mark.Attrs["title"].(string)
 
 		if s.config.LinkHook != nil {
-			hookOutput := LinkRenderOutput{}
+			var hookOutput LinkRenderOutput
 			handled := false
 
 			if cachedOutput, ok := loadLinkHookCache(mark.Attrs); ok {

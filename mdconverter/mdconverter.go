@@ -1,3 +1,4 @@
+// Package mdconverter provides Markdown to ADF JSON conversion.
 package mdconverter
 
 import (

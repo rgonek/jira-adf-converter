@@ -72,24 +72,6 @@ func (s *state) isComplexTable(node Node) bool {
 	return false
 }
 
-func (s *state) hasTableSpans(node Node) bool {
-	for _, rowNode := range node.Content {
-		if rowNode.Type != "tableRow" {
-			continue
-		}
-		for _, cellNode := range rowNode.Content {
-			if cellNode.Type != "tableCell" && cellNode.Type != "tableHeader" {
-				continue
-			}
-			if cellNode.GetIntAttr("colspan", 1) > 1 || cellNode.GetIntAttr("rowspan", 1) > 1 {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
 func isComplexTableBlockNode(nodeType string) bool {
 	switch nodeType {
 	case "bulletList", "orderedList", "taskList", "codeBlock", "table":

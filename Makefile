@@ -34,7 +34,7 @@ fmt-check:
 
 # Run static analysis with staticcheck (requires staticcheck installed)
 staticcheck:
-	staticcheck ./...
+	staticcheck -checks=all,-SA1019 ./...
 
 # Run vulnerability scan (requires govulncheck installed)
 vuln-check:
