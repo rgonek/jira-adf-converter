@@ -13,8 +13,35 @@ import (
 var (
 	emojiShortcodeRe   = regexp.MustCompile(`:[A-Za-z0-9_+\-]+:`)
 	statusBracketRe    = regexp.MustCompile(`\[Status:\s*([^\]]+)\]`)
-	dateISORe          = regexp.MustCompile(`\b\d{4}-\d{2}-\d{2}\b`)
 	mediaPlaceholderRe = regexp.MustCompile(`\[(Image|File):\s*([^\]]+)\]`)
+	dateLayoutTokens   = []dateLayoutToken{
+		{token: "January", pattern: `(?i:January|February|March|April|May|June|July|August|September|October|November|December)`},
+		{token: "Monday", pattern: `(?i:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)`},
+		{token: "-07:00", pattern: `[+-][0-9]{2}:[0-9]{2}`},
+		{token: "Z07:00", pattern: `(?:Z|[+-][0-9]{2}:[0-9]{2})`},
+		{token: "-0700", pattern: `[+-][0-9]{4}`},
+		{token: "Z0700", pattern: `(?:Z|[+-][0-9]{4})`},
+		{token: "2006", pattern: `[0-9]{4}`},
+		{token: "Mon", pattern: `(?i:Mon|Tue|Wed|Thu|Fri|Sat|Sun)`},
+		{token: "Jan", pattern: `(?i:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)`},
+		{token: "_2", pattern: ` ?(?:[1-9]|[12][0-9]|3[01])`},
+		{token: "Z07", pattern: `(?:Z|[+-][0-9]{2})`},
+		{token: "15", pattern: `(?:[01][0-9]|2[0-3])`},
+		{token: "05", pattern: `[0-5][0-9]`},
+		{token: "04", pattern: `[0-5][0-9]`},
+		{token: "03", pattern: `(?:0[1-9]|1[0-2])`},
+		{token: "02", pattern: `(?:0[1-9]|[12][0-9]|3[01])`},
+		{token: "01", pattern: `(?:0[1-9]|1[0-2])`},
+		{token: "06", pattern: `[0-9]{2}`},
+		{token: "pm", pattern: `(?:am|pm)`},
+		{token: "PM", pattern: `(?:AM|PM)`},
+		{token: "MST", pattern: `[A-Za-z]{2,5}`},
+		{token: "5", pattern: `(?:[0-9]|[1-5][0-9])`},
+		{token: "4", pattern: `(?:[0-9]|[1-5][0-9])`},
+		{token: "3", pattern: `(?:[1-9]|1[0-2])`},
+		{token: "2", pattern: `(?:[1-9]|[12][0-9]|3[01])`},
+		{token: "1", pattern: `(?:[1-9]|1[0-2])`},
+	}
 )
 
 type patternMatch struct {
@@ -23,6 +50,11 @@ type patternMatch struct {
 	end   int
 	value string
 	extra string
+}
+
+type dateLayoutToken struct {
+	token   string
+	pattern string
 }
 
 func (s *state) shouldDetectMentionLink() bool {
@@ -161,22 +193,19 @@ func (s *state) expandTextPatterns(textValue string, marks []converter.Mark) []c
 			})
 
 		case "date":
-			layout := s.config.DateFormat
-			if strings.TrimSpace(layout) == "" {
-				layout = "2006-01-02"
-			}
-			parsedDate, err := time.Parse(layout, match.value)
-			if err != nil {
-				parsedDate, err = time.Parse("2006-01-02", match.value)
-			}
-			if err != nil {
-				content = appendInlineNode(content, newTextNode(match.value, nil))
-				break
+			timestamp := strings.TrimSpace(match.extra)
+			if timestamp == "" {
+				parsedDate, ok := s.parseDatePatternValue(match.value)
+				if !ok {
+					content = appendInlineNode(content, newTextNode(match.value, nil))
+					break
+				}
+				timestamp = strconv.FormatInt(parsedDate.Unix(), 10)
 			}
 			content = append(content, converter.Node{
 				Type: "date",
 				Attrs: map[string]interface{}{
-					"timestamp": strconv.FormatInt(parsedDate.Unix(), 10),
+					"timestamp": timestamp,
 				},
 			})
 
@@ -242,13 +271,8 @@ func (s *state) findNextPattern(textValue string) (patternMatch, bool) {
 	}
 
 	if s.shouldDetectDate() {
-		if loc := dateISORe.FindStringIndex(textValue); loc != nil {
-			candidates = append(candidates, patternMatch{
-				kind:  "date",
-				start: loc[0],
-				end:   loc[1],
-				value: textValue[loc[0]:loc[1]],
-			})
+		if dateMatch, ok := s.findDatePattern(textValue); ok {
+			candidates = append(candidates, dateMatch)
 		}
 	}
 
@@ -280,6 +304,144 @@ func (s *state) findNextPattern(textValue string) (patternMatch, bool) {
 	})
 
 	return candidates[0], true
+}
+
+func (s *state) findDatePattern(textValue string) (patternMatch, bool) {
+	best := patternMatch{}
+	found := false
+
+	for _, layout := range s.dateDetectionLayouts() {
+		match, ok := findDatePatternForLayout(textValue, layout)
+		if !ok {
+			continue
+		}
+
+		if !found || match.start < best.start || (match.start == best.start && match.end > best.end) {
+			best = match
+			found = true
+		}
+	}
+
+	return best, found
+}
+
+func (s *state) parseDatePatternValue(value string) (time.Time, bool) {
+	for _, layout := range s.dateDetectionLayouts() {
+		parsedDate, err := time.Parse(layout, value)
+		if err == nil {
+			return parsedDate, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func (s *state) dateDetectionLayouts() []string {
+	layouts := make([]string, 0, 2)
+	seen := map[string]struct{}{}
+
+	appendLayout := func(layout string) {
+		layout = strings.TrimSpace(layout)
+		if layout == "" {
+			return
+		}
+		if _, ok := seen[layout]; ok {
+			return
+		}
+		seen[layout] = struct{}{}
+		layouts = append(layouts, layout)
+	}
+
+	appendLayout(s.config.DateFormat)
+	appendLayout("2006-01-02")
+
+	return layouts
+}
+
+func findDatePatternForLayout(textValue, layout string) (patternMatch, bool) {
+	dateRe, ok := dateRegexForLayout(layout)
+	if !ok {
+		return patternMatch{}, false
+	}
+
+	matches := dateRe.FindAllStringSubmatchIndex(textValue, -1)
+	for _, match := range matches {
+		if len(match) < 6 {
+			continue
+		}
+
+		start := match[4]
+		end := match[5]
+		if start < 0 || end <= start {
+			continue
+		}
+
+		candidate := textValue[start:end]
+		parsedDate, err := time.Parse(layout, candidate)
+		if err != nil {
+			continue
+		}
+
+		return patternMatch{
+			kind:  "date",
+			start: start,
+			end:   end,
+			value: candidate,
+			extra: strconv.FormatInt(parsedDate.Unix(), 10),
+		}, true
+	}
+
+	return patternMatch{}, false
+}
+
+func dateRegexForLayout(layout string) (*regexp.Regexp, bool) {
+	tokenPattern, ok := dateTokenPatternForLayout(layout)
+	if !ok {
+		return nil, false
+	}
+
+	compiled, err := regexp.Compile(`(^|[^0-9A-Za-z])(` + tokenPattern + `)($|[^0-9A-Za-z])`)
+	if err != nil {
+		return nil, false
+	}
+
+	return compiled, true
+}
+
+func dateTokenPatternForLayout(layout string) (string, bool) {
+	layout = strings.TrimSpace(layout)
+	if layout == "" {
+		return "", false
+	}
+
+	var builder strings.Builder
+	for i := 0; i < len(layout); {
+		matched := false
+		for _, token := range dateLayoutTokens {
+			if strings.HasPrefix(layout[i:], token.token) {
+				builder.WriteString(token.pattern)
+				i += len(token.token)
+				matched = true
+				break
+			}
+		}
+
+		if matched {
+			continue
+		}
+
+		if layout[i] == ' ' {
+			builder.WriteByte(' ')
+		} else {
+			builder.WriteString(regexp.QuoteMeta(string(layout[i])))
+		}
+		i++
+	}
+
+	if builder.Len() == 0 {
+		return "", false
+	}
+
+	return builder.String(), true
 }
 
 func (s *state) findMentionRegistryMatch(textValue string) (patternMatch, bool) {

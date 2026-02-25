@@ -94,7 +94,7 @@ Unknown handling is policy driven:
 | `[Image: id]`, `[File: id]` | `mediaSingle` + `media` | Parsed from text patterns. |
 | `:shortcode:` | `emoji` | Controlled by `EmojiDetection`. |
 | `[Status: TEXT]` | `status` | Controlled by `StatusDetection`. |
-| `YYYY-MM-DD` | `date` | Controlled by `DateDetection` + `DateFormat`. |
+| Configured date layout text (for example `YYYY-MM-DD`, `02 Jan 2006`, `2006/01/02`) | `date` | Controlled by `DateDetection` + `DateFormat`; ISO (`2006-01-02`) fallback remains enabled for backward compatibility. |
 | `@Name` | `mention` | Requires `MentionRegistry`; controlled by `MentionDetection` (`at` / `all`). |
 | `<u>`, `<sub>`, `<sup>` | `underline` / `subsup` marks | Parsed from inline HTML tags. |
 | `~text~`, `^text^` | `subsup` marks | Pandoc subscript and superscript. |
