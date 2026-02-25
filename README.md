@@ -238,8 +238,15 @@ Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHoo
 # Run unit and golden tests
 make test
 
+# Verify formatting without rewriting files
+make fmt-check
+
 # Run vet-based linting
 make lint
+
+# Optional stronger analysis (requires installed tools)
+make staticcheck
+make vuln-check
 
 # Ensure module metadata is normalized
 make tidy-check
@@ -247,6 +254,14 @@ make tidy-check
 # Run the standard local quality gate
 make check
 ```
+
+## CI and Security Gates
+
+- CI runs a multi-platform/multi-version test matrix (`ubuntu-latest`, `windows-latest`; Go `1.24.x` and `1.25.x`).
+- Quality gates enforce `gofmt` cleanliness, `go mod tidy` drift checks, `go vet`, `staticcheck`, `govulncheck`, and shuffled test runs.
+- A dedicated Linux race job runs `go test -race` with `CGO_ENABLED=1` and an explicit C toolchain install.
+- A scheduled `Security` workflow runs weekly govulncheck and CodeQL analysis.
+- Dependabot is configured for Go modules and GitHub Actions updates.
 
 ## Documentation
 

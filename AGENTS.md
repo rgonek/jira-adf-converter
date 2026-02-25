@@ -23,7 +23,7 @@ make build
 # Run all tests
 make test
 
-# Run all checks (fmt, lint, test, tidy-check)
+# Run all checks (fmt-check, lint, test, tidy-check)
 make check
 
 # Update golden files after intentional changes
@@ -34,6 +34,13 @@ make lint
 
 # Format code
 make fmt
+
+# Verify formatting without rewriting files
+make fmt-check
+
+# Optional static/security analyzers (requires installed tools)
+make staticcheck
+make vuln-check
 
 # Ensure go.mod/go.sum are tidy
 make tidy-check
