@@ -453,6 +453,43 @@ func TestMentionHTMLFallsBackToPrefixedTextWhenIDMissing(t *testing.T) {
 	assert.Equal(t, "mention", result.Warnings[0].NodeType)
 }
 
+func TestHardBreakDoubleSpaceStyle(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Line 1"},{"type":"hardBreak"},{"type":"text","text":"Line 2"}]}]}`)
+
+	conv := newTestConverter(t, Config{
+		HardBreakStyle: HardBreakDoubleSpace,
+	})
+
+	result, err := conv.Convert(input)
+	require.NoError(t, err)
+	assert.Equal(t, "Line 1  \nLine 2\n", result.Markdown)
+}
+
+func TestHeadingDropsTrailingHardBreakForAllStyles(t *testing.T) {
+	input := []byte(`{"type":"doc","content":[{"type":"heading","attrs":{"level":1},"content":[{"type":"text","text":"Title"},{"type":"hardBreak"}]}]}`)
+
+	tests := []struct {
+		name  string
+		style HardBreakStyle
+	}{
+		{name: "backslash", style: HardBreakBackslash},
+		{name: "html", style: HardBreakHTML},
+		{name: "double_space", style: HardBreakDoubleSpace},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conv := newTestConverter(t, Config{
+				HardBreakStyle: tt.style,
+			})
+
+			result, err := conv.Convert(input)
+			require.NoError(t, err)
+			assert.Equal(t, "# Title\n", result.Markdown)
+		})
+	}
+}
+
 func TestInvalidColorValuesEmitDroppedFeatureWarning(t *testing.T) {
 	tests := []struct {
 		name     string

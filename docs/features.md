@@ -26,7 +26,7 @@ Both packages validate config at `New(...)` time and keep config immutable after
 | `heading` | `#` through `######` | `HeadingOffset` with clamping; optional HTML or Pandoc alignment. |
 | `blockquote` | `>` blockquote | Nested content supported. |
 | `rule` | `---` | Standard thematic break. |
-| `hardBreak` | `\\` + newline | `HardBreakStyle`: `backslash` or `html` (`<br>`). |
+| `hardBreak` | `\\` + newline | `HardBreakStyle`: `backslash`, `double_space` (`  ` + newline), or `html` (`<br>`). |
 | `codeBlock` | Fenced code block | Language aliasing via `LanguageMap`. |
 | `bulletList` | `- item` | Marker configurable via `BulletMarker` (`-`, `*`, `+`). |
 | `orderedList` | `1.`, `2.`, ... | `OrderedListStyle`: `incremental` or `lazy` (`1.` for every item). |
