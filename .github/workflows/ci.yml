@@ -22,6 +22,7 @@ jobs:
         with:
           go-version: ${{ matrix.go-version }}
           cache: true
+          check-latest: true
       - name: Test
         run: go test ./... -shuffle=on -count=1
 
@@ -34,6 +35,7 @@ jobs:
         with:
           go-version: '1.25.x'
           cache: true
+          check-latest: true
 
       - name: Gofmt check
         run: |
@@ -77,6 +79,7 @@ jobs:
         with:
           go-version: '1.25.x'
           cache: true
+          check-latest: true
 
       - name: Install C toolchain
         run: sudo apt-get update && sudo apt-get install --yes build-essential
