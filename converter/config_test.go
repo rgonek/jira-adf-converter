@@ -48,7 +48,7 @@ func TestValidateValid(t *testing.T) {
 		EmojiStyle:           EmojiUnicode,
 		PanelStyle:           PanelTitle,
 		HeadingOffset:        2,
-		HardBreakStyle:       HardBreakHTML,
+		HardBreakStyle:       HardBreakDoubleSpace,
 		AlignmentStyle:       AlignHTML,
 		ExpandStyle:          ExpandBlockquote,
 		StatusStyle:          StatusText,

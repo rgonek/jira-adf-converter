@@ -194,6 +194,7 @@ Reverse hooks use the same model (`mdconverter.LinkHook` / `mdconverter.MediaHoo
 | `SubSupStyle` | `html` |
 | `MentionStyle` | `link` |
 | `PanelStyle` | `github` |
+| `HardBreakStyle` | `backslash` |
 | `ExpandStyle` | `html` |
 | `LayoutSectionStyle` | `standard` |
 | `InlineCardStyle` | `link` |

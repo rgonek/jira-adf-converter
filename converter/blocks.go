@@ -81,8 +81,8 @@ func (s *state) convertHeading(node Node) (string, error) {
 	if content == "" {
 		return "", nil
 	}
-	// Edge case: if content ends with a hard break (backslash), remove it as headings don't support them at the end
-	content = strings.TrimSuffix(content, "\\")
+	// Headings cannot end with a hard-break marker.
+	content = s.trimTrailingHardBreak(content)
 
 	// Build heading
 	heading := strings.Repeat("#", level)
@@ -128,12 +128,27 @@ func (s *state) convertRule() (string, error) {
 	return "---\n\n", nil
 }
 
-// convertHardBreak converts a hard line break to markdown (backslash + newline)
+// convertHardBreak converts a hard line break to markdown.
 func (s *state) convertHardBreak() (string, error) {
-	if s.config.HardBreakStyle == HardBreakHTML {
+	switch s.config.HardBreakStyle {
+	case HardBreakHTML:
 		return "<br>", nil
+	case HardBreakDoubleSpace:
+		return "  \n", nil
+	default:
+		return "\\\n", nil
 	}
-	return "\\\n", nil
+}
+
+func (s *state) trimTrailingHardBreak(content string) string {
+	switch s.config.HardBreakStyle {
+	case HardBreakHTML:
+		return strings.TrimSuffix(content, "<br>")
+	case HardBreakDoubleSpace:
+		return strings.TrimSuffix(content, "  \n")
+	default:
+		return strings.TrimSuffix(content, "\\\n")
+	}
 }
 
 func (s *state) getNodeAlignment(node Node) string {

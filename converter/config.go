@@ -76,8 +76,9 @@ const (
 type HardBreakStyle string
 
 const (
-	HardBreakBackslash HardBreakStyle = "backslash"
-	HardBreakHTML      HardBreakStyle = "html"
+	HardBreakBackslash   HardBreakStyle = "backslash"
+	HardBreakHTML        HardBreakStyle = "html"
+	HardBreakDoubleSpace HardBreakStyle = "double_space"
 )
 
 // ExpandStyle controls how expand/collapse sections are rendered.
@@ -391,7 +392,7 @@ func (c Config) Validate() error {
 	if c.HeadingOffset < 0 || c.HeadingOffset > 5 {
 		return fmt.Errorf("headingOffset must be between 0 and 5, got %d", c.HeadingOffset)
 	}
-	if c.HardBreakStyle != HardBreakBackslash && c.HardBreakStyle != HardBreakHTML {
+	if c.HardBreakStyle != HardBreakBackslash && c.HardBreakStyle != HardBreakHTML && c.HardBreakStyle != HardBreakDoubleSpace {
 		return fmt.Errorf("invalid hardBreakStyle %q", c.HardBreakStyle)
 	}
 	if c.AlignmentStyle != AlignIgnore && c.AlignmentStyle != AlignHTML && c.AlignmentStyle != AlignPandoc {
