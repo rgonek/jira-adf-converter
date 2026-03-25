@@ -4,7 +4,7 @@ go 1.25.5
 
 require (
 	github.com/stretchr/testify v1.11.1
-	github.com/yuin/goldmark v1.7.16
+	github.com/yuin/goldmark v1.8.1
 	golang.org/x/net v0.51.0
 )
 
